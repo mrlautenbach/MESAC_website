@@ -30,11 +30,21 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (.env.example is intentionally committed as a template)
 .env*
+!.env.example
 
 # vercel
 .vercel
+
+# local embedded-postgres test database (pg-embedded-server.mjs)
+/.pgdata-devtest
+
+# personal, local-only Claude Code settings
+/.claude/settings.local.json
+
+# prisma generated client
+/src/generated/prisma
 
 # typescript
 *.tsbuildinfo

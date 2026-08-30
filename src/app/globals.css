@@ -1,26 +1,263 @@
 @import "tailwindcss";
 
+/* ══════════════════════════════════════════════════════════════════════
+   MESAC design tokens - conference blue / navy ink / sand, from the
+   record-breaker badge. Flat, architectural, zero radius, rules instead
+   of shadows. See design_handoff_mesac_league_site/README.md for the
+   full spec this implements.
+   ══════════════════════════════════════════════════════════════════════ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4e7ce; /* ground */
+  --foreground: #0c3446; /* ink */
+  --card: #ffffff; /* dashboard/form surfaces - kept white for input legibility */
+  --surface: #ead6b2; /* marketing-page surface bands */
+  --border: color-mix(in srgb, #0c3446 18%, transparent); /* soft, for form inputs */
+  --divider: color-mix(in srgb, #0c3446 40%, transparent); /* strong 2px/1px section rules */
+  --primary: #2a6a8a; /* accent */
+  --primary-dark: #215a77; /* accent hover/pressed */
+  --primary-deep: #0b2e42; /* accent-800, text on sand */
+  --primary-tint: #e4eef3; /* accent-100 */
+  --accent: #e2bd7f; /* sand */
+  --muted: color-mix(in srgb, #0c3446 55%, transparent);
+  --danger: #b3261e;
+  --success: #1f7a4d;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-divider: var(--divider);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-deep: var(--primary-deep);
+  --color-primary-tint: var(--primary-tint);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --font-sans: var(--font-archivo);
+  --font-mono: var(--font-archivo);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-radius: 0 !important;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-archivo), system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+h6 {
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Mashrabiya diamond lattice - CSS only, never a full-page field. Use
+   `.lattice-band` for the 72px header strip on a hero, `.lattice-panel`
+   for a subtler fill inside a navy/ink panel. */
+.lattice-band {
+  background-image: repeating-linear-gradient(45deg, transparent 0 22px, currentColor 22px 24px),
+    repeating-linear-gradient(-45deg, transparent 0 22px, currentColor 22px 24px);
+}
+.lattice-panel {
+  background-image: repeating-linear-gradient(45deg, transparent 0 20px, currentColor 20px 22px),
+    repeating-linear-gradient(-45deg, transparent 0 20px, currentColor 20px 22px);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tailwind v4 emits its utilities into the (higher-priority) `utilities`
+   layer. Without `@layer components` here, these plain classes would sit
+   unlayered and beat any Tailwind utility combined with them in the same
+   className (e.g. `field-input w-24` would always render at the
+   `field-input` width, silently ignoring `w-24`) regardless of order. */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.6rem 1rem;
+    font-weight: 800;
+    font-size: 0.875rem;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: var(--background);
+  }
+  .btn-primary:hover {
+    background: var(--primary-dark);
+  }
+  .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--foreground);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover {
+    background: color-mix(in srgb, var(--foreground) 7%, transparent);
+  }
+
+  .btn-danger {
+    background: var(--danger);
+    color: white;
+  }
+  .btn-danger:hover {
+    opacity: 0.9;
+  }
+
+  .btn-block {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .field-label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 0.3rem;
+  }
+
+  .field-input {
+    width: 100%;
+    border: 1px solid var(--border);
+    padding: 0.6rem 0.75rem;
+    font-size: 1rem;
+    background: white;
+    color: var(--foreground);
+  }
+  .field-input:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  /* — marketing-page primitives, matching the design handoff literally — */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.6875rem;
+    letter-spacing: 0.02em;
+    padding: 0.2rem 0.65rem;
+  }
+  .tag-accent {
+    background: var(--primary-tint);
+    color: var(--primary-deep);
+  }
+  .tag-neutral {
+    background: color-mix(in srgb, var(--foreground) 10%, transparent);
+    color: var(--foreground);
+  }
+  .tag-outline {
+    border: 1px solid var(--primary);
+    color: var(--primary);
+  }
+
+  .mtable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .mtable th {
+    text-align: left;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0.5rem;
+    border-bottom: 2px solid var(--divider);
+    font-weight: 700;
+  }
+  .mtable td {
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--divider);
+  }
+  .mtable tbody tr:hover {
+    background: color-mix(in srgb, var(--foreground) 4%, transparent);
+  }
+
+  .mnav {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 2rem;
+    border-bottom: 2px solid var(--divider);
+  }
+  .mnav a {
+    color: inherit;
+    text-decoration: none;
+    font-size: 0.875rem;
+  }
+  .mnav a:hover,
+  .mnav a[aria-current="page"] {
+    color: var(--primary);
+  }
+
+  .mhr {
+    height: 2px;
+    border: 0;
+    margin: 1rem 0;
+    background: var(--divider);
+  }
+}
+
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.ticker-track {
+  display: flex;
+  width: max-content;
+  animation: ticker-scroll 38s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
 }

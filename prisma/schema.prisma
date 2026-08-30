@@ -1,0 +1,307 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+}
+
+enum Outcome {
+  WIN
+  LOSS
+  DRAW
+}
+
+enum EventStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum ScoringType {
+  // Team score/outcome per school; standings ranked by win/draw/loss points
+  // (most team sports: volleyball, basketball, soccer, etc).
+  WIN_LOSS
+  // Team score per school AND named-individual scores; standings ranked by
+  // lowest aggregate score (golf: individual + team tournament).
+  LOW_SCORE
+  // No standings table at all - results are posted as an attached document
+  // (meets/festivals: swimming, cross country, track & field, academic
+  // games, speech & debate).
+  NONE
+}
+
+model School {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  logoUrl      String?
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+  // Short code (e.g. "ASD-DO"), city, and coordinates - used by the schools
+  // atlas locator map. All optional since they're cosmetic, not required to
+  // run results/standings.
+  code         String?
+  city         String?
+  lat          Float?
+  lon          Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users             User[]
+  participants      EventParticipant[]
+  results           Result[]
+  individualResults IndividualResult[]
+  hostedSeasons     Season[]
+  records           Record[]
+  hallOfFameEntries HallOfFameEntry[]
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  passwordHash        String
+  name                String
+  role                Role
+  schoolId            String?
+  school              School?   @relation(fields: [schoolId], references: [id])
+  isDisabled          Boolean   @default(false)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  mustChangePassword  Boolean   @default(false)
+  // Bumped on password reset / disable so existing JWT sessions are
+  // invalidated immediately instead of waiting out their expiry.
+  tokenVersion        Int       @default(0)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  photos    Photo[]
+  documents Document[]
+  auditLogs AuditLog[]
+
+  @@index([schoolId])
+}
+
+// The stable identity of a recurring tournament (e.g. "JV Volleyball") -
+// its format doesn't change year to year, only its Seasons (editions) do.
+model Tournament {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  sport       String
+  // Configurable scoring rule so standings math isn't hardcoded to one sport.
+  winPoints   Int         @default(3)
+  drawPoints  Int         @default(1)
+  lossPoints  Int         @default(0)
+  scoringType ScoringType @default(WIN_LOSS)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  divisions Division[]
+  seasons   Season[]
+}
+
+// Optional Girls/Boys sub-grouping within a tournament. Most team sports
+// have two; individual/meet sports and inherently single-gender sports
+// (baseball, softball) have none - their events just have a null
+// divisionId and the season page shows one combined schedule/standings.
+// Stable across years, like the Tournament it belongs to.
+model Division {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  name         String
+  slug         String
+  createdAt    DateTime   @default(now())
+
+  events Event[]
+
+  @@unique([tournamentId, slug])
+}
+
+// One year's edition of a Tournament - its own dates, host school, and
+// events/results. Creating a new edition for a tournament (see
+// Tournament.seasons) is how last year's edition gets archived: it's simply
+// no longer `isCurrent`, but it and everything under it (events, results,
+// photos, documents) stays exactly as it was and remains browsable at its
+// own permanent URL.
+model Season {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  name         String
+  slug         String     @unique
+  startDate    DateTime
+  endDate      DateTime
+  hostSchoolId String?
+  hostSchool   School?    @relation(fields: [hostSchoolId], references: [id])
+  isCurrent    Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  events Event[]
+
+  @@index([tournamentId])
+}
+
+model Event {
+  id         String      @id @default(cuid())
+  seasonId   String
+  season     Season      @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  divisionId String?
+  division   Division?   @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  slug       String
+  title      String?
+  date       DateTime
+  location   String?
+  status     EventStatus @default(SCHEDULED)
+  recap      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  participants      EventParticipant[]
+  results           Result[]
+  individualResults IndividualResult[]
+  photos            Photo[]
+  documents         Document[]
+
+  @@unique([seasonId, slug])
+  @@index([seasonId])
+}
+
+model EventParticipant {
+  id       String @id @default(cuid())
+  eventId  String
+  event    Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id])
+
+  @@unique([eventId, schoolId])
+  @@index([schoolId])
+}
+
+model Result {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  score     Int?
+  outcome   Outcome?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, schoolId])
+  @@index([schoolId])
+}
+
+// Named-individual score within an event, for LOW_SCORE seasons (e.g. golf).
+// A team's Result.score for the same event is entered separately -
+// individual entries don't need to sum to it.
+model IndividualResult {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id])
+  athleteName String
+  score       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([eventId])
+  @@index([schoolId])
+}
+
+// A results document (typically a PDF) attached to an event - the primary
+// way results are posted for NONE-scoring meets/festivals, and an optional
+// supplement for any other event.
+model Document {
+  id           String   @id @default(cuid())
+  eventId      String
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  url          String
+  blobPathname String
+  title        String
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([eventId])
+}
+
+model Photo {
+  id           String   @id @default(cuid())
+  eventId      String
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  url          String
+  blobPathname String
+  caption      String?
+  altText      String?
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  width        Int?
+  height       Int?
+  createdAt    DateTime @default(now())
+
+  @@index([eventId])
+}
+
+// A standing league record (e.g. swimming/track marks) - admin-entered,
+// shown on the public Records & Hall of Fame page.
+model Record {
+  id          String   @id @default(cuid())
+  sport       String
+  eventName   String
+  mark        String
+  athleteName String
+  schoolId    String?
+  school      School?  @relation(fields: [schoolId], references: [id])
+  year        Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sport])
+}
+
+// A Hall of Fame inductee - admin-entered, shown on the public Records &
+// Hall of Fame page.
+model HallOfFameEntry {
+  id           String   @id @default(cuid())
+  name         String
+  schoolId     String?
+  school       School?  @relation(fields: [schoolId], references: [id])
+  classYear    Int
+  note         String
+  photoUrl     String?
+  blobPathname String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Append-only audit trail. No update/delete path is exposed anywhere in the app.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  actorLabel String
+  action     String
+  entityType String
+  entityId   String
+  schoolId   String?
+  summary    String
+  beforeJson Json?
+  afterJson  Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
