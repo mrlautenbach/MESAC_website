@@ -2,8 +2,10 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { computeStandings, computeLowScoreTeamStandings, computeIndividualStandings } from "@/lib/standings";
+import { sideLabel } from "@/lib/eventDisplay";
 
 type Tournament = {
+  id: string;
   scoringType: "WIN_LOSS" | "LOW_SCORE" | "NONE";
   winPoints: number;
   drawPoints: number;
@@ -24,11 +26,20 @@ export async function SeasonStandingsAndSchedule({
   divisionId?: string | null;
   tournament: Tournament;
 }) {
-  const events = await prisma.event.findMany({
-    where: divisionId ? { seasonId, divisionId } : { seasonId },
-    orderBy: { date: "asc" },
-    include: { participants: { include: { school: true } }, results: true },
-  });
+  const [events, customFields] = await Promise.all([
+    prisma.event.findMany({
+      where: divisionId ? { seasonId, divisionId } : { seasonId },
+      orderBy: { date: "asc" },
+      include: {
+        participants: { include: { school: true } },
+        results: true,
+        homeSourceEvent: { select: { externalId: true } },
+        awaySourceEvent: { select: { externalId: true } },
+        fieldValues: true,
+      },
+    }),
+    prisma.tournamentField.findMany({ where: { tournamentId: tournament.id }, orderBy: { order: "asc" } }),
+  ]);
 
   // Event detail always lives at one canonical URL regardless of division -
   // an event's identity is (seasonId, slug), not tied to the division route.
@@ -53,35 +64,83 @@ export async function SeasonStandingsAndSchedule({
         {events.length === 0 ? (
           <p className="text-muted">No events scheduled yet.</p>
         ) : (
-          <ul>
-            {events.map((event) => {
-              const hasScores = event.results.some((r) => r.score !== null);
-              return (
-                <li key={event.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-divider py-3 last:border-0">
-                  <div>
-                    <Link href={eventHref(event.slug)} className="font-bold hover:text-primary">
-                      {event.participants.map((p) => p.school.name).join(" vs ")}
-                    </Link>
-                    <div className="text-sm text-muted">
-                      {format(event.date, "EEE, MMM d, yyyy · h:mm a")}
-                      {event.location ? ` · ${event.location}` : ""}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {hasScores && (
-                      <span className="text-sm font-bold tabular-nums">
-                        {event.results
-                          .filter((r) => r.score !== null)
-                          .map((r) => r.score)
-                          .join(" – ")}
-                      </span>
-                    )}
-                    <StatusTag status={event.status} />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="overflow-x-auto">
+            <table className="mtable">
+              <thead>
+                <tr>
+                  {tournament.scoringType !== "NONE" && <th>Game</th>}
+                  <th>Home</th>
+                  {tournament.scoringType !== "NONE" && <th className="text-right">Score</th>}
+                  <th>Away</th>
+                  {tournament.scoringType !== "NONE" && <th className="text-right">Score</th>}
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Court</th>
+                  {customFields.map((f) => (
+                    <th key={f.id}>{f.label}</th>
+                  ))}
+                  <th>Status</th>
+                  <th>Watch</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.map((event) => {
+                  const home = event.participants.find((p) => p.isHome);
+                  const away = event.participants.find((p) => !p.isHome);
+                  const homeResult = home && event.results.find((r) => r.schoolId === home.schoolId);
+                  const awayResult = away && event.results.find((r) => r.schoolId === away.schoolId);
+                  const valueByFieldId = new Map(event.fieldValues.map((v) => [v.fieldId, v.value]));
+                  return (
+                    <tr key={event.id}>
+                      {tournament.scoringType !== "NONE" && (
+                        <td className="text-muted">
+                          <Link href={eventHref(event.slug)} className="hover:text-primary">
+                            {event.externalId ?? "—"}
+                          </Link>
+                        </td>
+                      )}
+                      <td className="font-extrabold">
+                        <Link href={eventHref(event.slug)} className="hover:text-primary">
+                          {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
+                        </Link>
+                      </td>
+                      {tournament.scoringType !== "NONE" && (
+                        <td className="text-right tabular-nums">{homeResult?.score ?? "—"}</td>
+                      )}
+                      <td className="font-extrabold">
+                        <Link href={eventHref(event.slug)} className="hover:text-primary">
+                          {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
+                        </Link>
+                      </td>
+                      {tournament.scoringType !== "NONE" && (
+                        <td className="text-right tabular-nums">{awayResult?.score ?? "—"}</td>
+                      )}
+                      <td className="text-muted">{format(event.date, "MMM d, yyyy")}</td>
+                      <td className="text-muted tabular-nums">{format(event.date, "h:mm a")}</td>
+                      <td className="text-muted">{event.location ?? "—"}</td>
+                      {customFields.map((f) => (
+                        <td key={f.id} className="text-muted">
+                          {valueByFieldId.get(f.id) ?? "—"}
+                        </td>
+                      ))}
+                      <td>
+                        <StatusTag status={event.status} />
+                      </td>
+                      <td>
+                        {event.streamUrl && event.status === "SCHEDULED" ? (
+                          <a href={event.streamUrl} target="_blank" rel="noopener noreferrer" className="tag tag-accent">
+                            Watch live
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>

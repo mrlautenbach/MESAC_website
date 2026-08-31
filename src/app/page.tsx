@@ -3,6 +3,7 @@ import Image from "next/image";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { computeStandings } from "@/lib/standings";
+import { sideLabel } from "@/lib/eventDisplay";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,13 @@ export default async function HomePage() {
           where: { seasonId: { in: currentSeasonIds }, date: { gte: now }, status: { not: "CANCELLED" } },
           orderBy: { date: "asc" },
           take: 6,
-          include: { participants: { include: { school: true } }, season: { include: { tournament: true } }, division: true },
+          include: {
+            participants: { include: { school: true } },
+            season: { include: { tournament: true } },
+            division: true,
+            homeSourceEvent: { select: { externalId: true } },
+            awaySourceEvent: { select: { externalId: true } },
+          },
         })
       : [],
     prisma.photo.findFirst({ orderBy: { createdAt: "desc" } }),
@@ -164,7 +171,14 @@ export default async function HomePage() {
               <h6 className="text-accent opacity-90">Next up</h6>
               <div className="mt-3 text-3xl font-extrabold leading-tight tracking-tight">{nextUp.season.tournament.name}</div>
               <p className="mt-3 text-[13px] opacity-90">
-                {nextUp.participants.map((p) => p.school.name).join(" vs ")} · {format(nextUp.date, "EEE d MMM, h:mm a")}
+                {nextUp.participants.length <= 2
+                  ? `${sideLabel(nextUp.participants.find((p) => p.isHome), nextUp.homeSourceOutcome, nextUp.homeSourceEvent?.externalId)} vs ${sideLabel(
+                      nextUp.participants.find((p) => !p.isHome),
+                      nextUp.awaySourceOutcome,
+                      nextUp.awaySourceEvent?.externalId
+                    )}`
+                  : nextUp.participants.map((p) => p.school.name).join(" vs ")}{" "}
+                · {format(nextUp.date, "EEE d MMM, h:mm a")}
                 {nextUp.location ? ` · ${nextUp.location}` : ""}
               </p>
               <Link
@@ -217,7 +231,15 @@ export default async function HomePage() {
                       {e.season.tournament.sport}
                       {e.division ? ` (${e.division.name})` : ""}
                     </td>
-                    <td>{e.participants.map((p) => p.school.name).join(" v ")}</td>
+                    <td>
+                      {e.participants.length <= 2
+                        ? `${sideLabel(e.participants.find((p) => p.isHome), e.homeSourceOutcome, e.homeSourceEvent?.externalId)} v ${sideLabel(
+                            e.participants.find((p) => !p.isHome),
+                            e.awaySourceOutcome,
+                            e.awaySourceEvent?.externalId
+                          )}`
+                        : e.participants.map((p) => p.school.name).join(" v ")}
+                    </td>
                     <td className="text-right tabular-nums">{format(e.date, "d MMM, HH:mm")}</td>
                   </tr>
                 ))}
@@ -367,17 +389,29 @@ function ScoreCell({ event }: { event: ResultEvent }) {
 }
 
 type UpcomingEvent = {
-  participants: { school: { name: string } }[];
+  participants: { isHome: boolean; school: { name: string } }[];
+  homeSourceOutcome: "WINNER" | "LOSER" | null;
+  awaySourceOutcome: "WINNER" | "LOSER" | null;
+  homeSourceEvent: { externalId: string | null } | null;
+  awaySourceEvent: { externalId: string | null } | null;
   date: Date;
   location: string | null;
   season: { tournament: { name: string } };
 };
 
 function UpcomingCell({ event }: { event: UpcomingEvent }) {
+  const matchup =
+    event.participants.length <= 2
+      ? `${sideLabel(event.participants.find((p) => p.isHome), event.homeSourceOutcome, event.homeSourceEvent?.externalId)} vs ${sideLabel(
+          event.participants.find((p) => !p.isHome),
+          event.awaySourceOutcome,
+          event.awaySourceEvent?.externalId
+        )}`
+      : event.participants.map((p) => p.school.name).join(" vs ");
   return (
     <div>
       <h6 className="text-primary-dark">Upcoming · {event.season.tournament.name}</h6>
-      <div className="mt-3.5 text-lg font-extrabold">{event.participants.map((p) => p.school.name).join(" vs ")}</div>
+      <div className="mt-3.5 text-lg font-extrabold">{matchup}</div>
       <p className="mt-3.5 text-xs text-muted">
         {format(event.date, "EEE d MMM, h:mm a")}
         {event.location ? ` · ${event.location}` : ""}

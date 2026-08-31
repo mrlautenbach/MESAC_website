@@ -48,6 +48,38 @@ export const tournamentInputSchema = z.object({
   divisionNames: z.array(z.string().trim().min(1).max(40)).max(4).optional().default([]),
 });
 
+// The CSV/schedule columns every tournament already has as real Event
+// columns - a custom TournamentField can't reuse one of these keys.
+export const RESERVED_FIELD_KEYS = new Set([
+  "game_id",
+  "gender",
+  "home",
+  "home_score",
+  "away",
+  "away_score",
+  "date",
+  "time",
+  "court",
+  "status",
+  "streaming_link",
+  "title",
+]);
+
+export const tournamentFieldKeySchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(1)
+  .max(40)
+  .regex(/^[a-z][a-z0-9_]*$/, "Use lowercase letters, numbers, and underscores, starting with a letter")
+  .refine((key) => !RESERVED_FIELD_KEYS.has(key), "That key is already one of the standard schedule fields");
+
+export const tournamentFieldInputSchema = z.object({
+  tournamentId: z.string().cuid(),
+  key: tournamentFieldKeySchema,
+  label: z.string().trim().min(1).max(60),
+});
+
 // A Season is one year's edition of a Tournament - its own dates and host.
 export const seasonInputSchema = z.object({
   tournamentId: z.string().cuid(),
@@ -58,6 +90,14 @@ export const seasonInputSchema = z.object({
   hostSchoolId: z.string().cuid().optional().nullable(),
 });
 
+export const streamUrlSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((v) => v === "" || /^https?:\/\//i.test(v), "Stream link must start with http:// or https://")
+  .optional()
+  .or(z.literal(""));
+
 export const eventInputSchema = z.object({
   seasonId: z.string().cuid(),
   divisionId: z.string().cuid().optional().nullable(),
@@ -65,6 +105,7 @@ export const eventInputSchema = z.object({
   date: z.coerce.date(),
   location: z.string().trim().max(200).optional().or(z.literal("")),
   status: z.enum(["SCHEDULED", "COMPLETED", "CANCELLED"]),
+  streamUrl: streamUrlSchema,
   schoolIds: z.array(z.string().cuid()).min(1, "Select at least one school").max(12),
 });
 

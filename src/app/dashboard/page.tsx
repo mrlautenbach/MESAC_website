@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
+import { sideLabel } from "@/lib/eventDisplay";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -29,6 +30,8 @@ export default async function DashboardPage() {
       participants: { include: { school: true } },
       season: { include: { tournament: true } },
       division: true,
+      homeSourceEvent: { select: { externalId: true } },
+      awaySourceEvent: { select: { externalId: true } },
     },
   });
 
@@ -106,15 +109,27 @@ type EventRowProps = {
     status: string;
     season: { name: string; slug: string; tournament: { name: string } };
     division: { name: string } | null;
-    participants: { school: { name: string } }[];
+    participants: { isHome: boolean; school: { name: string } }[];
+    homeSourceOutcome: "WINNER" | "LOSER" | null;
+    awaySourceOutcome: "WINNER" | "LOSER" | null;
+    homeSourceEvent: { externalId: string | null } | null;
+    awaySourceEvent: { externalId: string | null } | null;
   };
 };
 
 function EventRow({ event }: EventRowProps) {
+  const matchup =
+    event.participants.length <= 2
+      ? `${sideLabel(event.participants.find((p) => p.isHome), event.homeSourceOutcome, event.homeSourceEvent?.externalId)} vs ${sideLabel(
+          event.participants.find((p) => !p.isHome),
+          event.awaySourceOutcome,
+          event.awaySourceEvent?.externalId
+        )}`
+      : event.participants.map((p) => p.school.name).join(" vs ");
   return (
     <li className="card flex flex-wrap items-center justify-between gap-3 p-4">
       <div>
-        <div className="font-semibold">{event.participants.map((p) => p.school.name).join(" vs ")}</div>
+        <div className="font-semibold">{matchup}</div>
         <div className="text-sm text-muted">
           {event.season.tournament.name}
           {event.division ? ` — ${event.division.name}` : ""} ({event.season.name}) ·{" "}

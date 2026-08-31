@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { TournamentForm } from "@/components/TournamentForm";
 import { SeasonEditionForm } from "@/components/SeasonEditionForm";
+import { TournamentFieldsManager } from "@/components/TournamentFieldsManager";
 
 const SCORING_LABELS: Record<string, string> = {
   WIN_LOSS: "win/loss standings",
@@ -23,6 +24,7 @@ export default async function TournamentsAdminPage() {
       include: {
         divisions: true,
         seasons: { orderBy: { startDate: "desc" } },
+        fields: { orderBy: { order: "asc" } },
       },
     }),
     prisma.school.findMany({ orderBy: { name: "asc" } }),
@@ -119,6 +121,15 @@ export default async function TournamentsAdminPage() {
                       lossPoints: tournament.lossPoints,
                     }}
                   />
+
+                  <details>
+                    <summary className="cursor-pointer text-xs font-semibold text-muted">
+                      Custom schedule fields ({tournament.fields.length})
+                    </summary>
+                    <div className="mt-3">
+                      <TournamentFieldsManager tournamentId={tournament.id} fields={tournament.fields} />
+                    </div>
+                  </details>
                 </div>
               </details>
             );

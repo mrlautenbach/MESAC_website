@@ -25,6 +25,11 @@ enum EventStatus {
   CANCELLED
 }
 
+enum SlotOutcome {
+  WINNER
+  LOSER
+}
+
 enum ScoringType {
   // Team score/outcome per school; standings ranked by win/draw/loss points
   // (most team sports: volleyball, basketball, soccer, etc).
@@ -107,6 +112,26 @@ model Tournament {
 
   divisions Division[]
   seasons   Season[]
+  fields    TournamentField[]
+}
+
+// An admin-defined extra column for this tournament's schedule (e.g.
+// "Referee", "Bus time") beyond the standard game fields, which are real
+// Event/Result columns and aren't managed through this table.
+model TournamentField {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  // Machine-safe key used as the CSV column header (e.g. "referee").
+  key          String
+  label        String
+  order        Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  values EventFieldValue[]
+
+  @@unique([tournamentId, key])
 }
 
 // Optional Girls/Boys sub-grouping within a tournament. Most team sports
@@ -164,25 +189,65 @@ model Event {
   location   String?
   status     EventStatus @default(SCHEDULED)
   recap      String?
+  // Link to a live video stream for this game (YouTube, Twitch, etc), set
+  // per event since only some games get streamed.
+  streamUrl  String?
+  // Admin-supplied human id from the schedule CSV (e.g. "G14") - lets a
+  // re-uploaded CSV update this same game instead of duplicating it, and is
+  // what playoff rows reference to say "winner of this game".
+  externalId String?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+
+  // A playoff slot that isn't a fixed school yet - filled in automatically
+  // once homeSourceEvent (or awaySourceEvent) is scored and its winner/loser
+  // is known. Concrete games leave these null and just have participants.
+  homeSourceEventId String?
+  homeSourceEvent   Event?       @relation("HomeSource", fields: [homeSourceEventId], references: [id], onDelete: SetNull)
+  homeSourceOutcome SlotOutcome?
+  homeDependents    Event[]      @relation("HomeSource")
+
+  awaySourceEventId String?
+  awaySourceEvent   Event?       @relation("AwaySource", fields: [awaySourceEventId], references: [id], onDelete: SetNull)
+  awaySourceOutcome SlotOutcome?
+  awayDependents    Event[]      @relation("AwaySource")
 
   participants      EventParticipant[]
   results           Result[]
   individualResults IndividualResult[]
   photos            Photo[]
   documents         Document[]
+  fieldValues       EventFieldValue[]
 
   @@unique([seasonId, slug])
+  @@unique([seasonId, externalId])
   @@index([seasonId])
 }
 
+// An admin-entered value for one of the tournament's custom schedule fields
+// on one event (e.g. this game's "Referee" = "J. Smith").
+model EventFieldValue {
+  id      String          @id @default(cuid())
+  eventId String
+  event   Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  fieldId String
+  field   TournamentField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  value   String
+
+  @@unique([eventId, fieldId])
+  @@index([fieldId])
+}
+
 model EventParticipant {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   eventId  String
-  event    Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event    Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
   schoolId String
-  school   School @relation(fields: [schoolId], references: [id])
+  school   School  @relation(fields: [schoolId], references: [id])
+  // True for the "home" side of a dual match, imported from the CSV's
+  // home/away columns. Meaningless (always false) for meets/festivals with
+  // more than two participants.
+  isHome   Boolean @default(false)
 
   @@unique([eventId, schoolId])
   @@index([schoolId])

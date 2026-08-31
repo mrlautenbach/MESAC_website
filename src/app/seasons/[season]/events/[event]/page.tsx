@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { DocumentList } from "@/components/DocumentList";
+import { sideLabel } from "@/lib/eventDisplay";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,8 @@ export default async function EventPage({
       photos: { orderBy: { createdAt: "desc" } },
       documents: { orderBy: { createdAt: "desc" } },
       division: true,
+      homeSourceEvent: { select: { externalId: true } },
+      awaySourceEvent: { select: { externalId: true } },
     },
   });
   if (!event) notFound();
@@ -33,6 +36,17 @@ export default async function EventPage({
   const user = await getCurrentUser();
   const participantSchoolIds = event.participants.map((p) => p.schoolId);
   const canEdit = user?.role === "ADMIN" || (user?.role === "EDITOR" && !!user.schoolId && participantSchoolIds.includes(user.schoolId));
+
+  const homeParticipant = event.participants.find((p) => p.isHome);
+  const awayParticipant = event.participants.find((p) => !p.isHome);
+  const matchupTitle =
+    event.participants.length === 2 || event.homeSourceEventId || event.awaySourceEventId
+      ? `${sideLabel(homeParticipant, event.homeSourceOutcome, event.homeSourceEvent?.externalId)} vs ${sideLabel(
+          awayParticipant,
+          event.awaySourceOutcome,
+          event.awaySourceEvent?.externalId
+        )}`
+      : event.participants.map((p) => p.school.name).join(" vs ");
 
   const individualByschool = new Map<string, typeof event.individualResults>();
   for (const entry of event.individualResults) {
@@ -52,18 +66,24 @@ export default async function EventPage({
           {event.division ? ` — ${event.division.name}` : ""} ({season.name})
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-2xl font-bold sm:text-3xl">
-            {event.participants.map((p) => p.school.name).join(" vs ")}
-          </h1>
-          {canEdit && (
-            <Link href={`/dashboard/events/${event.id}`} className="btn btn-primary">
-              Enter results / add photos
-            </Link>
-          )}
+          <h1 className="text-2xl font-bold sm:text-3xl">{matchupTitle}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            {event.streamUrl && (
+              <a href={event.streamUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+                Watch live
+              </a>
+            )}
+            {canEdit && (
+              <Link href={`/dashboard/events/${event.id}`} className="btn btn-primary">
+                Enter results / add photos
+              </Link>
+            )}
+          </div>
         </div>
         <p className="mt-1 text-muted">
           {format(event.date, "EEEE, MMM d, yyyy · h:mm a")}
           {event.location ? ` · ${event.location}` : ""}
+          {event.externalId ? ` · Game ${event.externalId}` : ""}
         </p>
       </div>
 

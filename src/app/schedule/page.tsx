@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { format, startOfDay } from "date-fns";
 import { ScheduleView } from "@/components/ScheduleView";
+import { sideLabel } from "@/lib/eventDisplay";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,8 @@ export default async function SchedulePage() {
       results: true,
       season: { include: { tournament: true } },
       division: true,
+      homeSourceEvent: { select: { externalId: true } },
+      awaySourceEvent: { select: { externalId: true } },
     },
   });
 
@@ -31,22 +34,22 @@ export default async function SchedulePage() {
     key,
     label: format(dayEvents[0].date, "EEE d MMM"),
     fixtures: dayEvents.map((event) => {
-      const [a, b] = event.participants;
-      const resultA = a && event.results.find((r) => r.schoolId === a.schoolId);
-      const resultB = b && event.results.find((r) => r.schoolId === b.schoolId);
-      const bothScored = resultA?.score != null && resultB?.score != null;
+      const home = event.participants.find((p) => p.isHome) ?? null;
+      const away = event.participants.find((p) => !p.isHome) ?? null;
+      const resultHome = home && event.results.find((r) => r.schoolId === home.schoolId);
+      const resultAway = away && event.results.find((r) => r.schoolId === away.schoolId);
+      const bothScored = resultHome?.score != null && resultAway?.score != null;
+      const isDual = event.participants.length <= 2;
       return {
         id: event.id,
         time: format(event.date, "HH:mm"),
         location: event.location,
-        names:
-          event.participants.length === 2
-            ? null
-            : event.participants.map((p) => p.school.name).join(" vs "),
-        home: a?.school.name ?? null,
-        away: b?.school.name ?? null,
-        score: bothScored ? `${resultA!.score}–${resultB!.score}` : null,
+        names: isDual ? null : event.participants.map((p) => p.school.name).join(" vs "),
+        home: isDual ? sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId) : null,
+        away: isDual ? sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId) : null,
+        score: bothScored ? `${resultHome!.score}–${resultAway!.score}` : null,
         status: event.status,
+        streamUrl: event.streamUrl,
         tournamentName: event.season.tournament.name,
         divisionName: event.division?.name ?? null,
         href: `/seasons/${event.season.slug}/events/${event.slug}`,

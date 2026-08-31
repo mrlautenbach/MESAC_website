@@ -82,6 +82,19 @@ export function EventForm({ seasons, schools }: Props) {
       </div>
 
       <div>
+        <label htmlFor="streamUrl" className="field-label">
+          Live stream link (optional)
+        </label>
+        <input
+          id="streamUrl"
+          name="streamUrl"
+          type="url"
+          placeholder="https://youtube.com/watch?v=..."
+          className="field-input"
+        />
+      </div>
+
+      <div>
         <p className="field-label">Participating schools</p>
         <div className="space-y-2">
           {schools.map((school) => (

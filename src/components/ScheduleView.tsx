@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type Fixture = {
@@ -12,6 +12,7 @@ type Fixture = {
   away: string | null;
   score: string | null;
   status: "SCHEDULED" | "COMPLETED" | "CANCELLED";
+  streamUrl: string | null;
   tournamentName: string;
   divisionName: string | null;
   href: string;
@@ -26,6 +27,7 @@ const STATUS_TAG: Record<string, string> = {
 };
 
 export function ScheduleView({ days }: { days: Day[] }) {
+  const router = useRouter();
   const [active, setActive] = useState(days[0]?.key);
   const day = days.find((d) => d.key === active) ?? days[0];
 
@@ -53,9 +55,14 @@ export function ScheduleView({ days }: { days: Day[] }) {
       <ul className="mt-2">
         {day?.fixtures.map((f) => (
           <li key={f.id}>
-            <Link
-              href={f.href}
-              className="grid grid-cols-[64px_1fr_auto] items-center gap-4 border-b border-divider py-4 hover:bg-surface sm:grid-cols-[80px_1fr_120px_140px]"
+            <div
+              role="link"
+              tabIndex={0}
+              onClick={() => router.push(f.href)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") router.push(f.href);
+              }}
+              className="grid cursor-pointer grid-cols-[64px_1fr_auto] items-center gap-4 border-b border-divider py-4 hover:bg-surface sm:grid-cols-[80px_1fr_120px_140px]"
             >
               <div>
                 <div className="text-lg font-extrabold tabular-nums tracking-tight">{f.time}</div>
@@ -72,14 +79,25 @@ export function ScheduleView({ days }: { days: Day[] }) {
                   </>
                 )}
               </div>
-              <div className="hidden sm:block">
+              <div className="hidden items-center gap-2 sm:flex">
+                {f.streamUrl && f.status === "SCHEDULED" && (
+                  <a
+                    href={f.streamUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tag tag-accent"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Watch live
+                  </a>
+                )}
                 <span className={`tag ${STATUS_TAG[f.status]}`}>{f.status}</span>
               </div>
               <div className="text-right text-xs text-muted">
                 {f.tournamentName}
                 {f.divisionName ? ` — ${f.divisionName}` : ""}
               </div>
-            </Link>
+            </div>
           </li>
         ))}
       </ul>

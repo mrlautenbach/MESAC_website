@@ -100,6 +100,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
           location={event.location ?? ""}
           status={event.status}
           recap={event.recap ?? ""}
+          streamUrl={event.streamUrl ?? ""}
           scoringType={event.season.tournament.scoringType}
           participants={participants}
           individualResultsBySchool={individualResultsBySchool}

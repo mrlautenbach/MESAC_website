@@ -22,6 +22,7 @@ type Props = {
   location: string;
   status: "SCHEDULED" | "COMPLETED" | "CANCELLED";
   recap: string;
+  streamUrl: string;
   scoringType: ScoringType;
   participants: ParticipantResult[];
   individualResultsBySchool: Record<string, IndividualEntry[]>;
@@ -35,6 +36,7 @@ export function EventEditForm({
   location,
   status,
   recap,
+  streamUrl,
   scoringType,
   participants,
   individualResultsBySchool,
@@ -74,6 +76,19 @@ export function EventEditForm({
             <option value="COMPLETED">Completed</option>
             <option value="CANCELLED">Cancelled</option>
           </select>
+        </div>
+        <div>
+          <label htmlFor="streamUrl" className="field-label">
+            Live stream link
+          </label>
+          <input
+            id="streamUrl"
+            name="streamUrl"
+            type="url"
+            defaultValue={streamUrl}
+            placeholder="https://youtube.com/watch?v=..."
+            className="field-input"
+          />
         </div>
       </div>
 
