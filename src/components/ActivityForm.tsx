@@ -14,13 +14,16 @@ type ExistingActivity = {
   drawPoints: number;
   lossPoints: number;
   seasonId: string;
+  defaultHostSchoolId: string | null;
 };
 
 export function ActivityForm({
   seasons,
+  schools,
   existing,
 }: {
   seasons: { id: string; name: string }[];
+  schools: { id: string; name: string }[];
   existing?: ExistingActivity;
 }) {
   const action = existing ? updateActivityAction : createActivityAction;
@@ -148,6 +151,29 @@ export function ActivityForm({
           </p>
         </div>
       )}
+
+      <div>
+        <label htmlFor="defaultHostSchoolId" className="field-label">
+          Default host school (optional)
+        </label>
+        <select
+          id="defaultHostSchoolId"
+          name="defaultHostSchoolId"
+          defaultValue={existing?.defaultHostSchoolId ?? ""}
+          className="field-input"
+        >
+          <option value="">No default</option>
+          {schools.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-muted">
+          Pre-fills the host when this activity&apos;s first tournament is created. Hosting still rotates year to
+          year — set on each tournament separately from then on.
+        </p>
+      </div>
 
       {state && !state.ok && (
         <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">

@@ -21,7 +21,12 @@ export default async function NewSeasonEditionPage({ params }: { params: Promise
         {activity.tournaments.length === 0 ? "Create first tournament" : "Start new tournament"}
       </h1>
       <p className="mb-6 text-muted">{activity.name}</p>
-      <SeasonEditionForm tournamentId={activity.id} schools={schools} isFirstEdition={activity.tournaments.length === 0} />
+      <SeasonEditionForm
+        tournamentId={activity.id}
+        schools={schools}
+        isFirstEdition={activity.tournaments.length === 0}
+        defaultHostSchoolId={activity.defaultHostSchoolId}
+      />
     </div>
   );
 }

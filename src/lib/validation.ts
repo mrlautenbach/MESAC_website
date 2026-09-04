@@ -50,7 +50,9 @@ export const scoringTypeSchema = z.enum(["WIN_LOSS", "LOW_SCORE", "NONE"]);
 // "JV Volleyball") - its format doesn't change year to year, and it always
 // runs in the same Season (Season 1/2/3).
 export const activityInputSchema = z.object({
-  seasonId: z.string().cuid(),
+  // Not .cuid() - the 3 fixed Season rows (Season 1/2/3) were seeded with
+  // literal ids ("season-1", etc.), not generated cuids.
+  seasonId: z.string().min(1),
   name: z.string().trim().min(1).max(120),
   slug: slugSchema,
   sport: z.string().trim().min(1).max(60),
@@ -61,6 +63,7 @@ export const activityInputSchema = z.object({
   // Comma-separated in the form (e.g. "Girls,Boys"); empty for an
   // ungendered/single activity (meets, festivals, baseball, softball).
   divisionNames: z.array(z.string().trim().min(1).max(40)).max(4).optional().default([]),
+  defaultHostSchoolId: z.string().cuid().optional().nullable(),
 });
 
 // The CSV/schedule columns every activity already has as real Event

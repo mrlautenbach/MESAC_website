@@ -31,6 +31,7 @@ export async function createActivityAction(
     drawPoints: formData.get("drawPoints") || 1,
     lossPoints: formData.get("lossPoints") || 0,
     divisionNames: formData.getAll("divisionNames"),
+    defaultHostSchoolId: formData.get("defaultHostSchoolId") || null,
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -52,6 +53,7 @@ export async function createActivityAction(
       winPoints: parsed.data.winPoints,
       drawPoints: parsed.data.drawPoints,
       lossPoints: parsed.data.lossPoints,
+      defaultHostSchoolId: parsed.data.defaultHostSchoolId || null,
       divisions: {
         create: parsed.data.divisionNames.map((name) => ({ name, slug: slugify(name) })),
       },
@@ -90,12 +92,16 @@ export async function updateActivityAction(
     winPoints: formData.get("winPoints") || 3,
     drawPoints: formData.get("drawPoints") || 1,
     lossPoints: formData.get("lossPoints") || 0,
+    defaultHostSchoolId: formData.get("defaultHostSchoolId") || null,
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
-  await prisma.activity.update({ where: { id: activityId }, data: parsed.data });
+  await prisma.activity.update({
+    where: { id: activityId },
+    data: { ...parsed.data, defaultHostSchoolId: parsed.data.defaultHostSchoolId || null },
+  });
 
   await recordAudit({
     actorId: admin.id,

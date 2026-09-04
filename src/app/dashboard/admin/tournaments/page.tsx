@@ -40,12 +40,11 @@ export default async function TournamentsAdminPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-10 px-4 py-8">
       <div>
-        <h1 className="mb-6 text-2xl font-bold">Create an activity</h1>
-        <ActivityForm seasons={seasons.map((s) => ({ id: s.id, name: s.name }))} />
-      </div>
-
-      <div>
-        <h2 className="mb-4 text-xl font-bold">Activities ({activityCount})</h2>
+        <h1 className="mb-4 text-2xl font-bold">Activities ({activityCount})</h1>
+        <p className="mb-6 text-sm text-muted">
+          Start or manage this year&apos;s tournament for each activity below. New activities are rare once the
+          year&apos;s roster is set up.
+        </p>
         <div className="space-y-8">
           {seasons.map((season) => (
             <div key={season.id}>
@@ -58,7 +57,8 @@ export default async function TournamentsAdminPage() {
                 if (missing.length === 0) return null;
                 return (
                   <p className="mb-4 text-sm text-muted">
-                    Not set up yet: {missing.map((e) => e.name).join(", ")}. Use the form above to create each one.
+                    Not set up yet: {missing.map((e) => e.name).join(", ")}. Use the &quot;Create an activity&quot; form
+                    below to create each one.
                   </p>
                 );
               })()}
@@ -102,24 +102,20 @@ export default async function TournamentsAdminPage() {
                           </div>
 
                           {current && (
-                            <details>
-                              <summary className="cursor-pointer text-xs font-semibold text-muted">
-                                Edit current tournament&apos;s dates/host
-                              </summary>
-                              <div className="mt-3">
-                                <SeasonEditionForm
-                                  tournamentId={activity.id}
-                                  schools={schools}
-                                  existing={{
-                                    id: current.id,
-                                    name: current.name,
-                                    startDate: format(current.startDate, "yyyy-MM-dd"),
-                                    endDate: format(current.endDate, "yyyy-MM-dd"),
-                                    hostSchoolId: current.hostSchoolId,
-                                  }}
-                                />
-                              </div>
-                            </details>
+                            <div>
+                              <p className="mb-2 text-xs font-semibold text-muted">Edit current tournament&apos;s dates/host</p>
+                              <SeasonEditionForm
+                                tournamentId={activity.id}
+                                schools={schools}
+                                existing={{
+                                  id: current.id,
+                                  name: current.name,
+                                  startDate: format(current.startDate, "yyyy-MM-dd"),
+                                  endDate: format(current.endDate, "yyyy-MM-dd"),
+                                  hostSchoolId: current.hostSchoolId,
+                                }}
+                              />
+                            </div>
                           )}
 
                           {archived.length > 0 && (
@@ -138,6 +134,7 @@ export default async function TournamentsAdminPage() {
 
                           <ActivityForm
                             seasons={seasons.map((s) => ({ id: s.id, name: s.name }))}
+                            schools={schools}
                             existing={{
                               id: activity.id,
                               name: activity.name,
@@ -147,6 +144,7 @@ export default async function TournamentsAdminPage() {
                               drawPoints: activity.drawPoints,
                               lossPoints: activity.lossPoints,
                               seasonId: activity.seasonId,
+                              defaultHostSchoolId: activity.defaultHostSchoolId,
                             }}
                           />
 
@@ -167,6 +165,14 @@ export default async function TournamentsAdminPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div>
+        <h2 className="mb-1 text-xl font-bold">Create an activity</h2>
+        <p className="mb-6 text-sm text-muted">
+          For a new sport or division not already listed above — most years won&apos;t need this.
+        </p>
+        <ActivityForm seasons={seasons.map((s) => ({ id: s.id, name: s.name }))} schools={schools} />
       </div>
     </div>
   );
