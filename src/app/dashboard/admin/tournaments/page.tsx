@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { ActivityForm } from "@/components/ActivityForm";
 import { SeasonEditionForm } from "@/components/SeasonEditionForm";
 import { ActivityFieldsManager } from "@/components/ActivityFieldsManager";
+import { EXPECTED_ROSTER } from "@/lib/expectedRoster";
 
 const SCORING_LABELS: Record<string, string> = {
   WIN_LOSS: "win/loss results",
@@ -49,6 +50,18 @@ export default async function TournamentsAdminPage() {
           {seasons.map((season) => (
             <div key={season.id}>
               <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted">{season.name}</h3>
+              {(() => {
+                const existingNames = new Set(season.activities.map((a) => a.name.trim().toLowerCase()));
+                const missing = EXPECTED_ROSTER.filter(
+                  (e) => e.seasonOrder === season.order && !existingNames.has(e.name.trim().toLowerCase())
+                );
+                if (missing.length === 0) return null;
+                return (
+                  <p className="mb-4 text-sm text-muted">
+                    Not set up yet: {missing.map((e) => e.name).join(", ")}. Use the form above to create each one.
+                  </p>
+                );
+              })()}
               <div className="space-y-6">
                 {season.activities.length === 0 ? (
                   <p className="text-sm text-muted">No activities in this season yet.</p>

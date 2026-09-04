@@ -124,7 +124,11 @@ export default async function HomePage() {
 
         <div className="relative mx-auto mt-10 grid max-w-6xl grid-cols-3 gap-3 border-t border-white/15 pt-6 sm:grid-cols-6">
           {schools.map((school) => (
-            <div key={school.id} className="flex h-14 items-center justify-center border border-white/20 bg-white/5">
+            <div
+              key={school.id}
+              className="flex h-14 items-center justify-center border border-white/20 bg-white/5 border-b-[3px]"
+              style={school.themeColor ? { borderBottomColor: school.themeColor } : undefined}
+            >
               {school.logoUrl ? (
                 <Image src={school.logoUrl} alt={school.name} width={88} height={40} className="max-h-9 w-auto object-contain" />
               ) : (

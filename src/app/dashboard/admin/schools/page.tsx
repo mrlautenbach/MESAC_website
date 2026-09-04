@@ -41,6 +41,9 @@ export default async function SchoolsAdminPage() {
                     city: school.city,
                     lat: school.lat,
                     lon: school.lon,
+                    themeColor: school.themeColor,
+                    themeColorSecondary: school.themeColorSecondary,
+                    teamCount: school.teamCount,
                   }}
                 />
               </div>

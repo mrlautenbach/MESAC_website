@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { SchoolColorDot } from "@/components/SchoolColorDot";
 
 type Fixture = {
   id: string;
@@ -10,6 +11,10 @@ type Fixture = {
   names: string | null;
   home: string | null;
   away: string | null;
+  homeColor?: string | null;
+  homeSecondaryColor?: string | null;
+  awayColor?: string | null;
+  awaySecondaryColor?: string | null;
   score: string | null;
   status: "SCHEDULED" | "COMPLETED" | "CANCELLED";
   streamUrl: string | null;
@@ -129,9 +134,15 @@ export function ScheduleView({ days }: { days: Day[] }) {
                     <span className="font-extrabold">{f.names}</span>
                   ) : (
                     <>
-                      <span className="font-extrabold">{f.home}</span>
+                      <span className="inline-flex items-center gap-1.5 font-extrabold">
+                        <SchoolColorDot color={f.homeColor} secondaryColor={f.homeSecondaryColor} />
+                        {f.home}
+                      </span>
                       {f.score && <span className="text-2xl font-extrabold tabular-nums tracking-tight text-primary">{f.score}</span>}
-                      <span className="font-extrabold">{f.away}</span>
+                      <span className="inline-flex items-center gap-1.5 font-extrabold">
+                        <SchoolColorDot color={f.awayColor} secondaryColor={f.awaySecondaryColor} />
+                        {f.away}
+                      </span>
                     </>
                   )}
                 </div>

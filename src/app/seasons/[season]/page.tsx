@@ -26,7 +26,7 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
         startDate={tournament.startDate}
         endDate={tournament.endDate}
         hostSchoolName={tournament.hostSchool?.name}
-        scoringType={tournament.activity.scoringType}
+        hostSchoolLogoUrl={tournament.hostSchool?.logoUrl}
         isCurrent={tournament.isCurrent}
       />
 

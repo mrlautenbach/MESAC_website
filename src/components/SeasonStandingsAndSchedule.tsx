@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { computeStandings, computeLowScoreTeamStandings, computeIndividualStandings } from "@/lib/standings";
 import { sideLabel } from "@/lib/eventDisplay";
+import { SchoolColorDot } from "@/components/SchoolColorDot";
 
 type Activity = {
   id: string;
@@ -26,7 +27,7 @@ export async function SeasonStandingsAndSchedule({
   divisionId?: string | null;
   activity: Activity;
 }) {
-  const [events, customFields] = await Promise.all([
+  const [events, customFields, schools] = await Promise.all([
     prisma.event.findMany({
       where: divisionId ? { tournamentId, divisionId } : { tournamentId },
       orderBy: { date: "asc" },
@@ -39,7 +40,11 @@ export async function SeasonStandingsAndSchedule({
       },
     }),
     prisma.activityField.findMany({ where: { activityId: activity.id }, orderBy: { order: "asc" } }),
+    prisma.school.findMany({ select: { id: true, themeColor: true, themeColorSecondary: true } }),
   ]);
+  const colorBySchoolId = new Map(
+    schools.map((s) => [s.id, { color: s.themeColor, secondaryColor: s.themeColorSecondary }])
+  );
 
   // Event detail always lives at one canonical URL regardless of division -
   // an event's identity is (tournamentId, slug), not tied to the division route.
@@ -48,9 +53,11 @@ export async function SeasonStandingsAndSchedule({
   return (
     <div className="space-y-10">
       {activity.scoringType === "WIN_LOSS" && (
-        <WinLossStandings tournamentId={tournamentId} divisionId={divisionId} activity={activity} />
+        <WinLossStandings tournamentId={tournamentId} divisionId={divisionId} activity={activity} colorBySchoolId={colorBySchoolId} />
       )}
-      {activity.scoringType === "LOW_SCORE" && <LowScoreStandings tournamentId={tournamentId} divisionId={divisionId} />}
+      {activity.scoringType === "LOW_SCORE" && (
+        <LowScoreStandings tournamentId={tournamentId} divisionId={divisionId} colorBySchoolId={colorBySchoolId} />
+      )}
       {activity.scoringType === "NONE" && (
         <p className="text-sm text-muted">
           This activity doesn&apos;t use a results table — check each event below for results.
@@ -100,7 +107,8 @@ export async function SeasonStandingsAndSchedule({
                         </td>
                       )}
                       <td className="font-extrabold">
-                        <Link href={eventHref(event.slug)} className="hover:text-primary">
+                        <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 hover:text-primary">
+                          <SchoolColorDot color={home?.school.themeColor} secondaryColor={home?.school.themeColorSecondary} />
                           {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
                         </Link>
                       </td>
@@ -108,7 +116,8 @@ export async function SeasonStandingsAndSchedule({
                         <td className="text-right tabular-nums">{homeResult?.score ?? "—"}</td>
                       )}
                       <td className="font-extrabold">
-                        <Link href={eventHref(event.slug)} className="hover:text-primary">
+                        <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 hover:text-primary">
+                          <SchoolColorDot color={away?.school.themeColor} secondaryColor={away?.school.themeColorSecondary} />
                           {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
                         </Link>
                       </td>
@@ -151,10 +160,12 @@ async function WinLossStandings({
   tournamentId,
   divisionId,
   activity,
+  colorBySchoolId,
 }: {
   tournamentId: string;
   divisionId?: string | null;
   activity: Activity;
+  colorBySchoolId: Map<string, { color: string | null; secondaryColor: string | null }>;
 }) {
   const standings = await computeStandings(tournamentId, divisionId);
   return (
@@ -184,7 +195,11 @@ async function WinLossStandings({
                 <tr key={row.schoolId}>
                   <td className="text-[17px] font-extrabold text-primary-deep">{i + 1}</td>
                   <td className="font-extrabold">
-                    {row.schoolName} {row.draws > 0 && <span className="font-normal text-muted">· {row.draws} drawn</span>}
+                    <span className="inline-flex items-center gap-1.5">
+                      <SchoolColorDot color={colorBySchoolId.get(row.schoolId)?.color} secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor} />
+                      {row.schoolName}
+                    </span>{" "}
+                    {row.draws > 0 && <span className="font-normal text-muted">· {row.draws} drawn</span>}
                   </td>
                   <td className="text-right tabular-nums">{row.played}</td>
                   <td className="text-right tabular-nums">{row.wins}</td>
@@ -210,7 +225,15 @@ async function WinLossStandings({
   );
 }
 
-async function LowScoreStandings({ tournamentId, divisionId }: { tournamentId: string; divisionId?: string | null }) {
+async function LowScoreStandings({
+  tournamentId,
+  divisionId,
+  colorBySchoolId,
+}: {
+  tournamentId: string;
+  divisionId?: string | null;
+  colorBySchoolId: Map<string, { color: string | null; secondaryColor: string | null }>;
+}) {
   const [teams, individuals] = await Promise.all([
     computeLowScoreTeamStandings(tournamentId, divisionId),
     computeIndividualStandings(tournamentId, divisionId),
@@ -235,7 +258,12 @@ async function LowScoreStandings({ tournamentId, divisionId }: { tournamentId: s
               <tbody>
                 {teams.map((row) => (
                   <tr key={row.schoolId}>
-                    <td className="font-extrabold">{row.schoolName}</td>
+                    <td className="font-extrabold">
+                      <span className="inline-flex items-center gap-1.5">
+                        <SchoolColorDot color={colorBySchoolId.get(row.schoolId)?.color} secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor} />
+                        {row.schoolName}
+                      </span>
+                    </td>
                     <td className="text-right tabular-nums">{row.played}</td>
                     <td className="text-right text-[17px] font-extrabold tabular-nums">{row.avgScore.toFixed(1)}</td>
                   </tr>
@@ -265,7 +293,12 @@ async function LowScoreStandings({ tournamentId, divisionId }: { tournamentId: s
                 {individuals.slice(0, 15).map((row) => (
                   <tr key={`${row.schoolId}-${row.athleteName}`}>
                     <td className="font-extrabold">{row.athleteName}</td>
-                    <td className="text-muted">{row.schoolName}</td>
+                    <td className="text-muted">
+                      <span className="inline-flex items-center gap-1.5">
+                        <SchoolColorDot color={colorBySchoolId.get(row.schoolId)?.color} secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor} />
+                        {row.schoolName}
+                      </span>
+                    </td>
                     <td className="text-right text-[17px] font-extrabold tabular-nums">{row.avgScore.toFixed(1)}</td>
                   </tr>
                 ))}

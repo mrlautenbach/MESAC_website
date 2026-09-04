@@ -1,11 +1,6 @@
 import Link from "next/link";
+import Image from "next/image";
 import { format } from "date-fns";
-
-const SCORING_LABEL: Record<string, string> = {
-  WIN_LOSS: "Win / loss results",
-  LOW_SCORE: "Team + individual, lowest wins",
-  NONE: "No results table",
-};
 
 export function SeasonHero({
   activityName,
@@ -16,7 +11,7 @@ export function SeasonHero({
   startDate,
   endDate,
   hostSchoolName,
-  scoringType,
+  hostSchoolLogoUrl,
   isCurrent,
 }: {
   activityName: string;
@@ -27,7 +22,7 @@ export function SeasonHero({
   startDate: Date;
   endDate: Date;
   hostSchoolName?: string | null;
-  scoringType: string;
+  hostSchoolLogoUrl?: string | null;
   isCurrent: boolean;
 }) {
   return (
@@ -48,22 +43,33 @@ export function SeasonHero({
             </div>
           </div>
           <div className="grid border border-accent/40 text-sm">
-            <div className="border-b border-accent/40 px-4 py-3">
+            <div className={`px-4 py-3 ${hostSchoolName ? "border-b border-accent/40" : ""}`}>
               <div className="text-[10px] tracking-[0.12em] opacity-70">DATES</div>
               <div className="text-[17px] font-extrabold">
                 {format(startDate, "d MMM")} – {format(endDate, "d MMM yyyy")}
               </div>
             </div>
             {hostSchoolName && (
-              <div className="border-b border-accent/40 px-4 py-3">
-                <div className="text-[10px] tracking-[0.12em] opacity-70">HOST</div>
-                <div className="text-[17px] font-extrabold">{hostSchoolName}</div>
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden border border-accent/30 bg-white/10">
+                  {hostSchoolLogoUrl ? (
+                    <Image
+                      src={hostSchoolLogoUrl}
+                      alt={hostSchoolName}
+                      width={44}
+                      height={44}
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-xs font-bold tracking-wide">{hostSchoolName.slice(0, 3).toUpperCase()}</span>
+                  )}
+                </div>
+                <div>
+                  <div className="text-[10px] tracking-[0.12em] opacity-70">HOST</div>
+                  <div className="text-[17px] font-extrabold">{hostSchoolName}</div>
+                </div>
               </div>
             )}
-            <div className="px-4 py-3">
-              <div className="text-[10px] tracking-[0.12em] opacity-70">FORMAT</div>
-              <div className="text-[17px] font-extrabold">{SCORING_LABEL[scoringType] ?? scoringType}</div>
-            </div>
           </div>
         </div>
       </div>

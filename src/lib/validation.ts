@@ -29,6 +29,19 @@ export const schoolInputSchema = z.object({
   city: z.string().trim().max(80).optional().or(z.literal("")),
   lat: z.union([z.coerce.number().min(-90).max(90), z.literal("")]).optional(),
   lon: z.union([z.coerce.number().min(-180).max(180), z.literal("")]).optional(),
+  themeColor: z
+    .string()
+    .trim()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Use a hex color like #2A6A8A")
+    .optional()
+    .or(z.literal("")),
+  themeColorSecondary: z
+    .string()
+    .trim()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Use a hex color like #2A6A8A")
+    .optional()
+    .or(z.literal("")),
+  teamCount: z.coerce.number().int().min(0).max(999),
 });
 
 export const scoringTypeSchema = z.enum(["WIN_LOSS", "LOW_SCORE", "NONE"]);

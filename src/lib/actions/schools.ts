@@ -17,12 +17,22 @@ function slugify(name: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-function geoFields(data: { code?: string; city?: string; lat?: number | ""; lon?: number | "" }) {
+function geoFields(data: {
+  code?: string;
+  city?: string;
+  lat?: number | "";
+  lon?: number | "";
+  themeColor?: string;
+  themeColorSecondary?: string;
+}) {
   return {
     code: data.code || null,
     city: data.city || null,
     lat: data.lat === "" || data.lat === undefined ? null : data.lat,
     lon: data.lon === "" || data.lon === undefined ? null : data.lon,
+    themeColor: data.themeColor || null,
+    // A secondary color only means anything alongside a primary one.
+    themeColorSecondary: data.themeColor ? data.themeColorSecondary || null : null,
   };
 }
 
@@ -37,6 +47,9 @@ export async function createSchoolAction(_prevState: ActionResult | null, formDa
     city: formData.get("city") ?? "",
     lat: formData.get("lat") || "",
     lon: formData.get("lon") || "",
+    themeColor: formData.get("themeColor") || "",
+    themeColorSecondary: formData.get("themeColorSecondary") || "",
+    teamCount: formData.get("teamCount") || 0,
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -70,6 +83,7 @@ export async function createSchoolAction(_prevState: ActionResult | null, formDa
       contactName: parsed.data.contactName || null,
       contactEmail: parsed.data.contactEmail || null,
       contactPhone: parsed.data.contactPhone || null,
+      teamCount: parsed.data.teamCount,
       ...geoFields(parsed.data),
     },
   });
@@ -104,6 +118,9 @@ export async function updateSchoolAction(_prevState: ActionResult | null, formDa
     city: formData.get("city") ?? "",
     lat: formData.get("lat") || "",
     lon: formData.get("lon") || "",
+    themeColor: formData.get("themeColor") || "",
+    themeColorSecondary: formData.get("themeColorSecondary") || "",
+    teamCount: formData.get("teamCount") || 0,
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -129,6 +146,7 @@ export async function updateSchoolAction(_prevState: ActionResult | null, formDa
       contactName: parsed.data.contactName || null,
       contactEmail: parsed.data.contactEmail || null,
       contactPhone: parsed.data.contactPhone || null,
+      teamCount: parsed.data.teamCount,
       ...geoFields(parsed.data),
     },
   });

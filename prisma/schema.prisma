@@ -58,6 +58,16 @@ model School {
   city         String?
   lat          Float?
   lon          Float?
+  // Hex colors (e.g. "#2A6A8A") shown next to this school's name wherever it
+  // appears in lists (standings, schedule, schools directory) - purely
+  // cosmetic branding, optional. Secondary only ever renders alongside a
+  // primary; a school can't set secondary alone.
+  themeColor          String?
+  themeColorSecondary String?
+  // Admin-entered count shown on the public schools page - not derived from
+  // actual event participation, since a school's roster for the year is
+  // known well before any games are scheduled.
+  teamCount           Int     @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

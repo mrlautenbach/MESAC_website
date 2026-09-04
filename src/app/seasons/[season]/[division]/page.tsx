@@ -31,7 +31,7 @@ export default async function DivisionPage({
         startDate={tournament.startDate}
         endDate={tournament.endDate}
         hostSchoolName={tournament.hostSchool?.name}
-        scoringType={tournament.activity.scoringType}
+        hostSchoolLogoUrl={tournament.hostSchool?.logoUrl}
         isCurrent={tournament.isCurrent}
       />
 
