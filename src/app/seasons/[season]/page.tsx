@@ -37,21 +37,26 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
       />
 
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        {!hasDivisions && (
-          <div className="mb-8 flex flex-wrap gap-3">
-            <a href="#schedule" className="btn btn-secondary">
-              Schedule
-            </a>
-            <a href="#results" className="btn btn-secondary">
-              Results
-            </a>
-            {nextLiveEvent?.streamUrl && (
-              <a href={nextLiveEvent.streamUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
-                Watch live &rarr;
+        <div className="mb-8 flex flex-wrap gap-3">
+          {!hasDivisions && (
+            <>
+              <a href="#schedule" className="btn btn-secondary">
+                Schedule
               </a>
-            )}
-          </div>
-        )}
+              <a href="#results" className="btn btn-secondary">
+                Results
+              </a>
+            </>
+          )}
+          <Link href={`/seasons/${tournament.slug}/team-photos`} className="btn btn-secondary">
+            Team photos
+          </Link>
+          {nextLiveEvent?.streamUrl && (
+            <a href={nextLiveEvent.streamUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+              Watch live &rarr;
+            </a>
+          )}
+        </div>
 
         {hasDivisions ? (
           <section>

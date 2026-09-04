@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SeasonStandingsAndSchedule } from "@/components/SeasonStandingsAndSchedule";
@@ -48,6 +49,9 @@ export default async function DivisionPage({
           <a href="#results" className="btn btn-secondary">
             Results
           </a>
+          <Link href={`/seasons/${tournament.slug}/team-photos`} className="btn btn-secondary">
+            Team photos
+          </Link>
           {nextLiveEvent?.streamUrl && (
             <a href={nextLiveEvent.streamUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
               Watch live &rarr;

@@ -51,8 +51,8 @@ export function SeasonHero({
             </div>
             {hostSchoolName && (
               <div className="flex items-center gap-3 px-4 py-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden border border-accent/30 bg-white/10">
-                  {hostSchoolLogoUrl ? (
+                {hostSchoolLogoUrl && (
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden border border-accent/30 bg-white/10">
                     <Image
                       src={hostSchoolLogoUrl}
                       alt={hostSchoolName}
@@ -60,10 +60,8 @@ export function SeasonHero({
                       height={44}
                       className="h-full w-full object-contain"
                     />
-                  ) : (
-                    <span className="text-xs font-bold tracking-wide">{hostSchoolName.slice(0, 3).toUpperCase()}</span>
-                  )}
-                </div>
+                  </div>
+                )}
                 <div>
                   <div className="text-[10px] tracking-[0.12em] opacity-70">HOST</div>
                   <div className="text-[17px] font-extrabold">{hostSchoolName}</div>

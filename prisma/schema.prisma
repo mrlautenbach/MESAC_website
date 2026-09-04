@@ -79,6 +79,7 @@ model School {
   records           Record[]
   hallOfFameEntries HallOfFameEntry[]
   defaultHostForActivities Activity[] @relation("ActivityDefaultHost")
+  teamPhotos               TeamPhoto[]
 }
 
 model User {
@@ -189,7 +190,8 @@ model Division {
   slug       String
   createdAt  DateTime @default(now())
 
-  events Event[]
+  events     Event[]
+  teamPhotos TeamPhoto[]
 
   @@unique([activityId, slug])
 }
@@ -211,12 +213,43 @@ model Tournament {
   hostSchoolId String?
   hostSchool   School?  @relation(fields: [hostSchoolId], references: [id])
   isCurrent    Boolean  @default(true)
+  // For a gendered activity's team photo page - when one is off, that
+  // division's slots don't get their own section; schools show the other
+  // division's photo instead. When both are off, every school's tile is
+  // just its name, with no photo attempted. No effect on an ungendered
+  // activity (no divisions), which always shows one slot per school.
+  showGirlsTeamPhotos Boolean  @default(true)
+  showBoysTeamPhotos  Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  events Event[]
+  events     Event[]
+  teamPhotos TeamPhoto[]
 
   @@index([activityId])
+}
+
+// One slot per (school, division) for a tournament's team photo page - one
+// school fields at most one Girls team and one Boys team, so the slot grid
+// is schools x divisions (6 schools x 2 divisions = 12 for a typical
+// gendered activity; just 6 for an ungendered one). A slot exists in the
+// database only once an admin uploads a photo or explicitly disables it -
+// otherwise it's treated as enabled with no photo yet.
+model TeamPhoto {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  schoolId     String
+  school       School     @relation(fields: [schoolId], references: [id])
+  divisionId   String?
+  division     Division?  @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  enabled      Boolean    @default(true)
+  photoUrl     String?
+  blobPathname String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([tournamentId, schoolId, divisionId])
 }
 
 model Event {

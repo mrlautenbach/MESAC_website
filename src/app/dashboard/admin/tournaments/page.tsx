@@ -99,6 +99,14 @@ export default async function TournamentsAdminPage() {
                                 View public page →
                               </Link>
                             )}
+                            {current && (
+                              <Link
+                                href={`/dashboard/admin/tournament-photos/${current.id}`}
+                                className="text-xs font-semibold text-primary hover:underline"
+                              >
+                                Manage team photos →
+                              </Link>
+                            )}
                           </div>
 
                           {current && (
