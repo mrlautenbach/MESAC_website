@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
-import { recordInputSchema, hallOfFameInputSchema } from "@/lib/validation";
+import { recordInputSchema, hallOfFameInputSchema, schoolYearResultsUrlSchema } from "@/lib/validation";
 import { processAndStorePhoto, PhotoValidationError } from "@/lib/photo-upload";
 import type { ActionResult } from "@/lib/actions/auth";
 
@@ -121,6 +121,36 @@ export async function deleteHallOfFameAction(entryId: string): Promise<ActionRes
     entityId: entryId,
     summary: `${admin.name} removed ${entry.name} from the Hall of Fame`,
     before: { name: entry.name },
+  });
+
+  revalidatePath("/records");
+  revalidatePath("/dashboard/admin/records");
+  return { ok: true };
+}
+
+export async function updateSchoolYearResultsAction(
+  _prevState: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const existing = await prisma.schoolYearArchive.findUnique({ where: { id } });
+  if (!existing) return { ok: false, error: "School year not found." };
+
+  const parsed = schoolYearResultsUrlSchema.safeParse(formData.get("resultsUrl") ?? "");
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid link." };
+
+  await prisma.schoolYearArchive.update({ where: { id }, data: { resultsUrl: parsed.data || null } });
+
+  await recordAudit({
+    actorId: admin.id,
+    actorLabel: admin.name,
+    action: "SCHOOL_YEAR_RESULTS_UPDATE",
+    entityType: "SchoolYearArchive",
+    entityId: id,
+    summary: `${admin.name} updated the results link for ${existing.startYear}-${existing.startYear + 1}`,
+    before: { resultsUrl: existing.resultsUrl },
+    after: { resultsUrl: parsed.data || null },
   });
 
   revalidatePath("/records");

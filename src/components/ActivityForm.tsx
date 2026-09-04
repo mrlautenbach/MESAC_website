@@ -15,6 +15,11 @@ type ExistingActivity = {
   lossPoints: number;
   seasonId: string;
   defaultHostSchoolId: string | null;
+  showWins: boolean;
+  showLosses: boolean;
+  showPointsFor: boolean;
+  showPointsAgainst: boolean;
+  showPlayed: boolean;
 };
 
 export function ActivityForm({
@@ -129,6 +134,35 @@ export function ActivityForm({
               />
             </label>
           </div>
+        </div>
+      )}
+
+      {scoringType === "WIN_LOSS" && (
+        <div>
+          <p className="field-label">Results table columns</p>
+          <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="showWins" defaultChecked={existing?.showWins ?? true} />
+              Wins
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="showLosses" defaultChecked={existing?.showLosses ?? true} />
+              Losses
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="showPointsFor" defaultChecked={existing?.showPointsFor ?? true} />
+              Points For
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="showPointsAgainst" defaultChecked={existing?.showPointsAgainst ?? true} />
+              Points Against
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="showPlayed" defaultChecked={existing?.showPlayed ?? true} />
+              Games Played
+            </label>
+          </div>
+          <p className="mt-1 text-xs text-muted">Team Name is always shown. Turn off any of these to simplify the table.</p>
         </div>
       )}
 

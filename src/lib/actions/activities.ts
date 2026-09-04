@@ -32,6 +32,11 @@ export async function createActivityAction(
     lossPoints: formData.get("lossPoints") || 0,
     divisionNames: formData.getAll("divisionNames"),
     defaultHostSchoolId: formData.get("defaultHostSchoolId") || null,
+    showWins: formData.get("showWins") === "on",
+    showLosses: formData.get("showLosses") === "on",
+    showPointsFor: formData.get("showPointsFor") === "on",
+    showPointsAgainst: formData.get("showPointsAgainst") === "on",
+    showPlayed: formData.get("showPlayed") === "on",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -54,6 +59,11 @@ export async function createActivityAction(
       drawPoints: parsed.data.drawPoints,
       lossPoints: parsed.data.lossPoints,
       defaultHostSchoolId: parsed.data.defaultHostSchoolId || null,
+      showWins: parsed.data.showWins,
+      showLosses: parsed.data.showLosses,
+      showPointsFor: parsed.data.showPointsFor,
+      showPointsAgainst: parsed.data.showPointsAgainst,
+      showPlayed: parsed.data.showPlayed,
       divisions: {
         create: parsed.data.divisionNames.map((name) => ({ name, slug: slugify(name) })),
       },
@@ -93,6 +103,11 @@ export async function updateActivityAction(
     drawPoints: formData.get("drawPoints") || 1,
     lossPoints: formData.get("lossPoints") || 0,
     defaultHostSchoolId: formData.get("defaultHostSchoolId") || null,
+    showWins: formData.get("showWins") === "on",
+    showLosses: formData.get("showLosses") === "on",
+    showPointsFor: formData.get("showPointsFor") === "on",
+    showPointsAgainst: formData.get("showPointsAgainst") === "on",
+    showPlayed: formData.get("showPlayed") === "on",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };

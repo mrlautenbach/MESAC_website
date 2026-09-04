@@ -1,12 +1,12 @@
-import Image from "next/image";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function RecordsPage() {
-  const [records, hofEntries] = await Promise.all([
+  const [records, schoolYears] = await Promise.all([
     prisma.record.findMany({ orderBy: [{ sport: "asc" }, { eventName: "asc" }], include: { school: true } }),
-    prisma.hallOfFameEntry.findMany({ orderBy: { classYear: "desc" }, include: { school: true } }),
+    prisma.schoolYearArchive.findMany({ orderBy: { startYear: "desc" } }),
   ]);
 
   const longestStanding = records.length > 0 ? records.reduce((a, b) => (a.year < b.year ? a : b)) : null;
@@ -17,7 +17,7 @@ export default async function RecordsPage() {
       <div className="grid gap-0 border-b-2 border-divider sm:grid-cols-2">
         <div className="p-8 sm:border-r-2 sm:border-divider">
           <h6 className="text-primary-dark">{earliestYear ? `Since ${earliestYear}` : "League records"}</h6>
-          <h1 className="mt-3 text-4xl sm:text-5xl">History &amp; Hall of Fame</h1>
+          <h1 className="mt-3 text-4xl sm:text-5xl">History</h1>
           <p className="mt-3 text-muted">
             Marks stand until a MESAC championship beats them. Every entry is verified by the host school&apos;s
             meet officials.
@@ -78,29 +78,18 @@ export default async function RecordsPage() {
 
       <div className="border-t-2 border-divider">
         <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-          <h4 className="mb-4">Hall of Fame</h4>
-          {hofEntries.length === 0 ? (
-            <p className="text-muted">No inductees yet.</p>
-          ) : (
-            <div className="grid gap-5 sm:grid-cols-3">
-              {hofEntries.map((h) => (
-                <div key={h.id} className="border border-divider">
-                  <div className="relative flex h-[150px] items-center justify-center bg-foreground/10 text-center">
-                    {h.photoUrl ? (
-                      <Image src={h.photoUrl} alt={h.name} fill className="object-cover grayscale contrast-[1.08]" />
-                    ) : (
-                      <span className="px-4 text-[11px] tracking-[0.1em] text-muted">PORTRAIT</span>
-                    )}
-                  </div>
-                  <div className="border-t border-divider p-4">
-                    <div className="text-[10px] tracking-[0.12em] text-primary-dark">CLASS OF {h.classYear}</div>
-                    <div className="mt-1.5 text-lg font-extrabold">{h.name}</div>
-                    <p className="mt-1.5 text-sm text-muted">{h.note}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <h4 className="mb-1">Previous years&apos; results</h4>
+          <p className="mb-4 text-sm text-muted">Full results archive by school year.</p>
+          <ul className="grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-4">
+            {schoolYears.map((y) => (
+              <li key={y.id}>
+                <Link href={`/records/${y.startYear}-${y.startYear + 1}`} className="block py-1.5 hover:text-primary">
+                  {y.startYear}-{y.startYear + 1}
+                  {!y.resultsUrl && <span className="ml-1.5 text-xs text-muted">(not added)</span>}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>

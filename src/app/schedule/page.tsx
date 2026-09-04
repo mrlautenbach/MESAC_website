@@ -1,77 +1,182 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { format, startOfDay } from "date-fns";
-import { ScheduleView } from "@/components/ScheduleView";
 import { sideLabel } from "@/lib/eventDisplay";
+import { SchoolColorDot } from "@/components/SchoolColorDot";
+import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
+import { EXPECTED_ROSTER } from "@/lib/expectedRoster";
 
 export const dynamic = "force-dynamic";
 
+const PREVIEW_COUNT = 3;
+
+function loadSeasons() {
+  return prisma.season.findMany({
+    orderBy: [{ order: "asc" }],
+    include: {
+      activities: {
+        orderBy: [{ name: "asc" }],
+        include: { tournaments: { where: { isCurrent: true }, take: 1 } },
+      },
+    },
+  });
+}
+
+type SeasonWithActivities = Awaited<ReturnType<typeof loadSeasons>>[number];
+type ActivityRow = SeasonWithActivities["activities"][number];
+
 export default async function SchedulePage() {
   const today = startOfDay(new Date());
+  const seasons = await loadSeasons();
 
-  const events = await prisma.event.findMany({
-    where: { date: { gte: today }, status: { not: "CANCELLED" } },
+  const currentTournamentIds = seasons.flatMap((s) => s.activities.flatMap((a) => a.tournaments.map((t) => t.id)));
+
+  const upcoming = await prisma.event.findMany({
+    where: { tournamentId: { in: currentTournamentIds }, date: { gte: today }, status: { not: "CANCELLED" } },
     orderBy: { date: "asc" },
-    take: 60,
     include: {
       participants: { include: { school: true } },
-      results: true,
-      tournament: { include: { activity: true } },
       division: true,
       homeSourceEvent: { select: { externalId: true } },
       awaySourceEvent: { select: { externalId: true } },
     },
   });
 
-  const dayMap = new Map<string, typeof events>();
-  for (const event of events) {
-    const key = format(event.date, "yyyy-MM-dd");
-    const list = dayMap.get(key) ?? [];
+  const eventsByTournamentId = new Map<string, typeof upcoming>();
+  for (const event of upcoming) {
+    const list = eventsByTournamentId.get(event.tournamentId) ?? [];
     list.push(event);
-    dayMap.set(key, list);
+    eventsByTournamentId.set(event.tournamentId, list);
   }
-
-  const days = Array.from(dayMap.entries()).map(([key, dayEvents]) => ({
-    key,
-    label: format(dayEvents[0].date, "EEE d MMM"),
-    fixtures: dayEvents.map((event) => {
-      const home = event.participants.find((p) => p.isHome) ?? null;
-      const away = event.participants.find((p) => !p.isHome) ?? null;
-      const resultHome = home && event.results.find((r) => r.schoolId === home.schoolId);
-      const resultAway = away && event.results.find((r) => r.schoolId === away.schoolId);
-      const bothScored = resultHome?.score != null && resultAway?.score != null;
-      const isDual = event.participants.length <= 2;
-      return {
-        id: event.id,
-        time: format(event.date, "HH:mm"),
-        location: event.location,
-        names: isDual ? null : event.participants.map((p) => p.school.name).join(" vs "),
-        home: isDual ? sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId) : null,
-        away: isDual ? sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId) : null,
-        homeColor: home?.school.themeColor ?? null,
-        homeSecondaryColor: home?.school.themeColorSecondary ?? null,
-        awayColor: away?.school.themeColor ?? null,
-        awaySecondaryColor: away?.school.themeColorSecondary ?? null,
-        score: bothScored ? `${resultHome!.score}–${resultAway!.score}` : null,
-        status: event.status,
-        streamUrl: event.streamUrl,
-        tournamentName: event.tournament.activity.name,
-        divisionName: event.division?.name ?? null,
-        href: `/seasons/${event.tournament.slug}/events/${event.slug}`,
-      };
-    }),
-  }));
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
       <h6 className="text-primary-dark">Live &amp; upcoming</h6>
-      <h1 className="mt-2 text-4xl sm:text-5xl">Schedule</h1>
-      <p className="mt-2 text-muted">All times local to each event&apos;s host school.</p>
+      <h1 className="mt-2 mb-8 text-4xl sm:text-5xl">Every activity, its own schedule.</h1>
 
-      {days.length === 0 ? (
-        <p className="mt-8 text-muted">No upcoming events scheduled.</p>
-      ) : (
-        <ScheduleView days={days} />
-      )}
+      <div className="space-y-10">
+        {seasons.map((season) => {
+          const byName = new Map(season.activities.map((a) => [a.name.trim().toLowerCase(), a]));
+          const matchedIds = new Set<string>();
+
+          type Row = { key: string; sport: string; name: string; activity?: ActivityRow };
+          const rows: Row[] = [];
+
+          for (const expected of EXPECTED_ROSTER.filter((e) => e.seasonOrder === season.order)) {
+            const match = byName.get(expected.name.trim().toLowerCase());
+            if (match) matchedIds.add(match.id);
+            rows.push({ key: expected.name, sport: expected.sport, name: expected.name, activity: match });
+          }
+          for (const a of season.activities) {
+            if (!matchedIds.has(a.id)) rows.push({ key: a.id, sport: a.sport, name: a.name, activity: a });
+          }
+
+          const groups = new Map<string, Row[]>();
+          for (const row of rows) {
+            const group = groups.get(row.sport) ?? [];
+            group.push(row);
+            groups.set(row.sport, group);
+          }
+          const dateRange = SEASON_DATE_RANGES[season.order];
+
+          return (
+            <section key={season.id}>
+              <div className="mb-3 flex items-baseline gap-3">
+                <h2 className="text-xl font-bold">{season.name}</h2>
+                {dateRange && <span className="text-sm text-muted">{dateRange}</span>}
+              </div>
+
+              <div className="space-y-3">
+                {Array.from(groups.entries()).map(([sport, group]) => (
+                  <div key={sport} className="border-b border-divider py-3">
+                    <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-[160px_1fr]">
+                      <h6 className="pt-1 text-muted">{sport}</h6>
+                      <div className="space-y-4">
+                        {group.map((row) => {
+                          if (!row.activity) {
+                            return (
+                              <p key={row.key} className="text-sm text-muted">
+                                {row.name} — not set up yet
+                              </p>
+                            );
+                          }
+                          const a = row.activity;
+                          const current = a.tournaments[0];
+                          const events = current ? (eventsByTournamentId.get(current.id) ?? []) : [];
+
+                          return (
+                            <div key={row.key}>
+                              <div className="mb-1.5 flex items-baseline gap-2">
+                                <Link
+                                  href={current ? `/seasons/${current.slug}#schedule` : `/tournaments/${a.slug}`}
+                                  className="font-bold hover:text-primary"
+                                >
+                                  {a.name}
+                                </Link>
+                                {current && events.length > 0 && (
+                                  <Link href={`/seasons/${current.slug}#schedule`} className="text-xs text-primary-dark hover:underline">
+                                    Full schedule &rarr;
+                                  </Link>
+                                )}
+                              </div>
+
+                              {!current ? (
+                                <p className="text-xs text-muted">No tournament scheduled yet.</p>
+                              ) : events.length === 0 ? (
+                                <p className="text-xs text-muted">No upcoming games.</p>
+                              ) : (
+                                <ul className="space-y-1.5">
+                                  {events.slice(0, PREVIEW_COUNT).map((event) => {
+                                    const home = event.participants.find((p) => p.isHome) ?? null;
+                                    const away = event.participants.find((p) => !p.isHome) ?? null;
+                                    const isDual = event.participants.length <= 2;
+                                    const href = event.division
+                                      ? `/seasons/${current.slug}/${event.division.slug}#schedule`
+                                      : `/seasons/${current.slug}#schedule`;
+                                    return (
+                                      <li key={event.id} className="text-sm">
+                                        <Link href={href} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 hover:text-primary">
+                                          <span className="tabular-nums text-muted">{format(event.date, "MMM d, h:mm a")}</span>
+                                          {event.division && (
+                                            <span
+                                              className={`tag ${event.division.name.toLowerCase() === "girls" ? "tag-girls" : event.division.name.toLowerCase() === "boys" ? "tag-boys" : "tag-neutral"}`}
+                                            >
+                                              {event.division.name}
+                                            </span>
+                                          )}
+                                          {isDual ? (
+                                            <span className="inline-flex items-center gap-3">
+                                              <span className="inline-flex items-center gap-1">
+                                                <SchoolColorDot color={home?.school.themeColor} secondaryColor={home?.school.themeColorSecondary} />
+                                                {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
+                                              </span>
+                                              <span className="text-muted">v</span>
+                                              <span className="inline-flex items-center gap-1">
+                                                <SchoolColorDot color={away?.school.themeColor} secondaryColor={away?.school.themeColorSecondary} />
+                                                {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
+                                              </span>
+                                            </span>
+                                          ) : (
+                                            <span>{event.participants.map((p) => p.school.name).join(" vs ")}</span>
+                                          )}
+                                        </Link>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }

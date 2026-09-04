@@ -15,6 +15,12 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
   if (!tournament) notFound();
 
   const hasDivisions = tournament.activity.divisions.length > 0;
+  const nextLiveEvent = hasDivisions
+    ? null
+    : await prisma.event.findFirst({
+        where: { tournamentId: tournament.id, status: "SCHEDULED", streamUrl: { not: null } },
+        orderBy: { date: "asc" },
+      });
 
   return (
     <div>
@@ -31,6 +37,22 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
       />
 
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        {!hasDivisions && (
+          <div className="mb-8 flex flex-wrap gap-3">
+            <a href="#schedule" className="btn btn-secondary">
+              Schedule
+            </a>
+            <a href="#results" className="btn btn-secondary">
+              Results
+            </a>
+            {nextLiveEvent?.streamUrl && (
+              <a href={nextLiveEvent.streamUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+                Watch live &rarr;
+              </a>
+            )}
+          </div>
+        )}
+
         {hasDivisions ? (
           <section>
             <h4 className="mb-3">Divisions</h4>

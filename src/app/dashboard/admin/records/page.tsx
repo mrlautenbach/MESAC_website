@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { RecordForm } from "@/components/RecordForm";
 import { HallOfFameForm } from "@/components/HallOfFameForm";
+import { SchoolYearResultsForm } from "@/components/SchoolYearResultsForm";
 import { deleteRecordAction, deleteHallOfFameAction } from "@/lib/actions/records";
 
 export default async function RecordsAdminPage() {
@@ -10,14 +11,33 @@ export default async function RecordsAdminPage() {
   if (!user) redirect("/login");
   if (user.role !== "ADMIN") redirect("/dashboard");
 
-  const [schools, records, hofEntries] = await Promise.all([
+  const [schools, records, hofEntries, schoolYears] = await Promise.all([
     prisma.school.findMany({ orderBy: { name: "asc" } }),
     prisma.record.findMany({ orderBy: [{ sport: "asc" }, { eventName: "asc" }], include: { school: true } }),
     prisma.hallOfFameEntry.findMany({ orderBy: { classYear: "desc" }, include: { school: true } }),
+    prisma.schoolYearArchive.findMany({ orderBy: { startYear: "desc" } }),
   ]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-12 px-4 py-8">
+      <div>
+        <h2 className="mb-1 text-xl font-bold">Previous years&apos; results</h2>
+        <p className="mb-4 text-sm text-muted">
+          Add a link to each school year&apos;s full results (a PDF, spreadsheet, or page hosted elsewhere). Shown on
+          the public History page.
+        </p>
+        <ul className="space-y-2">
+          {schoolYears.map((y) => (
+            <li key={y.id} className="card flex items-center gap-3 p-3">
+              <span className="w-24 shrink-0 text-sm font-semibold">
+                {y.startYear}-{y.startYear + 1}
+              </span>
+              <SchoolYearResultsForm id={y.id} resultsUrl={y.resultsUrl} />
+            </li>
+          ))}
+        </ul>
+      </div>
+
       <div>
         <h1 className="mb-6 text-2xl font-bold">Add a league record</h1>
         <RecordForm schools={schools} />

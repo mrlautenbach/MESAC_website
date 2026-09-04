@@ -145,6 +145,11 @@ export default async function TournamentsAdminPage() {
                               lossPoints: activity.lossPoints,
                               seasonId: activity.seasonId,
                               defaultHostSchoolId: activity.defaultHostSchoolId,
+                              showWins: activity.showWins,
+                              showLosses: activity.showLosses,
+                              showPointsFor: activity.showPointsFor,
+                              showPointsAgainst: activity.showPointsAgainst,
+                              showPlayed: activity.showPlayed,
                             }}
                           />
 

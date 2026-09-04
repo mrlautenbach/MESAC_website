@@ -11,6 +11,11 @@ type Activity = {
   winPoints: number;
   drawPoints: number;
   lossPoints: number;
+  showWins: boolean;
+  showLosses: boolean;
+  showPointsFor: boolean;
+  showPointsAgainst: boolean;
+  showPlayed: boolean;
 };
 
 // Shared by the tournament (edition) page for ungendered activities and the
@@ -52,19 +57,21 @@ export async function SeasonStandingsAndSchedule({
 
   return (
     <div className="space-y-10">
-      {activity.scoringType === "WIN_LOSS" && (
-        <WinLossStandings tournamentId={tournamentId} divisionId={divisionId} activity={activity} colorBySchoolId={colorBySchoolId} />
-      )}
-      {activity.scoringType === "LOW_SCORE" && (
-        <LowScoreStandings tournamentId={tournamentId} divisionId={divisionId} colorBySchoolId={colorBySchoolId} />
-      )}
-      {activity.scoringType === "NONE" && (
-        <p className="text-sm text-muted">
-          This activity doesn&apos;t use a results table — check each event below for results.
-        </p>
-      )}
+      <div id="results">
+        {activity.scoringType === "WIN_LOSS" && (
+          <WinLossStandings tournamentId={tournamentId} divisionId={divisionId} activity={activity} colorBySchoolId={colorBySchoolId} />
+        )}
+        {activity.scoringType === "LOW_SCORE" && (
+          <LowScoreStandings tournamentId={tournamentId} divisionId={divisionId} colorBySchoolId={colorBySchoolId} />
+        )}
+        {activity.scoringType === "NONE" && (
+          <p className="text-sm text-muted">
+            This activity doesn&apos;t use a results table — check each event below for results.
+          </p>
+        )}
+      </div>
 
-      <section>
+      <section id="schedule">
         <div className="mb-3 flex items-baseline justify-between">
           <h4>Schedule</h4>
         </div>
@@ -180,11 +187,11 @@ async function WinLossStandings({
               <tr>
                 <th style={{ width: 32 }}>#</th>
                 <th>School</th>
-                <th className="text-right">P</th>
-                <th className="text-right">W</th>
-                <th className="text-right">L</th>
-                <th className="text-right">For</th>
-                <th className="text-right">Ag</th>
+                {activity.showPlayed && <th className="text-right">P</th>}
+                {activity.showWins && <th className="text-right">W</th>}
+                {activity.showLosses && <th className="text-right">L</th>}
+                {activity.showPointsFor && <th className="text-right">For</th>}
+                {activity.showPointsAgainst && <th className="text-right">Ag</th>}
                 <th className="text-right">Diff</th>
                 <th className="text-right">Pts</th>
                 <th className="text-right">Form</th>
@@ -201,11 +208,11 @@ async function WinLossStandings({
                     </span>{" "}
                     {row.draws > 0 && <span className="font-normal text-muted">· {row.draws} drawn</span>}
                   </td>
-                  <td className="text-right tabular-nums">{row.played}</td>
-                  <td className="text-right tabular-nums">{row.wins}</td>
-                  <td className="text-right tabular-nums">{row.losses}</td>
-                  <td className="text-right tabular-nums">{row.totalScore}</td>
-                  <td className="text-right tabular-nums">{row.against}</td>
+                  {activity.showPlayed && <td className="text-right tabular-nums">{row.played}</td>}
+                  {activity.showWins && <td className="text-right tabular-nums">{row.wins}</td>}
+                  {activity.showLosses && <td className="text-right tabular-nums">{row.losses}</td>}
+                  {activity.showPointsFor && <td className="text-right tabular-nums">{row.totalScore}</td>}
+                  {activity.showPointsAgainst && <td className="text-right tabular-nums">{row.against}</td>}
                   <td className="text-right tabular-nums">
                     {row.totalScore - row.against > 0 ? "+" : ""}
                     {row.totalScore - row.against}

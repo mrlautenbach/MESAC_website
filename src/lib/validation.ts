@@ -64,6 +64,14 @@ export const activityInputSchema = z.object({
   // ungendered/single activity (meets, festivals, baseball, softball).
   divisionNames: z.array(z.string().trim().min(1).max(40)).max(4).optional().default([]),
   defaultHostSchoolId: z.string().cuid().optional().nullable(),
+  // Results table column toggles - pass an actual boolean (checkbox
+  // presence, e.g. formData.get(...) === "on"), not the raw FormData
+  // value: z.coerce.boolean() would treat the string "false" as true.
+  showWins: z.boolean(),
+  showLosses: z.boolean(),
+  showPointsFor: z.boolean(),
+  showPointsAgainst: z.boolean(),
+  showPlayed: z.boolean(),
 });
 
 // The CSV/schedule columns every activity already has as real Event
@@ -178,3 +186,11 @@ export const hallOfFameInputSchema = z.object({
   classYear: z.coerce.number().int().min(1900).max(2100),
   note: z.string().trim().min(1).max(400),
 });
+
+export const schoolYearResultsUrlSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((v) => v === "" || /^https?:\/\//i.test(v), "Link must start with http:// or https://")
+  .optional()
+  .or(z.literal(""));

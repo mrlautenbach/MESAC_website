@@ -139,6 +139,14 @@ model Activity {
   // rotates every year.
   defaultHostSchoolId String?
   defaultHostSchool   School?     @relation("ActivityDefaultHost", fields: [defaultHostSchoolId], references: [id])
+  // Per-column visibility toggles for the WIN_LOSS results table - Team
+  // Name and rank are always shown, these five can be turned off per
+  // activity from the dashboard.
+  showWins          Boolean  @default(true)
+  showLosses        Boolean  @default(true)
+  showPointsFor     Boolean  @default(true)
+  showPointsAgainst Boolean  @default(true)
+  showPlayed        Boolean  @default(true)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -369,6 +377,17 @@ model Record {
   updatedAt   DateTime @updatedAt
 
   @@index([sport])
+}
+
+// A link out to one school year's full results archive (e.g. a PDF or
+// spreadsheet hosted elsewhere) - one row per year, seeded once for the
+// fixed 2010-11..2025-26 range. Admins only ever edit resultsUrl.
+model SchoolYearArchive {
+  id         String   @id @default(cuid())
+  startYear  Int      @unique
+  resultsUrl String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 // A Hall of Fame inductee - admin-entered, shown on the public Records &
