@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { put, del } from "@vercel/blob";
 import { randomUUID } from "crypto";
-import { ACCEPTED_IMAGE_TYPES, MAX_PHOTO_BYTES } from "@/lib/validation";
+import { ACCEPTED_IMAGE_EXTENSIONS, ACCEPTED_IMAGE_TYPES, MAX_PHOTO_BYTES } from "@/lib/validation";
 
 export class PhotoValidationError extends Error {}
 
@@ -15,7 +15,16 @@ const JPEG_QUALITY = 82;
 //    or file extension),
 //  - keeps event pages fast by capping resolution/file size.
 export async function processAndStorePhoto(file: File, eventId: string) {
-  if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+  // Some OS/browser combinations report no MIME type, or a generic one like
+  // "application/octet-stream", for a valid image file that lacks a
+  // registered file association - fall back to the extension in that case
+  // rather than rejecting a real photo. A MIME type that positively claims
+  // to be something else is still rejected. Sharp validates the actual
+  // bytes below regardless of what either check says.
+  const hasAcceptedType = ACCEPTED_IMAGE_TYPES.includes(file.type);
+  const hasAcceptedExtension = ACCEPTED_IMAGE_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
+  const unknownType = !file.type || file.type === "application/octet-stream";
+  if (!hasAcceptedType && !(unknownType && hasAcceptedExtension)) {
     throw new PhotoValidationError("That file type isn't supported. Please upload a JPEG, PNG, WebP, or HEIC photo.");
   }
   if (file.size > MAX_PHOTO_BYTES) {

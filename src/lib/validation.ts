@@ -131,7 +131,8 @@ export const photoCaptionSchema = z.object({
   altText: z.string().trim().max(300).optional().or(z.literal("")),
 });
 
-export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"];
+export const ACCEPTED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
 export const MAX_PHOTO_BYTES = 15 * 1024 * 1024; // 15MB pre-processing cap
 
 export const createUserSchema = z.object({
