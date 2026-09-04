@@ -59,11 +59,22 @@ INSERT INTO "Season" ("id", "name", "slug", "order") VALUES
 ALTER TABLE "Activity" ADD COLUMN "seasonId" TEXT;
 
 UPDATE "Activity" SET "seasonId" = 'season-1'
-  WHERE "name" IN ('JV Volleyball', 'Varsity Volleyball', 'Swimming', 'Golf', 'Academic Games');
+  WHERE "name" IN ('JV Volleyball', 'Varsity Volleyball', 'JV Volleyball 2026', 'Swimming', 'Golf', 'Academic Games');
 UPDATE "Activity" SET "seasonId" = 'season-2'
   WHERE "name" IN ('JV Basketball', 'Varsity Basketball', 'JV Soccer', 'Varsity Soccer', 'Tennis', 'Cross Country', 'Wrestling', 'Senior Fine Arts');
 UPDATE "Activity" SET "seasonId" = 'season-3'
   WHERE "name" IN ('Badminton', 'Track & Field', 'Baseball', 'Softball', 'Speech & Debate');
+
+-- Fallback for any activity whose name didn't match the lists above
+-- (e.g. real production data entered with a different naming convention
+-- than the seed data this migration was authored against) - match by
+-- sport so the NOT NULL constraint below can never fail on unseen data.
+UPDATE "Activity" SET "seasonId" = 'season-1'
+  WHERE "seasonId" IS NULL AND "sport" IN ('Volleyball', 'Swimming', 'Golf', 'Academic Games');
+UPDATE "Activity" SET "seasonId" = 'season-2'
+  WHERE "seasonId" IS NULL AND "sport" IN ('Basketball', 'Soccer', 'Tennis', 'Cross Country', 'Wrestling', 'Fine Arts', 'Senior Fine Arts');
+UPDATE "Activity" SET "seasonId" = 'season-3'
+  WHERE "seasonId" IS NULL AND "sport" IN ('Badminton', 'Track & Field', 'Baseball', 'Softball', 'Speech & Debate');
 
 ALTER TABLE "Activity" ALTER COLUMN "seasonId" SET NOT NULL;
 CREATE INDEX "Activity_seasonId_idx" ON "Activity"("seasonId");
