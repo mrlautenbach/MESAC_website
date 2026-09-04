@@ -9,27 +9,27 @@ export default async function NewEventPage() {
   if (!user) redirect("/login");
   if (user.role !== "ADMIN") redirect("/dashboard");
 
-  const [seasons, schools] = await Promise.all([
-    prisma.season.findMany({
+  const [tournaments, schools] = await Promise.all([
+    prisma.tournament.findMany({
       orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }],
-      include: { tournament: { include: { divisions: true } } },
+      include: { activity: { include: { divisions: true } } },
     }),
     prisma.school.findMany({ orderBy: { name: "asc" } }),
   ]);
 
-  if (seasons.length === 0) {
+  if (tournaments.length === 0) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8">
         <h1 className="mb-2 text-2xl font-bold">New event</h1>
-        <p className="text-muted">Create a tournament and season first before adding events.</p>
+        <p className="text-muted">Create an activity and tournament first before adding events.</p>
       </div>
     );
   }
 
-  const seasonOptions = seasons.map((s) => ({
-    id: s.id,
-    label: `${s.tournament.name} — ${s.name}${s.isCurrent ? "" : " (archived)"}`,
-    divisions: s.tournament.divisions.map((d) => ({ id: d.id, name: d.name })),
+  const tournamentOptions = tournaments.map((t) => ({
+    id: t.id,
+    label: `${t.activity.name} — ${t.name}${t.isCurrent ? "" : " (archived)"}`,
+    divisions: t.activity.divisions.map((d) => ({ id: d.id, name: d.name })),
   }));
 
   return (
@@ -40,7 +40,7 @@ export default async function NewEventPage() {
           Bulk import a whole schedule &rarr;
         </Link>
       </div>
-      <EventForm seasons={seasonOptions} schools={schools} />
+      <EventForm seasons={tournamentOptions} schools={schools} />
     </div>
   );
 }

@@ -4,39 +4,49 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { computeStandings } from "@/lib/standings";
 import { sideLabel } from "@/lib/eventDisplay";
+import { SeasonBrowser } from "@/components/SeasonBrowser";
+import { SEASON_DATE_RANGES, OFF_SEASON_LABEL, OFF_SEASON_RANGE } from "@/lib/seasonCalendar";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const now = new Date();
 
-  const [tournamentCount, schools, currentSeasons] = await Promise.all([
+  const [tournamentCount, schools, currentTournaments, seasons] = await Promise.all([
     prisma.tournament.count(),
     prisma.school.findMany(),
-    prisma.season.findMany({ where: { isCurrent: true }, include: { tournament: true } }),
+    prisma.tournament.findMany({ where: { isCurrent: true }, include: { activity: true } }),
+    prisma.season.findMany({
+      orderBy: { order: "asc" },
+      include: {
+        activities: {
+          orderBy: { name: "asc" },
+          include: { tournaments: { where: { isCurrent: true }, take: 1 } },
+        },
+      },
+    }),
   ]);
-  const currentSeasonIds = currentSeasons.map((s) => s.id);
+  const currentTournamentIds = currentTournaments.map((t) => t.id);
   const countries = new Set(schools.map((s) => s.city?.split(",").pop()?.trim()).filter(Boolean)).size;
-  const currentTerm = currentSeasons[0]?.name ?? "this season";
+  const currentTerm = currentTournaments[0]?.name ?? "this term";
 
   const [recentResults, upcomingEvents, recentPhoto, recentRecap] = await Promise.all([
-    currentSeasonIds.length
+    currentTournamentIds.length
       ? prisma.event.findMany({
-          where: { seasonId: { in: currentSeasonIds }, status: "COMPLETED" },
+          where: { tournamentId: { in: currentTournamentIds }, status: "COMPLETED" },
           orderBy: { date: "desc" },
           take: 4,
-          include: { participants: { include: { school: true } }, results: true, season: { include: { tournament: true } } },
+          include: { participants: { include: { school: true } }, results: true, tournament: { include: { activity: true } } },
         })
       : [],
-    currentSeasonIds.length
+    currentTournamentIds.length
       ? prisma.event.findMany({
-          where: { seasonId: { in: currentSeasonIds }, date: { gte: now }, status: { not: "CANCELLED" } },
+          where: { tournamentId: { in: currentTournamentIds }, date: { gte: now }, status: { not: "CANCELLED" } },
           orderBy: { date: "asc" },
           take: 6,
           include: {
             participants: { include: { school: true } },
-            season: { include: { tournament: true } },
-            division: true,
+            tournament: { include: { activity: true } },
             homeSourceEvent: { select: { externalId: true } },
             awaySourceEvent: { select: { externalId: true } },
           },
@@ -46,25 +56,35 @@ export default async function HomePage() {
     prisma.event.findFirst({
       where: { recap: { not: null } },
       orderBy: { date: "desc" },
-      include: { season: { include: { tournament: true } } },
+      include: { tournament: { include: { activity: true } } },
     }),
   ]);
 
-  // Feature the WIN_LOSS tournament with the most recently updated result.
-  const featuredTournamentSeasonId = await (async () => {
-    if (!currentSeasonIds.length) return null;
+  // Feature the WIN_LOSS activity with the most recently updated result.
+  const featuredTournament = await (async () => {
+    if (!currentTournamentIds.length) return null;
     const lastResult = await prisma.result.findFirst({
-      where: { event: { seasonId: { in: currentSeasonIds }, season: { tournament: { scoringType: "WIN_LOSS" } } }, outcome: { not: null } },
+      where: { event: { tournamentId: { in: currentTournamentIds }, tournament: { activity: { scoringType: "WIN_LOSS" } } }, outcome: { not: null } },
       orderBy: { updatedAt: "desc" },
-      include: { event: { include: { season: { include: { tournament: true } } } } },
+      include: { event: { include: { tournament: { include: { activity: true } } } } },
     });
-    return lastResult?.event.season ?? null;
+    return lastResult?.event.tournament ?? null;
   })();
-  const featuredStandings = featuredTournamentSeasonId ? (await computeStandings(featuredTournamentSeasonId.id)).slice(0, 5) : [];
+  const featuredStandings = featuredTournament ? (await computeStandings(featuredTournament.id)).slice(0, 5) : [];
+
+  const seasonCards = seasons.map((s) => ({
+    id: s.id,
+    name: s.name,
+    order: s.order,
+    activities: s.activities.map((a) => ({
+      id: a.id,
+      name: a.name,
+      href: a.tournaments[0] ? `/seasons/${a.tournaments[0].slug}` : `/tournaments/${a.slug}`,
+    })),
+  }));
 
   const scoreCells = recentResults.slice(0, 2);
   const nextUp = upcomingEvents[0];
-  const weekendEvents = upcomingEvents.slice(0, 6);
 
   return (
     <div>
@@ -108,7 +128,7 @@ export default async function HomePage() {
                     <span className="text-[13px]">
                       <b>{event.participants[0]?.school.name}</b> v {event.participants[1]?.school.name}
                       <br />
-                      <span className="text-[11.5px] text-muted">{event.season.tournament.name}</span>
+                      <span className="text-[11.5px] text-muted">{event.tournament.activity.name}</span>
                     </span>
                     <span className="text-2xl font-extrabold tracking-tight tabular-nums">
                       {a?.score ?? "–"}–{b?.score ?? "–"}
@@ -131,14 +151,14 @@ export default async function HomePage() {
             <div key={i} className="flex text-[12.5px] tracking-[0.04em]">
               {recentResults.length === 0 ? (
                 <span className="whitespace-nowrap border-r border-white/20 px-6 py-2.5">
-                  <span className="mr-2.5 font-extrabold text-accent">●</span>Season {currentTerm} is underway — check
-                  back after the first whistle
+                  <span className="mr-2.5 font-extrabold text-accent">●</span>
+                  {currentTerm} is underway — check back after the first whistle
                 </span>
               ) : (
                 recentResults.map((event, j) => (
                   <span key={j} className="whitespace-nowrap border-r border-white/20 px-6 py-2.5">
                     <span className="mr-2.5 font-extrabold text-accent">●</span>
-                    {event.season.tournament.sport.toUpperCase()} · {event.participants.map((p) => p.school.name).join(" v ")}{" "}
+                    {event.tournament.activity.sport.toUpperCase()} · {event.participants.map((p) => p.school.name).join(" v ")}{" "}
                     {event.results.map((r) => r.score).join("–")}
                   </span>
                 ))
@@ -169,7 +189,7 @@ export default async function HomePage() {
           {nextUp ? (
             <div className="relative">
               <h6 className="text-accent opacity-90">Next up</h6>
-              <div className="mt-3 text-3xl font-extrabold leading-tight tracking-tight">{nextUp.season.tournament.name}</div>
+              <div className="mt-3 text-3xl font-extrabold leading-tight tracking-tight">{nextUp.tournament.activity.name}</div>
               <p className="mt-3 text-[13px] opacity-90">
                 {nextUp.participants.length <= 2
                   ? `${sideLabel(nextUp.participants.find((p) => p.isHome), nextUp.homeSourceOutcome, nextUp.homeSourceEvent?.externalId)} vs ${sideLabel(
@@ -182,7 +202,7 @@ export default async function HomePage() {
                 {nextUp.location ? ` · ${nextUp.location}` : ""}
               </p>
               <Link
-                href={`/seasons/${nextUp.season.slug}/events/${nextUp.slug}`}
+                href={`/seasons/${nextUp.tournament.slug}/events/${nextUp.slug}`}
                 className="btn btn-block mt-4 text-[13px]"
                 style={{ background: "var(--accent)", color: "var(--primary-deep)" }}
               >
@@ -199,63 +219,23 @@ export default async function HomePage() {
       <div className="grid border-b-2 border-divider bg-surface sm:grid-cols-3">
         <Stat value="6" label="Member schools" />
         <Stat value={String(tournamentCount)} label="Tournaments this year" />
-        <Stat value={String(countries)} label="Countries, one bus manifest" />
+        <Stat value={String(countries)} label="Countries" />
       </div>
 
-      {/* Weekend + standings */}
+      {/* Season browser + results table */}
       <div className="grid border-b-2 border-divider sm:grid-cols-[1.1fr_1fr]">
         <div className="border-b border-divider p-7 sm:border-b-0 sm:border-r-2 sm:border-divider">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h4>This weekend</h4>
-            <Link href="/schedule" className="text-[12.5px] text-primary-dark">
-              Full schedule
-            </Link>
-          </div>
-          {weekendEvents.length === 0 ? (
-            <p className="text-sm text-muted">No upcoming events scheduled.</p>
-          ) : (
-            <table className="mtable">
-              <thead>
-                <tr>
-                  <th>Day</th>
-                  <th>Sport</th>
-                  <th>Fixture</th>
-                  <th className="text-right">Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {weekendEvents.map((e) => (
-                  <tr key={e.id}>
-                    <td className="font-extrabold">{format(e.date, "EEE")}</td>
-                    <td>
-                      {e.season.tournament.sport}
-                      {e.division ? ` (${e.division.name})` : ""}
-                    </td>
-                    <td>
-                      {e.participants.length <= 2
-                        ? `${sideLabel(e.participants.find((p) => p.isHome), e.homeSourceOutcome, e.homeSourceEvent?.externalId)} v ${sideLabel(
-                            e.participants.find((p) => !p.isHome),
-                            e.awaySourceOutcome,
-                            e.awaySourceEvent?.externalId
-                          )}`
-                        : e.participants.map((p) => p.school.name).join(" v ")}
-                    </td>
-                    <td className="text-right tabular-nums">{format(e.date, "d MMM, HH:mm")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <SeasonBrowser seasons={seasonCards} />
         </div>
         <div className="p-7">
           <div className="mb-3 flex items-baseline justify-between">
-            <h4>{featuredTournamentSeasonId ? `${featuredTournamentSeasonId.tournament.name} table` : "Standings"}</h4>
+            <h4>{featuredTournament ? `${featuredTournament.activity.name} table` : "Results"}</h4>
             <Link href="/tournaments" className="text-[12.5px] text-primary-dark">
-              All standings
+              All results
             </Link>
           </div>
           {featuredStandings.length === 0 ? (
-            <p className="text-sm text-muted">Standings will appear here once results are posted.</p>
+            <p className="text-sm text-muted">This table will appear here once results are posted.</p>
           ) : (
             <table className="mtable">
               <thead>
@@ -285,7 +265,7 @@ export default async function HomePage() {
         </div>
       </div>
 
-      {/* Photo + event links */}
+      {/* Photo + season calendar */}
       <div className="grid border-b-2 border-divider sm:grid-cols-[1.25fr_1fr]">
         <div className="relative min-h-[300px] border-b border-divider sm:border-b-0 sm:border-r-2 sm:border-divider">
           {recentPhoto ? (
@@ -297,42 +277,34 @@ export default async function HomePage() {
           )}
         </div>
         <div className="p-8">
-          <h3 className="mb-2.5">The season, in one page</h3>
-          <p className="text-sm text-muted">Every tournament&apos;s dates, host, schedule, and results — one link per sport.</p>
+          <h3 className="mb-2.5">Season calendar</h3>
+          <p className="text-sm text-muted">Three seasons make up the MESAC year.</p>
           <div className="mhr" />
-          {currentSeasons.slice(0, 4).map((s) => (
-            <Link
-              key={s.id}
-              href={`/seasons/${s.slug}`}
-              className="flex justify-between border-b border-divider py-3 text-sm last:border-0"
-            >
-              {s.tournament.name} · {s.name}
-              <span className="text-primary">→</span>
-            </Link>
+          {[1, 2, 3].map((order) => (
+            <div key={order} className="flex justify-between border-b border-divider py-3 text-sm">
+              <span className="font-bold">Season {order}</span>
+              <span className="text-muted">{SEASON_DATE_RANGES[order]}</span>
+            </div>
           ))}
-          {currentSeasons.length === 0 && <p className="text-sm text-muted">No seasons yet.</p>}
+          <div className="flex justify-between py-3 text-sm">
+            <span className="font-bold text-muted">{OFF_SEASON_LABEL}</span>
+            <span className="text-muted">{OFF_SEASON_RANGE}</span>
+          </div>
         </div>
       </div>
 
-      {/* Footer trio */}
-      <div className="grid sm:grid-cols-3">
+      {/* Footer duo */}
+      <div className="grid sm:grid-cols-[1fr_1.6fr]">
         <div className="border-b border-divider p-7 sm:border-b-0 sm:border-r-2 sm:border-divider">
           <h6 className="text-primary-dark">From the schools</h6>
           {recentRecap ? (
             <>
-              <h4 className="mb-1.5 mt-2.5">{recentRecap.season.tournament.name}</h4>
+              <h4 className="mb-1.5 mt-2.5">{recentRecap.tournament.activity.name}</h4>
               <p className="text-sm text-muted">{recentRecap.recap}</p>
             </>
           ) : (
             <p className="mt-2.5 text-sm text-muted">Recaps from recent games will show up here.</p>
           )}
-        </div>
-        <div className="border-b border-divider p-7 sm:border-b-0 sm:border-r-2 sm:border-divider">
-          <h6 className="text-primary-dark">For families</h6>
-          <h4 className="mb-1.5 mt-2.5">New to a MESAC weekend?</h4>
-          <p className="text-sm text-muted">
-            Host billeting, dates, and travel details for each tournament live on that tournament&apos;s season page.
-          </p>
         </div>
         <div className="p-7">
           <h6 className="text-primary-dark">Six schools</h6>
@@ -360,7 +332,7 @@ type ResultEvent = {
   results: { score: number | null; outcome: string | null }[];
   location: string | null;
   date: Date;
-  season: { tournament: { name: string } };
+  tournament: { activity: { name: string } };
 };
 
 function ScoreCell({ event }: { event: ResultEvent }) {
@@ -368,7 +340,7 @@ function ScoreCell({ event }: { event: ResultEvent }) {
   const names = event.participants.map((p) => p.school.name);
   return (
     <div>
-      <h6 className="text-primary-dark">Final · {event.season.tournament.name}</h6>
+      <h6 className="text-primary-dark">Final · {event.tournament.activity.name}</h6>
       {sorted.map((r, i) => (
         <div key={i}>
           <div className="mt-3.5 flex items-baseline justify-between">
@@ -396,7 +368,7 @@ type UpcomingEvent = {
   awaySourceEvent: { externalId: string | null } | null;
   date: Date;
   location: string | null;
-  season: { tournament: { name: string } };
+  tournament: { activity: { name: string } };
 };
 
 function UpcomingCell({ event }: { event: UpcomingEvent }) {
@@ -410,7 +382,7 @@ function UpcomingCell({ event }: { event: UpcomingEvent }) {
       : event.participants.map((p) => p.school.name).join(" vs ");
   return (
     <div>
-      <h6 className="text-primary-dark">Upcoming · {event.season.tournament.name}</h6>
+      <h6 className="text-primary-dark">Upcoming · {event.tournament.activity.name}</h6>
       <div className="mt-3.5 text-lg font-extrabold">{matchup}</div>
       <p className="mt-3.5 text-xs text-muted">
         {format(event.date, "EEE d MMM, h:mm a")}

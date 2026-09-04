@@ -19,8 +19,8 @@ export type StandingsRow = {
   form: ("W" | "L" | "D")[];
 };
 
-function eventWhere(seasonId: string, divisionId?: string | null) {
-  return divisionId ? { seasonId, divisionId } : { seasonId };
+function eventWhere(tournamentId: string, divisionId?: string | null) {
+  return divisionId ? { tournamentId, divisionId } : { tournamentId };
 }
 
 const FORM_LETTER: Record<string, "W" | "L" | "D"> = { WIN: "W", LOSS: "L", DRAW: "D" };
@@ -28,13 +28,13 @@ const FORM_LETTER: Record<string, "W" | "L" | "D"> = { WIN: "W", LOSS: "L", DRAW
 // Standings are always derived from the Results table at read time (there is
 // no cached/stored standings row to go stale) so they're accurate the moment
 // a result is saved, with no extra step for editors. `divisionId` narrows to
-// one Girls/Boys division within the season when the tournament has them.
-export async function computeStandings(seasonId: string, divisionId?: string | null): Promise<StandingsRow[]> {
-  const season = await prisma.season.findUnique({ where: { id: seasonId }, include: { tournament: true } });
-  if (!season) return [];
+// one Girls/Boys division within the tournament when the activity has them.
+export async function computeStandings(tournamentId: string, divisionId?: string | null): Promise<StandingsRow[]> {
+  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId }, include: { activity: true } });
+  if (!tournament) return [];
 
   const events = await prisma.event.findMany({
-    where: eventWhere(seasonId, divisionId),
+    where: eventWhere(tournamentId, divisionId),
     orderBy: { date: "asc" },
     include: { results: { include: { school: true } } },
   });
@@ -71,13 +71,13 @@ export async function computeStandings(seasonId: string, divisionId?: string | n
 
       if (result.outcome === "WIN") {
         row.wins += 1;
-        row.points += season.tournament.winPoints;
+        row.points += tournament.activity.winPoints;
       } else if (result.outcome === "DRAW") {
         row.draws += 1;
-        row.points += season.tournament.drawPoints;
+        row.points += tournament.activity.drawPoints;
       } else if (result.outcome === "LOSS") {
         row.losses += 1;
-        row.points += season.tournament.lossPoints;
+        row.points += tournament.activity.lossPoints;
       }
 
       const letter = FORM_LETTER[result.outcome as string];
@@ -107,14 +107,14 @@ export type LowScoreTeamRow = {
   avgScore: number;
 };
 
-// For LOW_SCORE seasons (e.g. golf): ranked by lowest aggregate team score,
-// not win/loss points.
+// For LOW_SCORE tournaments (e.g. golf): ranked by lowest aggregate team
+// score, not win/loss points.
 export async function computeLowScoreTeamStandings(
-  seasonId: string,
+  tournamentId: string,
   divisionId?: string | null
 ): Promise<LowScoreTeamRow[]> {
   const results = await prisma.result.findMany({
-    where: { event: eventWhere(seasonId, divisionId), score: { not: null } },
+    where: { event: eventWhere(tournamentId, divisionId), score: { not: null } },
     include: { school: true },
   });
 
@@ -150,14 +150,15 @@ export type IndividualStandingsRow = {
   avgScore: number;
 };
 
-// For LOW_SCORE seasons: named-individual standings aggregated across every
-// event in the season (or division), ranked by lowest average score.
+// For LOW_SCORE tournaments: named-individual standings aggregated across
+// every event in the tournament (or division), ranked by lowest average
+// score.
 export async function computeIndividualStandings(
-  seasonId: string,
+  tournamentId: string,
   divisionId?: string | null
 ): Promise<IndividualStandingsRow[]> {
   const entries = await prisma.individualResult.findMany({
-    where: { event: eventWhere(seasonId, divisionId) },
+    where: { event: eventWhere(tournamentId, divisionId) },
     include: { school: true },
   });
 

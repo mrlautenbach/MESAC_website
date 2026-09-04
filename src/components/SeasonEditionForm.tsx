@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { createSeasonAction, updateSeasonAction } from "@/lib/actions/seasons";
+import { createTournamentAction, updateTournamentAction } from "@/lib/actions/tournaments";
 
 type ExistingSeason = {
   id: string;
@@ -12,7 +12,7 @@ type ExistingSeason = {
 };
 
 export function SeasonEditionForm({
-  tournamentId,
+  tournamentId: activityId,
   schools,
   existing,
   isFirstEdition,
@@ -22,24 +22,24 @@ export function SeasonEditionForm({
   existing?: ExistingSeason;
   isFirstEdition?: boolean;
 }) {
-  const action = existing ? updateSeasonAction : createSeasonAction;
+  const action = existing ? updateTournamentAction : createTournamentAction;
   const [state, formAction, pending] = useActionState(action, null);
 
   return (
     <form action={formAction} className="max-w-lg space-y-4">
-      <input type="hidden" name="tournamentId" value={tournamentId} />
-      {existing && <input type="hidden" name="seasonId" value={existing.id} />}
+      <input type="hidden" name="activityId" value={activityId} />
+      {existing && <input type="hidden" name="tournamentId" value={existing.id} />}
 
       {!existing && !isFirstEdition && (
         <p className="rounded-md bg-blue-50 px-3 py-2 text-sm text-primary">
-          Starting a new season archives the current one — its schedule, results, and photos stay exactly as they
-          are, just no longer shown as the active season.
+          Starting a new tournament archives the current one — its schedule, results, and photos stay exactly as
+          they are, just no longer shown as the active tournament.
         </p>
       )}
 
       <div>
         <label htmlFor="name" className="field-label">
-          Season name
+          Tournament name
         </label>
         <input id="name" name="name" required placeholder="Fall 2026" defaultValue={existing?.name} className="field-input" />
       </div>
@@ -94,7 +94,7 @@ export function SeasonEditionForm({
       {state?.ok && <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-success">Saved!</p>}
 
       <button type="submit" disabled={pending} className="btn btn-primary">
-        {pending ? "Saving…" : existing ? "Save changes" : "Start this season"}
+        {pending ? "Saving…" : existing ? "Save changes" : "Start this tournament"}
       </button>
     </form>
   );

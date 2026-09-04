@@ -21,6 +21,7 @@
     "@vercel/blob": "^2.8.0",
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.4.0",
+    "leaflet": "^1.9.4",
     "next": "16.3.3",
     "next-auth": "^5.0.0-beta.32",
     "prisma": "^6.19.3",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -9,28 +9,28 @@ export default async function ImportEventsPage() {
   if (!user) redirect("/login");
   if (user.role !== "ADMIN") redirect("/dashboard");
 
-  const [seasons, schools] = await Promise.all([
-    prisma.season.findMany({
+  const [tournaments, schools] = await Promise.all([
+    prisma.tournament.findMany({
       orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }],
-      include: { tournament: { include: { divisions: true, fields: { orderBy: { order: "asc" } } } } },
+      include: { activity: { include: { divisions: true, fields: { orderBy: { order: "asc" } } } } },
     }),
     prisma.school.findMany({ orderBy: { name: "asc" } }),
   ]);
 
-  if (seasons.length === 0) {
+  if (tournaments.length === 0) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8">
         <h1 className="mb-2 text-2xl font-bold">Bulk import games</h1>
-        <p className="text-muted">Create a tournament and season first before importing a schedule.</p>
+        <p className="text-muted">Create an activity and tournament first before importing a schedule.</p>
       </div>
     );
   }
 
-  const seasonOptions = seasons.map((s) => ({
-    id: s.id,
-    label: `${s.tournament.name} — ${s.name}${s.isCurrent ? "" : " (archived)"}`,
-    divisions: s.tournament.divisions.map((d) => ({ id: d.id, name: d.name })),
-    fields: s.tournament.fields.map((f) => ({ id: f.id, key: f.key, label: f.label })),
+  const tournamentOptions = tournaments.map((t) => ({
+    id: t.id,
+    label: `${t.activity.name} — ${t.name}${t.isCurrent ? "" : " (archived)"}`,
+    divisions: t.activity.divisions.map((d) => ({ id: d.id, name: d.name })),
+    fields: t.activity.fields.map((f) => ({ id: f.id, key: f.key, label: f.label })),
   }));
 
   return (
@@ -45,7 +45,7 @@ export default async function ImportEventsPage() {
         For a weekend tournament with a full round-robin bracket, upload a spreadsheet of every game instead of
         entering them one at a time.
       </p>
-      <EventImportForm seasons={seasonOptions} schoolCodes={schools.map((s) => ({ code: s.code ?? "", name: s.name }))} />
+      <EventImportForm seasons={tournamentOptions} schoolCodes={schools.map((s) => ({ code: s.code ?? "", name: s.name }))} />
     </div>
   );
 }

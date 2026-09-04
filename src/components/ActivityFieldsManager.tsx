@@ -2,18 +2,18 @@
 
 import { useActionState } from "react";
 import {
-  createTournamentFieldAction,
-  updateTournamentFieldAction,
-  deleteTournamentFieldAction,
-} from "@/lib/actions/tournament-fields";
+  createActivityFieldAction,
+  updateActivityFieldAction,
+  deleteActivityFieldAction,
+} from "@/lib/actions/activity-fields";
 
 type Field = { id: string; key: string; label: string };
 
-export function TournamentFieldsManager({ tournamentId, fields }: { tournamentId: string; fields: Field[] }) {
+export function ActivityFieldsManager({ activityId, fields }: { activityId: string; fields: Field[] }) {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted">
-        Extra columns for this tournament&apos;s schedule and CSV imports, beyond the standard game_id / gender /
+        Extra columns for this activity&apos;s schedule and CSV imports, beyond the standard game_id / gender /
         home / home_score / away / away_score / date / time / court / status / streaming_link fields.
       </p>
       {fields.length > 0 && (
@@ -23,14 +23,14 @@ export function TournamentFieldsManager({ tournamentId, fields }: { tournamentId
           ))}
         </ul>
       )}
-      <AddFieldForm tournamentId={tournamentId} />
+      <AddFieldForm activityId={activityId} />
     </div>
   );
 }
 
 function FieldRow({ field }: { field: Field }) {
-  const [state, formAction, pending] = useActionState(updateTournamentFieldAction, null);
-  const [deleteState, deleteAction, deletePending] = useActionState(deleteTournamentFieldAction, null);
+  const [state, formAction, pending] = useActionState(updateActivityFieldAction, null);
+  const [deleteState, deleteAction, deletePending] = useActionState(deleteActivityFieldAction, null);
 
   return (
     <li className="flex flex-wrap items-center gap-2 border-b border-border pb-2 text-sm last:border-0">
@@ -54,23 +54,23 @@ function FieldRow({ field }: { field: Field }) {
   );
 }
 
-function AddFieldForm({ tournamentId }: { tournamentId: string }) {
-  const [state, formAction, pending] = useActionState(createTournamentFieldAction, null);
+function AddFieldForm({ activityId }: { activityId: string }) {
+  const [state, formAction, pending] = useActionState(createActivityFieldAction, null);
 
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-2">
-      <input type="hidden" name="tournamentId" value={tournamentId} />
+      <input type="hidden" name="activityId" value={activityId} />
       <div>
-        <label className="field-label" htmlFor={`${tournamentId}-key`}>
+        <label className="field-label" htmlFor={`${activityId}-key`}>
           Key (CSV column)
         </label>
-        <input id={`${tournamentId}-key`} name="key" placeholder="referee" className="field-input w-36 py-1 text-sm" />
+        <input id={`${activityId}-key`} name="key" placeholder="referee" className="field-input w-36 py-1 text-sm" />
       </div>
       <div>
-        <label className="field-label" htmlFor={`${tournamentId}-label`}>
+        <label className="field-label" htmlFor={`${activityId}-label`}>
           Label
         </label>
-        <input id={`${tournamentId}-label`} name="label" placeholder="Referee" className="field-input w-36 py-1 text-sm" />
+        <input id={`${activityId}-label`} name="label" placeholder="Referee" className="field-input w-36 py-1 text-sm" />
       </div>
       <button type="submit" disabled={pending} className="btn btn-secondary px-3 py-1 text-xs">
         {pending ? "Adding…" : "Add field"}

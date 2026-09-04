@@ -1,11 +1,11 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { createTournamentAction, updateTournamentAction } from "@/lib/actions/tournaments";
+import { createActivityAction, updateActivityAction } from "@/lib/actions/activities";
 
 type ScoringType = "WIN_LOSS" | "LOW_SCORE" | "NONE";
 
-type ExistingTournament = {
+type ExistingActivity = {
   id: string;
   name: string;
   sport: string;
@@ -13,19 +13,38 @@ type ExistingTournament = {
   winPoints: number;
   drawPoints: number;
   lossPoints: number;
+  seasonId: string;
 };
 
-export function TournamentForm({ existing }: { existing?: ExistingTournament }) {
-  const action = existing ? updateTournamentAction : createTournamentAction;
+export function ActivityForm({
+  seasons,
+  existing,
+}: {
+  seasons: { id: string; name: string }[];
+  existing?: ExistingActivity;
+}) {
+  const action = existing ? updateActivityAction : createActivityAction;
   const [state, formAction, pending] = useActionState(action, null);
   const [scoringType, setScoringType] = useState<ScoringType>(existing?.scoringType ?? "WIN_LOSS");
 
   return (
     <form action={formAction} className="max-w-lg space-y-4">
-      {existing && <input type="hidden" name="tournamentId" value={existing.id} />}
+      {existing && <input type="hidden" name="activityId" value={existing.id} />}
+      <div>
+        <label htmlFor="seasonId" className="field-label">
+          Season
+        </label>
+        <select id="seasonId" name="seasonId" required className="field-input" defaultValue={existing?.seasonId ?? seasons[0]?.id}>
+          {seasons.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      </div>
       <div>
         <label htmlFor="name" className="field-label">
-          Tournament name
+          Activity name
         </label>
         <input
           id="name"
@@ -65,7 +84,7 @@ export function TournamentForm({ existing }: { existing?: ExistingTournament }) 
         >
           <option value="WIN_LOSS">Win / loss / draw per game (most team sports)</option>
           <option value="LOW_SCORE">Team + individual score, lowest wins (e.g. golf)</option>
-          <option value="NONE">No standings table — just post a results document (meets, festivals)</option>
+          <option value="NONE">No results table — just post a results document (meets, festivals)</option>
         </select>
       </div>
 
@@ -124,7 +143,7 @@ export function TournamentForm({ existing }: { existing?: ExistingTournament }) 
             </label>
           </div>
           <p className="mt-1 text-xs text-muted">
-            Uncheck both for a single tournament with no Girls/Boys split (meets, festivals, or a sport that&apos;s
+            Uncheck both for a single activity with no Girls/Boys split (meets, festivals, or a sport that&apos;s
             already single-gender).
           </p>
         </div>
@@ -138,7 +157,7 @@ export function TournamentForm({ existing }: { existing?: ExistingTournament }) 
       {state?.ok && <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-success">Saved!</p>}
 
       <button type="submit" disabled={pending} className="btn btn-primary">
-        {pending ? "Saving…" : existing ? "Save changes" : "Create tournament"}
+        {pending ? "Saving…" : existing ? "Save changes" : "Create activity"}
       </button>
     </form>
   );

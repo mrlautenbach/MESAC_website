@@ -17,7 +17,7 @@ export default async function RecordsPage() {
       <div className="grid gap-0 border-b-2 border-divider sm:grid-cols-2">
         <div className="p-8 sm:border-r-2 sm:border-divider">
           <h6 className="text-primary-dark">{earliestYear ? `Since ${earliestYear}` : "League records"}</h6>
-          <h1 className="mt-3 text-4xl sm:text-5xl">Records &amp; Hall of Fame</h1>
+          <h1 className="mt-3 text-4xl sm:text-5xl">History &amp; Hall of Fame</h1>
           <p className="mt-3 text-muted">
             Marks stand until a MESAC championship beats them. Every entry is verified by the host school&apos;s
             meet officials.

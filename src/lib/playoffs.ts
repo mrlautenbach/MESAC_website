@@ -28,7 +28,7 @@ export async function getEventOutcome(
 ): Promise<{ winnerSchoolId: string; loserSchoolId: string } | null> {
   const event = await tx.event.findUnique({
     where: { id: eventId },
-    include: { results: true, participants: true, season: { include: { tournament: true } } },
+    include: { results: true, participants: true, tournament: { include: { activity: true } } },
   });
   if (!event || event.status !== "COMPLETED") return null;
 
@@ -40,7 +40,7 @@ export async function getEventOutcome(
   if (!homeResult || homeResult.score === null || !awayResult || awayResult.score === null) return null;
   if (homeResult.score === awayResult.score) return null;
 
-  const scoringType = event.season.tournament.scoringType;
+  const scoringType = event.tournament.activity.scoringType;
   const homeWins = scoringType === "LOW_SCORE" ? homeResult.score < awayResult.score : homeResult.score > awayResult.score;
   return homeWins
     ? { winnerSchoolId: home.schoolId, loserSchoolId: away.schoolId }

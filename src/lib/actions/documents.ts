@@ -12,7 +12,7 @@ async function assertEventAccess(eventId: string) {
   const user = await requireUser();
   const event = await prisma.event.findUnique({
     where: { id: eventId },
-    include: { participants: true, season: true },
+    include: { participants: true, tournament: true },
   });
   if (!event) throw new Error("NOT_FOUND");
 
@@ -73,7 +73,7 @@ export async function uploadDocumentAction(_prevState: ActionResult | null, form
     after: { title },
   });
 
-  revalidatePath(`/seasons/${event.season.slug}/events/${event.slug}`);
+  revalidatePath(`/seasons/${event.tournament.slug}/events/${event.slug}`);
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -82,7 +82,7 @@ export async function deleteDocumentAction(documentId: string): Promise<ActionRe
   const admin = await requireAdmin();
   const document = await prisma.document.findUnique({
     where: { id: documentId },
-    include: { event: { include: { season: true } } },
+    include: { event: { include: { tournament: true } } },
   });
   if (!document) return { ok: false, error: "Document not found." };
 
@@ -103,6 +103,6 @@ export async function deleteDocumentAction(documentId: string): Promise<ActionRe
     before: { title: document.title, url: document.url },
   });
 
-  revalidatePath(`/seasons/${document.event.season.slug}/events/${document.event.slug}`);
+  revalidatePath(`/seasons/${document.event.tournament.slug}/events/${document.event.slug}`);
   return { ok: true };
 }

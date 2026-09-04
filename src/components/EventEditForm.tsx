@@ -164,7 +164,7 @@ export function EventEditForm({
 
       {scoringType === "NONE" && (
         <p className="text-sm text-muted">
-          This activity doesn&apos;t use a standings table — post results as a document below, and use the recap for
+          This activity doesn&apos;t use a results table — post results as a document below, and use the recap for
           a summary.
         </p>
       )}

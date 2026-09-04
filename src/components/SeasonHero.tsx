@@ -2,16 +2,16 @@ import Link from "next/link";
 import { format } from "date-fns";
 
 const SCORING_LABEL: Record<string, string> = {
-  WIN_LOSS: "Win / loss standings",
+  WIN_LOSS: "Win / loss results",
   LOW_SCORE: "Team + individual, lowest wins",
-  NONE: "No standings table",
+  NONE: "No results table",
 };
 
 export function SeasonHero({
+  activityName,
+  activitySport,
+  activitySlug,
   tournamentName,
-  tournamentSport,
-  tournamentSlug,
-  seasonName,
   divisionName,
   startDate,
   endDate,
@@ -19,10 +19,10 @@ export function SeasonHero({
   scoringType,
   isCurrent,
 }: {
+  activityName: string;
+  activitySport: string;
+  activitySlug: string;
   tournamentName: string;
-  tournamentSport: string;
-  tournamentSlug: string;
-  seasonName: string;
   divisionName?: string;
   startDate: Date;
   endDate: Date;
@@ -34,17 +34,17 @@ export function SeasonHero({
     <div className="relative overflow-hidden bg-foreground px-6 py-10 text-background sm:px-10">
       <div className="lattice-panel absolute inset-0 text-accent opacity-[.16]" />
       <div className="relative mx-auto max-w-5xl">
-        <Link href={`/tournaments/${tournamentSlug}`} className="text-sm font-semibold text-accent hover:underline">
-          &larr; {tournamentName}
+        <Link href={`/tournaments/${activitySlug}`} className="text-sm font-semibold text-accent hover:underline">
+          &larr; {activityName}
         </Link>
         <div className="mt-3 grid gap-8 sm:grid-cols-[1.4fr_1fr] sm:items-end">
           <div>
             <h6 className="text-accent opacity-90">
-              {tournamentSport} · {seasonName}
+              {activitySport} · {tournamentName}
               {!isCurrent && " · Archived"}
             </h6>
             <div className="mt-3 text-4xl font-extrabold leading-[.95] tracking-tight sm:text-6xl">
-              {divisionName ? `${divisionName} ${tournamentName}` : tournamentName}
+              {divisionName ? `${divisionName} ${activityName}` : activityName}
             </div>
           </div>
           <div className="grid border border-accent/40 text-sm">

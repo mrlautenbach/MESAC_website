@@ -15,7 +15,7 @@ export default async function SchedulePage() {
     include: {
       participants: { include: { school: true } },
       results: true,
-      season: { include: { tournament: true } },
+      tournament: { include: { activity: true } },
       division: true,
       homeSourceEvent: { select: { externalId: true } },
       awaySourceEvent: { select: { externalId: true } },
@@ -50,9 +50,9 @@ export default async function SchedulePage() {
         score: bothScored ? `${resultHome!.score}–${resultAway!.score}` : null,
         status: event.status,
         streamUrl: event.streamUrl,
-        tournamentName: event.season.tournament.name,
+        tournamentName: event.tournament.activity.name,
         divisionName: event.division?.name ?? null,
-        href: `/seasons/${event.season.slug}/events/${event.slug}`,
+        href: `/seasons/${event.tournament.slug}/events/${event.slug}`,
       };
     }),
   }));

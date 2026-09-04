@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { computeStandings, computeLowScoreTeamStandings, computeIndividualStandings } from "@/lib/standings";
 import { sideLabel } from "@/lib/eventDisplay";
 
-type Tournament = {
+type Activity = {
   id: string;
   scoringType: "WIN_LOSS" | "LOW_SCORE" | "NONE";
   winPoints: number;
@@ -12,23 +12,23 @@ type Tournament = {
   lossPoints: number;
 };
 
-// Shared by the season (edition) page for ungendered tournaments and the
+// Shared by the tournament (edition) page for ungendered activities and the
 // division sub-page for gendered ones - same rendering, just scoped to a
 // division or not.
 export async function SeasonStandingsAndSchedule({
-  seasonId,
-  seasonSlug,
+  tournamentId,
+  tournamentSlug,
   divisionId,
-  tournament,
+  activity,
 }: {
-  seasonId: string;
-  seasonSlug: string;
+  tournamentId: string;
+  tournamentSlug: string;
   divisionId?: string | null;
-  tournament: Tournament;
+  activity: Activity;
 }) {
   const [events, customFields] = await Promise.all([
     prisma.event.findMany({
-      where: divisionId ? { seasonId, divisionId } : { seasonId },
+      where: divisionId ? { tournamentId, divisionId } : { tournamentId },
       orderBy: { date: "asc" },
       include: {
         participants: { include: { school: true } },
@@ -38,22 +38,22 @@ export async function SeasonStandingsAndSchedule({
         fieldValues: true,
       },
     }),
-    prisma.tournamentField.findMany({ where: { tournamentId: tournament.id }, orderBy: { order: "asc" } }),
+    prisma.activityField.findMany({ where: { activityId: activity.id }, orderBy: { order: "asc" } }),
   ]);
 
   // Event detail always lives at one canonical URL regardless of division -
-  // an event's identity is (seasonId, slug), not tied to the division route.
-  const eventHref = (eventSlug: string) => `/seasons/${seasonSlug}/events/${eventSlug}`;
+  // an event's identity is (tournamentId, slug), not tied to the division route.
+  const eventHref = (eventSlug: string) => `/seasons/${tournamentSlug}/events/${eventSlug}`;
 
   return (
     <div className="space-y-10">
-      {tournament.scoringType === "WIN_LOSS" && (
-        <WinLossStandings seasonId={seasonId} divisionId={divisionId} tournament={tournament} />
+      {activity.scoringType === "WIN_LOSS" && (
+        <WinLossStandings tournamentId={tournamentId} divisionId={divisionId} activity={activity} />
       )}
-      {tournament.scoringType === "LOW_SCORE" && <LowScoreStandings seasonId={seasonId} divisionId={divisionId} />}
-      {tournament.scoringType === "NONE" && (
+      {activity.scoringType === "LOW_SCORE" && <LowScoreStandings tournamentId={tournamentId} divisionId={divisionId} />}
+      {activity.scoringType === "NONE" && (
         <p className="text-sm text-muted">
-          This activity doesn&apos;t use a standings table — check each event below for results.
+          This activity doesn&apos;t use a results table — check each event below for results.
         </p>
       )}
 
@@ -68,11 +68,11 @@ export async function SeasonStandingsAndSchedule({
             <table className="mtable">
               <thead>
                 <tr>
-                  {tournament.scoringType !== "NONE" && <th>Game</th>}
+                  {activity.scoringType !== "NONE" && <th>Game</th>}
                   <th>Home</th>
-                  {tournament.scoringType !== "NONE" && <th className="text-right">Score</th>}
+                  {activity.scoringType !== "NONE" && <th className="text-right">Score</th>}
                   <th>Away</th>
-                  {tournament.scoringType !== "NONE" && <th className="text-right">Score</th>}
+                  {activity.scoringType !== "NONE" && <th className="text-right">Score</th>}
                   <th>Date</th>
                   <th>Time</th>
                   <th>Court</th>
@@ -92,7 +92,7 @@ export async function SeasonStandingsAndSchedule({
                   const valueByFieldId = new Map(event.fieldValues.map((v) => [v.fieldId, v.value]));
                   return (
                     <tr key={event.id}>
-                      {tournament.scoringType !== "NONE" && (
+                      {activity.scoringType !== "NONE" && (
                         <td className="text-muted">
                           <Link href={eventHref(event.slug)} className="hover:text-primary">
                             {event.externalId ?? "—"}
@@ -104,7 +104,7 @@ export async function SeasonStandingsAndSchedule({
                           {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
                         </Link>
                       </td>
-                      {tournament.scoringType !== "NONE" && (
+                      {activity.scoringType !== "NONE" && (
                         <td className="text-right tabular-nums">{homeResult?.score ?? "—"}</td>
                       )}
                       <td className="font-extrabold">
@@ -112,7 +112,7 @@ export async function SeasonStandingsAndSchedule({
                           {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
                         </Link>
                       </td>
-                      {tournament.scoringType !== "NONE" && (
+                      {activity.scoringType !== "NONE" && (
                         <td className="text-right tabular-nums">{awayResult?.score ?? "—"}</td>
                       )}
                       <td className="text-muted">{format(event.date, "MMM d, yyyy")}</td>
@@ -148,18 +148,18 @@ export async function SeasonStandingsAndSchedule({
 }
 
 async function WinLossStandings({
-  seasonId,
+  tournamentId,
   divisionId,
-  tournament,
+  activity,
 }: {
-  seasonId: string;
+  tournamentId: string;
   divisionId?: string | null;
-  tournament: Tournament;
+  activity: Activity;
 }) {
-  const standings = await computeStandings(seasonId, divisionId);
+  const standings = await computeStandings(tournamentId, divisionId);
   return (
     <section>
-      <h4 className="mb-3">Standings</h4>
+      <h4 className="mb-3">Results</h4>
       {standings.length === 0 ? (
         <p className="text-muted">No results have been posted yet.</p>
       ) : (
@@ -204,22 +204,22 @@ async function WinLossStandings({
         </div>
       )}
       <p className="mt-2 text-xs text-muted">
-        {tournament.winPoints} pts for a win, {tournament.drawPoints} for a draw, {tournament.lossPoints} for a loss.
+        {activity.winPoints} pts for a win, {activity.drawPoints} for a draw, {activity.lossPoints} for a loss.
       </p>
     </section>
   );
 }
 
-async function LowScoreStandings({ seasonId, divisionId }: { seasonId: string; divisionId?: string | null }) {
+async function LowScoreStandings({ tournamentId, divisionId }: { tournamentId: string; divisionId?: string | null }) {
   const [teams, individuals] = await Promise.all([
-    computeLowScoreTeamStandings(seasonId, divisionId),
-    computeIndividualStandings(seasonId, divisionId),
+    computeLowScoreTeamStandings(tournamentId, divisionId),
+    computeIndividualStandings(tournamentId, divisionId),
   ]);
 
   return (
     <div className="grid gap-8 md:grid-cols-2">
       <section>
-        <h4 className="mb-3">Team standings</h4>
+        <h4 className="mb-3">Team results</h4>
         {teams.length === 0 ? (
           <p className="text-muted">No results have been posted yet.</p>
         ) : (
@@ -248,7 +248,7 @@ async function LowScoreStandings({ seasonId, divisionId }: { seasonId: string; d
       </section>
 
       <section>
-        <h4 className="mb-3">Individual standings</h4>
+        <h4 className="mb-3">Individual results</h4>
         {individuals.length === 0 ? (
           <p className="text-muted">No individual scores have been posted yet.</p>
         ) : (

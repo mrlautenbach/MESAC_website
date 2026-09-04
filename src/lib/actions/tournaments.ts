@@ -7,51 +7,42 @@ import { recordAudit } from "@/lib/audit";
 import { tournamentInputSchema } from "@/lib/validation";
 import type { ActionResult } from "@/lib/actions/auth";
 
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
-export async function createTournamentAction(
-  _prevState: ActionResult | null,
-  formData: FormData
-): Promise<ActionResult> {
+// Creating a new edition for an activity is the "archive" action: the
+// previous current edition simply stops being current (isCurrent: false)
+// but is untouched otherwise - it and everything under it (events, results,
+// photos, documents) stays exactly as it was and remains browsable at its
+// own permanent URL, linked from the activity page's archive list.
+export async function createTournamentAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const admin = await requireAdmin();
 
   const parsed = tournamentInputSchema.safeParse({
+    activityId: formData.get("activityId"),
     name: formData.get("name"),
     slug: formData.get("slug"),
-    sport: formData.get("sport"),
-    scoringType: formData.get("scoringType") || "WIN_LOSS",
-    winPoints: formData.get("winPoints") || 3,
-    drawPoints: formData.get("drawPoints") || 1,
-    lossPoints: formData.get("lossPoints") || 0,
-    divisionNames: formData.getAll("divisionNames"),
+    startDate: formData.get("startDate"),
+    endDate: formData.get("endDate"),
+    hostSchoolId: formData.get("hostSchoolId") || null,
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
+  if (parsed.data.endDate < parsed.data.startDate) {
+    return { ok: false, error: "End date must be after the start date." };
+  }
 
-  const existing = await prisma.tournament.findUnique({ where: { slug: parsed.data.slug } });
-  if (existing) return { ok: false, error: "A tournament with that URL slug already exists." };
+  const activity = await prisma.activity.findUnique({ where: { id: parsed.data.activityId } });
+  if (!activity) return { ok: false, error: "Activity not found." };
 
-  const tournament = await prisma.tournament.create({
-    data: {
-      name: parsed.data.name,
-      slug: parsed.data.slug,
-      sport: parsed.data.sport,
-      scoringType: parsed.data.scoringType,
-      winPoints: parsed.data.winPoints,
-      drawPoints: parsed.data.drawPoints,
-      lossPoints: parsed.data.lossPoints,
-      divisions: {
-        create: parsed.data.divisionNames.map((name) => ({ name, slug: slugify(name) })),
-      },
-    },
-  });
+  const existingSlug = await prisma.tournament.findUnique({ where: { slug: parsed.data.slug } });
+  if (existingSlug) return { ok: false, error: "A tournament with that URL slug already exists." };
+
+  const [tournament] = await prisma.$transaction([
+    prisma.tournament.create({ data: parsed.data }),
+    prisma.tournament.updateMany({
+      where: { activityId: parsed.data.activityId, isCurrent: true },
+      data: { isCurrent: false },
+    }),
+  ]);
 
   await recordAudit({
     actorId: admin.id,
@@ -59,34 +50,33 @@ export async function createTournamentAction(
     action: "TOURNAMENT_CREATE",
     entityType: "Tournament",
     entityId: tournament.id,
-    summary: `${admin.name} created tournament "${tournament.name}"`,
-    after: { name: tournament.name, scoringType: tournament.scoringType, divisions: parsed.data.divisionNames },
+    summary: `${admin.name} started a new tournament ("${tournament.name}") for "${activity.name}", archiving the previous one`,
+    after: parsed.data,
   });
 
+  revalidatePath(`/tournaments/${activity.slug}`);
   revalidatePath("/dashboard/admin/tournaments");
   revalidatePath("/");
   return { ok: true };
 }
 
-export async function updateTournamentAction(
-  _prevState: ActionResult | null,
-  formData: FormData
-): Promise<ActionResult> {
+export async function updateTournamentAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const admin = await requireAdmin();
   const tournamentId = String(formData.get("tournamentId") ?? "");
-  const existing = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+  const existing = await prisma.tournament.findUnique({ where: { id: tournamentId }, include: { activity: true } });
   if (!existing) return { ok: false, error: "Tournament not found." };
 
-  const parsed = tournamentInputSchema.omit({ slug: true, divisionNames: true }).safeParse({
+  const parsed = tournamentInputSchema.omit({ slug: true, activityId: true }).safeParse({
     name: formData.get("name"),
-    sport: formData.get("sport"),
-    scoringType: formData.get("scoringType") || "WIN_LOSS",
-    winPoints: formData.get("winPoints") || 3,
-    drawPoints: formData.get("drawPoints") || 1,
-    lossPoints: formData.get("lossPoints") || 0,
+    startDate: formData.get("startDate"),
+    endDate: formData.get("endDate"),
+    hostSchoolId: formData.get("hostSchoolId") || null,
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  if (parsed.data.endDate < parsed.data.startDate) {
+    return { ok: false, error: "End date must be after the start date." };
   }
 
   await prisma.tournament.update({ where: { id: tournamentId }, data: parsed.data });
@@ -102,36 +92,7 @@ export async function updateTournamentAction(
     after: parsed.data,
   });
 
-  revalidatePath(`/tournaments/${existing.slug}`);
-  revalidatePath("/dashboard/admin/tournaments");
-  return { ok: true };
-}
-
-export async function addDivisionAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const admin = await requireAdmin();
-  const tournamentId = String(formData.get("tournamentId") ?? "");
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name || name.length > 40) return { ok: false, error: "Enter a division name (up to 40 characters)." };
-
-  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
-  if (!tournament) return { ok: false, error: "Tournament not found." };
-
-  const slug = slugify(name);
-  const existing = await prisma.division.findUnique({ where: { tournamentId_slug: { tournamentId, slug } } });
-  if (existing) return { ok: false, error: "That division already exists." };
-
-  const division = await prisma.division.create({ data: { tournamentId, name, slug } });
-
-  await recordAudit({
-    actorId: admin.id,
-    actorLabel: admin.name,
-    action: "DIVISION_CREATE",
-    entityType: "Division",
-    entityId: division.id,
-    summary: `${admin.name} added division "${name}" to "${tournament.name}"`,
-    after: { name },
-  });
-
-  revalidatePath(`/dashboard/admin/tournaments`);
+  revalidatePath(`/seasons/${existing.slug}`);
+  revalidatePath(`/tournaments/${existing.activity.slug}`);
   return { ok: true };
 }

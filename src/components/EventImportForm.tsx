@@ -29,8 +29,8 @@ function buildTemplate(season: SeasonOption | undefined, schoolCodes: Props["sch
 
 export function EventImportForm({ seasons, schoolCodes }: Props) {
   const [state, formAction, pending] = useActionState<ImportEventsResult | null, FormData>(importEventsAction, null);
-  const [seasonId, setSeasonId] = useState(seasons[0]?.id ?? "");
-  const season = seasons.find((s) => s.id === seasonId);
+  const [tournamentId, setTournamentId] = useState(seasons[0]?.id ?? "");
+  const season = seasons.find((s) => s.id === tournamentId);
 
   const templateHref = useMemo(() => {
     const csv = buildTemplate(season, schoolCodes);
@@ -54,16 +54,16 @@ export function EventImportForm({ seasons, schoolCodes }: Props) {
   return (
     <form action={formAction} className="max-w-2xl space-y-4">
       <div>
-        <label htmlFor="seasonId" className="field-label">
-          Season
+        <label htmlFor="tournamentId" className="field-label">
+          Tournament
         </label>
         <select
-          id="seasonId"
-          name="seasonId"
+          id="tournamentId"
+          name="tournamentId"
           required
           className="field-input"
-          value={seasonId}
-          onChange={(e) => setSeasonId(e.target.value)}
+          value={tournamentId}
+          onChange={(e) => setTournamentId(e.target.value)}
         >
           {seasons.map((s) => (
             <option key={s.id} value={s.id}>

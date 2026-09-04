@@ -14,12 +14,12 @@ export default async function EventPage({
 }: {
   params: Promise<{ season: string; event: string }>;
 }) {
-  const { season: seasonSlug, event: eventSlug } = await params;
-  const season = await prisma.season.findUnique({ where: { slug: seasonSlug }, include: { tournament: true } });
-  if (!season) notFound();
+  const { season: tournamentSlug, event: eventSlug } = await params;
+  const tournament = await prisma.tournament.findUnique({ where: { slug: tournamentSlug }, include: { activity: true } });
+  if (!tournament) notFound();
 
   const event = await prisma.event.findUnique({
-    where: { seasonId_slug: { seasonId: season.id, slug: eventSlug } },
+    where: { tournamentId_slug: { tournamentId: tournament.id, slug: eventSlug } },
     include: {
       participants: { include: { school: true } },
       results: { include: { school: true } },
@@ -59,11 +59,11 @@ export default async function EventPage({
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-8">
       <div>
         <Link
-          href={event.division ? `/seasons/${season.slug}/${event.division.slug}` : `/seasons/${season.slug}`}
+          href={event.division ? `/seasons/${tournament.slug}/${event.division.slug}` : `/seasons/${tournament.slug}`}
           className="text-sm font-semibold text-primary hover:underline"
         >
-          &larr; {season.tournament.name}
-          {event.division ? ` — ${event.division.name}` : ""} ({season.name})
+          &larr; {tournament.activity.name}
+          {event.division ? ` — ${event.division.name}` : ""} ({tournament.name})
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <h1 className="text-2xl font-bold sm:text-3xl">{matchupTitle}</h1>
@@ -87,9 +87,9 @@ export default async function EventPage({
         </p>
       </div>
 
-      {season.tournament.scoringType !== "NONE" && (
+      {tournament.activity.scoringType !== "NONE" && (
         <section className="card p-4">
-          <h2 className="mb-3 text-lg font-bold">{season.tournament.scoringType === "LOW_SCORE" ? "Team result" : "Result"}</h2>
+          <h2 className="mb-3 text-lg font-bold">{tournament.activity.scoringType === "LOW_SCORE" ? "Team result" : "Result"}</h2>
           {event.results.every((r) => r.score === null && r.outcome === null) ? (
             <p className="text-muted">Results haven&apos;t been posted yet.</p>
           ) : (
@@ -106,7 +106,7 @@ export default async function EventPage({
             </ul>
           )}
 
-          {season.tournament.scoringType === "LOW_SCORE" && event.individualResults.length > 0 && (
+          {tournament.activity.scoringType === "LOW_SCORE" && event.individualResults.length > 0 && (
             <div className="mt-4 border-t border-border pt-4">
               <h3 className="mb-2 text-sm font-bold">Individual scores</h3>
               <div className="space-y-3">

@@ -4,22 +4,22 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export default async function TournamentsIndexPage() {
-  const tournaments = await prisma.tournament.findMany({
+  const activities = await prisma.activity.findMany({
     orderBy: [{ name: "asc" }],
-    include: { seasons: { where: { isCurrent: true }, take: 1 } },
+    include: { tournaments: { where: { isCurrent: true }, take: 1 } },
   });
 
-  const groups = new Map<string, typeof tournaments>();
-  for (const t of tournaments) {
-    const group = groups.get(t.sport) ?? [];
-    group.push(t);
-    groups.set(t.sport, group);
+  const groups = new Map<string, typeof activities>();
+  for (const a of activities) {
+    const group = groups.get(a.sport) ?? [];
+    group.push(a);
+    groups.set(a.sport, group);
   }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-      <h6 className="text-primary-dark">Season standings</h6>
-      <h1 className="mt-2 mb-8 text-4xl sm:text-5xl">Every tournament, one table each.</h1>
+      <h6 className="text-primary-dark">Tournament results</h6>
+      <h1 className="mt-2 mb-8 text-4xl sm:text-5xl">Every activity, one table each.</h1>
 
       <div className="space-y-3">
         {Array.from(groups.entries()).map(([sport, group]) => (
@@ -27,12 +27,12 @@ export default async function TournamentsIndexPage() {
             <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-[160px_1fr]">
               <h6 className="pt-1 text-muted">{sport}</h6>
               <ul className="flex flex-wrap gap-2">
-                {group.map((t) => {
-                  const current = t.seasons[0];
+                {group.map((a) => {
+                  const current = a.tournaments[0];
                   return (
-                    <li key={t.id}>
-                      <Link href={current ? `/seasons/${current.slug}` : `/tournaments/${t.slug}`} className="btn btn-secondary">
-                        {t.name}
+                    <li key={a.id}>
+                      <Link href={current ? `/seasons/${current.slug}` : `/tournaments/${a.slug}`} className="btn btn-secondary">
+                        {a.name}
                       </Link>
                     </li>
                   );
@@ -43,7 +43,7 @@ export default async function TournamentsIndexPage() {
         ))}
       </div>
 
-      {tournaments.length === 0 && <p className="text-muted">No tournaments have been created yet.</p>}
+      {activities.length === 0 && <p className="text-muted">No activities have been created yet.</p>}
     </div>
   );
 }

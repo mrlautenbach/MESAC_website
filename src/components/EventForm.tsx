@@ -16,8 +16,8 @@ type Props = {
 
 export function EventForm({ seasons, schools }: Props) {
   const [state, formAction, pending] = useActionState(createEventAction, null);
-  const [seasonId, setSeasonId] = useState(seasons[0]?.id ?? "");
-  const divisions = seasons.find((s) => s.id === seasonId)?.divisions ?? [];
+  const [tournamentId, setTournamentId] = useState(seasons[0]?.id ?? "");
+  const divisions = seasons.find((s) => s.id === tournamentId)?.divisions ?? [];
 
   if (state?.ok) {
     return <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-success">Event created!</p>;
@@ -26,16 +26,16 @@ export function EventForm({ seasons, schools }: Props) {
   return (
     <form action={formAction} className="max-w-lg space-y-4">
       <div>
-        <label htmlFor="seasonId" className="field-label">
-          Season
+        <label htmlFor="tournamentId" className="field-label">
+          Tournament
         </label>
         <select
-          id="seasonId"
-          name="seasonId"
+          id="tournamentId"
+          name="tournamentId"
           required
           className="field-input"
-          value={seasonId}
-          onChange={(e) => setSeasonId(e.target.value)}
+          value={tournamentId}
+          onChange={(e) => setTournamentId(e.target.value)}
         >
           {seasons.map((s) => (
             <option key={s.id} value={s.id}>

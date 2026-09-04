@@ -10,11 +10,11 @@ import { computeOutcomes, resolvePlayoffSlots, tryFillFromExistingSource } from 
 import type { ActionResult } from "@/lib/actions/auth";
 import { z } from "zod";
 
-async function makeUniqueEventSlug(seasonId: string, date: Date, schoolSlugs: string[]) {
+async function makeUniqueEventSlug(tournamentId: string, date: Date, schoolSlugs: string[]) {
   const base = [date.toISOString().slice(0, 10), ...schoolSlugs].join("-").slice(0, 90);
   let slug = base;
   let suffix = 1;
-  while (await prisma.event.findUnique({ where: { seasonId_slug: { seasonId, slug } } })) {
+  while (await prisma.event.findUnique({ where: { tournamentId_slug: { tournamentId, slug } } })) {
     suffix += 1;
     slug = `${base}-${suffix}`;
   }
@@ -25,7 +25,7 @@ export async function createEventAction(_prevState: ActionResult | null, formDat
   const admin = await requireAdmin();
 
   const parsed = eventInputSchema.safeParse({
-    seasonId: formData.get("seasonId"),
+    tournamentId: formData.get("tournamentId"),
     divisionId: formData.get("divisionId") || null,
     title: formData.get("title") ?? "",
     date: formData.get("date"),
@@ -38,13 +38,13 @@ export async function createEventAction(_prevState: ActionResult | null, formDat
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
-  const season = await prisma.season.findUnique({ where: { id: parsed.data.seasonId }, include: { tournament: true } });
-  if (!season) return { ok: false, error: "Season not found." };
+  const tournament = await prisma.tournament.findUnique({ where: { id: parsed.data.tournamentId }, include: { activity: true } });
+  if (!tournament) return { ok: false, error: "Tournament not found." };
 
   if (parsed.data.divisionId) {
     const division = await prisma.division.findUnique({ where: { id: parsed.data.divisionId } });
-    if (!division || division.tournamentId !== season.tournamentId) {
-      return { ok: false, error: "That division doesn't belong to this tournament." };
+    if (!division || division.activityId !== tournament.activityId) {
+      return { ok: false, error: "That division doesn't belong to this activity." };
     }
   }
 
@@ -54,14 +54,14 @@ export async function createEventAction(_prevState: ActionResult | null, formDat
   }
 
   const slug = await makeUniqueEventSlug(
-    season.id,
+    tournament.id,
     parsed.data.date,
     schools.map((s) => s.slug)
   );
 
   const event = await prisma.event.create({
     data: {
-      seasonId: season.id,
+      tournamentId: tournament.id,
       divisionId: parsed.data.divisionId || null,
       slug,
       title: parsed.data.title || null,
@@ -86,8 +86,8 @@ export async function createEventAction(_prevState: ActionResult | null, formDat
     after: { date: event.date, location: event.location, schoolIds: parsed.data.schoolIds },
   });
 
-  revalidatePath(`/seasons/${season.slug}`);
-  revalidatePath(`/tournaments/${season.tournament.slug}`);
+  revalidatePath(`/seasons/${tournament.slug}`);
+  revalidatePath(`/tournaments/${tournament.activity.slug}`);
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -151,9 +151,9 @@ function parseScore(raw: string): number | null | { error: true } {
 export async function importEventsAction(_prevState: ImportEventsResult | null, formData: FormData): Promise<ImportEventsResult> {
   const admin = await requireAdmin();
 
-  const seasonId = formData.get("seasonId");
-  if (typeof seasonId !== "string" || !seasonId) {
-    return { ok: false, error: "Choose a season first." };
+  const tournamentId = formData.get("tournamentId");
+  if (typeof tournamentId !== "string" || !tournamentId) {
+    return { ok: false, error: "Choose a tournament first." };
   }
 
   const file = formData.get("csvFile");
@@ -163,12 +163,12 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     return { ok: false, error: "Upload a .csv file or paste CSV text." };
   }
 
-  const season = await prisma.season.findUnique({
-    where: { id: seasonId },
-    include: { tournament: { include: { divisions: true, fields: { orderBy: { order: "asc" } } } } },
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    include: { activity: { include: { divisions: true, fields: { orderBy: { order: "asc" } } } } },
   });
-  if (!season) return { ok: false, error: "Season not found." };
-  const scoringType = season.tournament.scoringType;
+  if (!tournament) return { ok: false, error: "Tournament not found." };
+  const scoringType = tournament.activity.scoringType;
 
   const rows = parseCsv(text);
   if (rows.length < 2) {
@@ -179,7 +179,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     return {
       ok: false,
       error:
-        "The header row needs at least: date, home, away (plus optional game_id, gender, home_score, away_score, time, court, status, streaming_link, and any custom fields for this tournament).",
+        "The header row needs at least: date, home, away (plus optional game_id, gender, home_score, away_score, time, court, status, streaming_link, and any custom fields for this activity).",
     };
   }
   const col = (name: string) => header.indexOf(name);
@@ -190,12 +190,12 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     schoolByKey.set(s.name.trim().toLowerCase(), s);
     if (s.code) schoolByKey.set(s.code.trim().toLowerCase(), s);
   }
-  const divisionByName = new Map(season.tournament.divisions.map((d) => [d.name.trim().toLowerCase(), d]));
-  const requiresDivision = season.tournament.divisions.length > 0;
-  const tournamentFields = season.tournament.fields;
+  const divisionByName = new Map(tournament.activity.divisions.map((d) => [d.name.trim().toLowerCase(), d]));
+  const requiresDivision = tournament.activity.divisions.length > 0;
+  const activityFields = tournament.activity.fields;
 
   const existingEvents = await prisma.event.findMany({
-    where: { seasonId: season.id, externalId: { not: null } },
+    where: { tournamentId: tournament.id, externalId: { not: null } },
     include: { participants: true },
   });
   const existingByGameId = new Map(existingEvents.map((e) => [e.externalId!, e]));
@@ -294,7 +294,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     }
 
     const fieldValues: PlannedRow["fieldValues"] = [];
-    for (const field of tournamentFields) {
+    for (const field of activityFields) {
       const raw = get(field.key);
       if (raw) fieldValues.push({ fieldId: field.id, value: raw.slice(0, 500) });
     }
@@ -418,7 +418,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
               ].join("-").slice(0, 90);
           let slug = base;
           let suffix = 1;
-          while (claimedSlugs.has(slug) || (await tx.event.findUnique({ where: { seasonId_slug: { seasonId: season.id, slug } } }))) {
+          while (claimedSlugs.has(slug) || (await tx.event.findUnique({ where: { tournamentId_slug: { tournamentId: tournament.id, slug } } }))) {
             suffix += 1;
             slug = `${base}-${suffix}`;
           }
@@ -426,7 +426,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
 
           const event = await tx.event.create({
             data: {
-              seasonId: season.id,
+              tournamentId: tournament.id,
               divisionId: row.divisionId,
               slug,
               title: row.title,
@@ -497,12 +497,12 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     action: "EVENT_IMPORT",
     entityType: "Event",
     entityId: allIds[0],
-    summary: `${admin.name} imported a schedule into ${season.tournament.name} — ${season.name} from a CSV file (${createdIds.length} new, ${updatedIds.length} updated)`,
-    after: { seasonId: season.id, created: createdIds.length, updated: updatedIds.length },
+    summary: `${admin.name} imported a schedule into ${tournament.activity.name} — ${tournament.name} from a CSV file (${createdIds.length} new, ${updatedIds.length} updated)`,
+    after: { tournamentId: tournament.id, created: createdIds.length, updated: updatedIds.length },
   });
 
-  revalidatePath(`/seasons/${season.slug}`);
-  revalidatePath(`/tournaments/${season.tournament.slug}`);
+  revalidatePath(`/seasons/${tournament.slug}`);
+  revalidatePath(`/tournaments/${tournament.activity.slug}`);
   revalidatePath("/schedule");
   revalidatePath("/dashboard");
   return { ok: true, created: createdIds.length, updated: updatedIds.length };
@@ -534,7 +534,7 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
 
   const event = await prisma.event.findUnique({
     where: { id: parsed.data.eventId },
-    include: { participants: true, results: true, season: { include: { tournament: true } }, division: true },
+    include: { participants: true, results: true, tournament: { include: { activity: true } }, division: true },
   });
   if (!event) return { ok: false, error: "Event not found." };
 
@@ -621,7 +621,7 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
   // its winner/loser ("winner of this game plays...").
   await resolvePlayoffSlots(prisma, event.id);
 
-  // Individual (per-athlete) scores, for LOW_SCORE seasons like golf. The
+  // Individual (per-athlete) scores, for LOW_SCORE activities like golf. The
   // "present" marker distinguishes "no rows submitted for this school"
   // (field not rendered - skip) from "submitted as an empty list" (clear
   // all rows) - same school-scoping rule as team results above.
@@ -667,10 +667,10 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
     });
   }
 
-  revalidatePath(`/seasons/${event.season.slug}`);
-  revalidatePath(`/seasons/${event.season.slug}/events/${event.slug}`);
-  if (event.division) revalidatePath(`/seasons/${event.season.slug}/${event.division.slug}`);
-  revalidatePath(`/tournaments/${event.season.tournament.slug}`);
+  revalidatePath(`/seasons/${event.tournament.slug}`);
+  revalidatePath(`/seasons/${event.tournament.slug}/events/${event.slug}`);
+  if (event.division) revalidatePath(`/seasons/${event.tournament.slug}/${event.division.slug}`);
+  revalidatePath(`/tournaments/${event.tournament.activity.slug}`);
   revalidatePath("/dashboard");
   return { ok: true };
 }

@@ -28,7 +28,7 @@ export default async function DashboardPage() {
     orderBy: { date: "asc" },
     include: {
       participants: { include: { school: true } },
-      season: { include: { tournament: true } },
+      tournament: { include: { activity: true } },
       division: true,
       homeSourceEvent: { select: { externalId: true } },
       awaySourceEvent: { select: { externalId: true } },
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
               Schools
             </Link>
             <Link href="/dashboard/admin/records" className="btn btn-secondary">
-              Records
+              History
             </Link>
             <Link href="/dashboard/admin/users" className="btn btn-secondary">
               Accounts
@@ -107,7 +107,7 @@ type EventRowProps = {
     date: Date;
     location: string | null;
     status: string;
-    season: { name: string; slug: string; tournament: { name: string } };
+    tournament: { name: string; slug: string; activity: { name: string } };
     division: { name: string } | null;
     participants: { isHome: boolean; school: { name: string } }[];
     homeSourceOutcome: "WINNER" | "LOSER" | null;
@@ -131,8 +131,8 @@ function EventRow({ event }: EventRowProps) {
       <div>
         <div className="font-semibold">{matchup}</div>
         <div className="text-sm text-muted">
-          {event.season.tournament.name}
-          {event.division ? ` — ${event.division.name}` : ""} ({event.season.name}) ·{" "}
+          {event.tournament.activity.name}
+          {event.division ? ` — ${event.division.name}` : ""} ({event.tournament.name}) ·{" "}
           {format(event.date, "EEE, MMM d, yyyy · h:mm a")}
           {event.location ? ` · ${event.location}` : ""}
         </div>

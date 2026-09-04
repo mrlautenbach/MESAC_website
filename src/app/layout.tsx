@@ -11,7 +11,7 @@ const archivo = Archivo({
 
 export const metadata: Metadata = {
   title: "MESAC",
-  description: "Fixtures, results, and standings for the Middle East South Asia Conference.",
+  description: "Fixtures and results for the Middle East South Asia Conference.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

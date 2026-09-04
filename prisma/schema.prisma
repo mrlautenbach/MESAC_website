@@ -65,7 +65,7 @@ model School {
   participants      EventParticipant[]
   results           Result[]
   individualResults IndividualResult[]
-  hostedSeasons     Season[]
+  hostedTournaments Tournament[]
   records           Record[]
   hallOfFameEntries HallOfFameEntry[]
 }
@@ -95,10 +95,25 @@ model User {
   @@index([schoolId])
 }
 
-// The stable identity of a recurring tournament (e.g. "JV Volleyball") -
-// its format doesn't change year to year, only its Seasons (editions) do.
-model Tournament {
+// The top-level organizational term - exactly three per school year (Fall,
+// Winter, Spring: "Season 1/2/3"). Every Activity runs in the same one
+// every year.
+model Season {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  activities Activity[]
+}
+
+// The stable identity of a recurring activity/sport (e.g. "JV Volleyball") -
+// its format doesn't change year to year, only its Tournaments (editions) do.
+model Activity {
   id          String      @id @default(cuid())
+  seasonId    String
+  season      Season      @relation(fields: [seasonId], references: [id])
   name        String
   slug        String      @unique
   sport       String
@@ -110,94 +125,96 @@ model Tournament {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  divisions Division[]
-  seasons   Season[]
-  fields    TournamentField[]
+  divisions   Division[]
+  tournaments Tournament[]
+  fields      ActivityField[]
+
+  @@index([seasonId])
 }
 
-// An admin-defined extra column for this tournament's schedule (e.g.
+// An admin-defined extra column for this activity's schedule (e.g.
 // "Referee", "Bus time") beyond the standard game fields, which are real
 // Event/Result columns and aren't managed through this table.
-model TournamentField {
-  id           String     @id @default(cuid())
-  tournamentId String
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+model ActivityField {
+  id         String   @id @default(cuid())
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
   // Machine-safe key used as the CSV column header (e.g. "referee").
-  key          String
-  label        String
-  order        Int        @default(0)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  key        String
+  label      String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   values EventFieldValue[]
 
-  @@unique([tournamentId, key])
+  @@unique([activityId, key])
 }
 
-// Optional Girls/Boys sub-grouping within a tournament. Most team sports
+// Optional Girls/Boys sub-grouping within an activity. Most team sports
 // have two; individual/meet sports and inherently single-gender sports
 // (baseball, softball) have none - their events just have a null
-// divisionId and the season page shows one combined schedule/standings.
-// Stable across years, like the Tournament it belongs to.
+// divisionId and the tournament page shows one combined schedule/standings.
+// Stable across years, like the Activity it belongs to.
 model Division {
-  id           String     @id @default(cuid())
-  tournamentId String
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  name         String
-  slug         String
-  createdAt    DateTime   @default(now())
+  id         String   @id @default(cuid())
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  name       String
+  slug       String
+  createdAt  DateTime @default(now())
 
   events Event[]
 
-  @@unique([tournamentId, slug])
+  @@unique([activityId, slug])
 }
 
-// One year's edition of a Tournament - its own dates, host school, and
-// events/results. Creating a new edition for a tournament (see
-// Tournament.seasons) is how last year's edition gets archived: it's simply
-// no longer `isCurrent`, but it and everything under it (events, results,
-// photos, documents) stays exactly as it was and remains browsable at its
-// own permanent URL.
-model Season {
-  id           String     @id @default(cuid())
-  tournamentId String
-  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+// One year's edition of an Activity - its own dates, host school, and
+// events/results. Creating a new edition for an activity (see
+// Activity.tournaments) is how last year's edition gets archived: it's
+// simply no longer `isCurrent`, but it and everything under it (events,
+// results, photos, documents) stays exactly as it was and remains browsable
+// at its own permanent URL.
+model Tournament {
+  id           String   @id @default(cuid())
+  activityId   String
+  activity     Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
   name         String
-  slug         String     @unique
+  slug         String   @unique
   startDate    DateTime
   endDate      DateTime
   hostSchoolId String?
-  hostSchool   School?    @relation(fields: [hostSchoolId], references: [id])
-  isCurrent    Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  hostSchool   School?  @relation(fields: [hostSchoolId], references: [id])
+  isCurrent    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   events Event[]
 
-  @@index([tournamentId])
+  @@index([activityId])
 }
 
 model Event {
-  id         String      @id @default(cuid())
-  seasonId   String
-  season     Season      @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  divisionId String?
-  division   Division?   @relation(fields: [divisionId], references: [id], onDelete: SetNull)
-  slug       String
-  title      String?
-  date       DateTime
-  location   String?
-  status     EventStatus @default(SCHEDULED)
-  recap      String?
+  id           String      @id @default(cuid())
+  tournamentId String
+  tournament   Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  divisionId   String?
+  division     Division?   @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  slug         String
+  title        String?
+  date         DateTime
+  location     String?
+  status       EventStatus @default(SCHEDULED)
+  recap        String?
   // Link to a live video stream for this game (YouTube, Twitch, etc), set
   // per event since only some games get streamed.
-  streamUrl  String?
+  streamUrl    String?
   // Admin-supplied human id from the schedule CSV (e.g. "G14") - lets a
   // re-uploaded CSV update this same game instead of duplicating it, and is
   // what playoff rows reference to say "winner of this game".
-  externalId String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  externalId   String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   // A playoff slot that isn't a fixed school yet - filled in automatically
   // once homeSourceEvent (or awaySourceEvent) is scored and its winner/loser
@@ -219,19 +236,19 @@ model Event {
   documents         Document[]
   fieldValues       EventFieldValue[]
 
-  @@unique([seasonId, slug])
-  @@unique([seasonId, externalId])
-  @@index([seasonId])
+  @@unique([tournamentId, slug])
+  @@unique([tournamentId, externalId])
+  @@index([tournamentId])
 }
 
-// An admin-entered value for one of the tournament's custom schedule fields
+// An admin-entered value for one of the activity's custom schedule fields
 // on one event (e.g. this game's "Referee" = "J. Smith").
 model EventFieldValue {
-  id      String          @id @default(cuid())
+  id      String        @id @default(cuid())
   eventId String
-  event   Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event   Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
   fieldId String
-  field   TournamentField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  field   ActivityField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   value   String
 
   @@unique([eventId, fieldId])

@@ -8,20 +8,20 @@ export default async function NewSeasonEditionPage({ params }: { params: Promise
   if (!user) redirect("/login");
   if (user.role !== "ADMIN") redirect("/dashboard");
 
-  const { tournament: tournamentId } = await params;
-  const [tournament, schools] = await Promise.all([
-    prisma.tournament.findUnique({ where: { id: tournamentId }, include: { seasons: true } }),
+  const { tournament: activityId } = await params;
+  const [activity, schools] = await Promise.all([
+    prisma.activity.findUnique({ where: { id: activityId }, include: { tournaments: true } }),
     prisma.school.findMany({ orderBy: { name: "asc" } }),
   ]);
-  if (!tournament) notFound();
+  if (!activity) notFound();
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="mb-1 text-2xl font-bold">
-        {tournament.seasons.length === 0 ? "Create first season" : "Start new season"}
+        {activity.tournaments.length === 0 ? "Create first tournament" : "Start new tournament"}
       </h1>
-      <p className="mb-6 text-muted">{tournament.name}</p>
-      <SeasonEditionForm tournamentId={tournament.id} schools={schools} isFirstEdition={tournament.seasons.length === 0} />
+      <p className="mb-6 text-muted">{activity.name}</p>
+      <SeasonEditionForm tournamentId={activity.id} schools={schools} isFirstEdition={activity.tournaments.length === 0} />
     </div>
   );
 }

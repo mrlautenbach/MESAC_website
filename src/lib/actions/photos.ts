@@ -12,7 +12,7 @@ async function assertEventAccess(eventId: string) {
   const user = await requireUser();
   const event = await prisma.event.findUnique({
     where: { id: eventId },
-    include: { participants: true, season: true },
+    include: { participants: true, tournament: true },
   });
   if (!event) throw new Error("NOT_FOUND");
 
@@ -86,7 +86,7 @@ export async function uploadPhotosAction(_prevState: ActionResult | null, formDa
     });
   }
 
-  revalidatePath(`/seasons/${event.season.slug}/events/${event.slug}`);
+  revalidatePath(`/seasons/${event.tournament.slug}/events/${event.slug}`);
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -104,7 +104,7 @@ export async function updatePhotoCaptionAction(
 
   const photo = await prisma.photo.findUnique({
     where: { id: parsed.data.photoId },
-    include: { event: { include: { season: true } } },
+    include: { event: { include: { tournament: true } } },
   });
   if (!photo) return { ok: false, error: "Photo not found." };
 
@@ -131,13 +131,13 @@ export async function updatePhotoCaptionAction(
     after,
   });
 
-  revalidatePath(`/seasons/${photo.event.season.slug}/events/${photo.event.slug}`);
+  revalidatePath(`/seasons/${photo.event.tournament.slug}/events/${photo.event.slug}`);
   return { ok: true };
 }
 
 export async function deletePhotoAction(photoId: string): Promise<ActionResult> {
   const admin = await requireAdmin();
-  const photo = await prisma.photo.findUnique({ where: { id: photoId }, include: { event: { include: { season: true } } } });
+  const photo = await prisma.photo.findUnique({ where: { id: photoId }, include: { event: { include: { tournament: true } } } });
   if (!photo) return { ok: false, error: "Photo not found." };
 
   try {
@@ -157,6 +157,6 @@ export async function deletePhotoAction(photoId: string): Promise<ActionResult> 
     before: { caption: photo.caption, url: photo.url },
   });
 
-  revalidatePath(`/seasons/${photo.event.season.slug}/events/${photo.event.slug}`);
+  revalidatePath(`/seasons/${photo.event.tournament.slug}/events/${photo.event.slug}`);
   return { ok: true };
 }

@@ -18,7 +18,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: {
-      season: { include: { tournament: true } },
+      tournament: { include: { activity: true } },
       division: true,
       participants: { include: { school: true } },
       results: true,
@@ -76,7 +76,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
     <div className="mx-auto max-w-3xl space-y-10 px-4 py-8">
       <div>
         <Link
-          href={`/seasons/${event.season.slug}/events/${event.slug}`}
+          href={`/seasons/${event.tournament.slug}/events/${event.slug}`}
           className="text-sm font-semibold text-primary hover:underline"
         >
           &larr; View public event page
@@ -85,8 +85,8 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
           {event.participants.map((p) => p.school.name).join(" vs ")}
         </h1>
         <p className="text-muted">
-          {event.season.tournament.name}
-          {event.division ? ` — ${event.division.name}` : ""} ({event.season.name})
+          {event.tournament.activity.name}
+          {event.division ? ` — ${event.division.name}` : ""} ({event.tournament.name})
         </p>
       </div>
 
@@ -101,7 +101,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
           status={event.status}
           recap={event.recap ?? ""}
           streamUrl={event.streamUrl ?? ""}
-          scoringType={event.season.tournament.scoringType}
+          scoringType={event.tournament.activity.scoringType}
           participants={participants}
           individualResultsBySchool={individualResultsBySchool}
         />

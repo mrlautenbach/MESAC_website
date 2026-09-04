@@ -6,11 +6,11 @@ export const dynamic = "force-dynamic";
 export default async function SchoolsPage() {
   const schools = await prisma.school.findMany({
     orderBy: { name: "asc" },
-    include: { participants: { include: { event: { include: { season: true } } } } },
+    include: { participants: { include: { event: { include: { tournament: true } } } } },
   });
 
   const rows = schools.map((s) => {
-    const tournamentIds = new Set(s.participants.map((p) => p.event.season.tournamentId));
+    const activityIds = new Set(s.participants.map((p) => p.event.tournament.activityId));
     return {
       id: s.id,
       code: s.code,
@@ -18,7 +18,7 @@ export default async function SchoolsPage() {
       city: s.city,
       lat: s.lat,
       lon: s.lon,
-      teams: tournamentIds.size,
+      teams: activityIds.size,
     };
   });
 
@@ -29,7 +29,7 @@ export default async function SchoolsPage() {
 
   return (
     <div>
-      <div className="grid gap-0 sm:grid-cols-[1fr_1.5fr]">
+      <div className="grid gap-0 sm:grid-cols-[1fr_1.5fr] sm:items-start">
         <div className="border-b-2 border-divider p-8 sm:border-b-0 sm:border-r-2">
           <h6 className="text-primary-dark">Member schools</h6>
           <h2 className="mt-3 mb-3">Six schools, one league table.</h2>
@@ -58,11 +58,11 @@ export default async function SchoolsPage() {
       <div className="grid gap-0 border-t-2 border-divider sm:grid-cols-3">
         <div className="border-b border-divider p-6 sm:border-b-0 sm:border-r-2 sm:border-divider">
           <h6 className="text-primary-dark">Hosting rota</h6>
-          <p className="mt-2 text-sm">Each tournament&apos;s host school is set on its season page — nobody hosts every year.</p>
+          <p className="mt-2 text-sm">Each activity&apos;s host school is set on its tournament page — nobody hosts every year.</p>
         </div>
         <div className="border-b border-divider p-6 sm:border-b-0 sm:border-r-2 sm:border-divider">
           <h6 className="text-primary-dark">Travel</h6>
-          <p className="mt-2 text-sm">Dates and host details live on each tournament&apos;s season page.</p>
+          <p className="mt-2 text-sm">Dates and host details live on each activity&apos;s tournament page.</p>
         </div>
         <div className="p-6">
           <h6 className="text-primary-dark">New school?</h6>

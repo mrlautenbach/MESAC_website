@@ -33,9 +33,11 @@ export const schoolInputSchema = z.object({
 
 export const scoringTypeSchema = z.enum(["WIN_LOSS", "LOW_SCORE", "NONE"]);
 
-// A Tournament is the stable, recurring identity (e.g. "JV Volleyball") -
-// its format doesn't change year to year.
-export const tournamentInputSchema = z.object({
+// An Activity is the stable, recurring identity of one sport/activity (e.g.
+// "JV Volleyball") - its format doesn't change year to year, and it always
+// runs in the same Season (Season 1/2/3).
+export const activityInputSchema = z.object({
+  seasonId: z.string().cuid(),
   name: z.string().trim().min(1).max(120),
   slug: slugSchema,
   sport: z.string().trim().min(1).max(60),
@@ -44,12 +46,12 @@ export const tournamentInputSchema = z.object({
   drawPoints: z.coerce.number().int().min(0).max(100),
   lossPoints: z.coerce.number().int().min(0).max(100),
   // Comma-separated in the form (e.g. "Girls,Boys"); empty for an
-  // ungendered/single tournament (meets, festivals, baseball, softball).
+  // ungendered/single activity (meets, festivals, baseball, softball).
   divisionNames: z.array(z.string().trim().min(1).max(40)).max(4).optional().default([]),
 });
 
-// The CSV/schedule columns every tournament already has as real Event
-// columns - a custom TournamentField can't reuse one of these keys.
+// The CSV/schedule columns every activity already has as real Event
+// columns - a custom ActivityField can't reuse one of these keys.
 export const RESERVED_FIELD_KEYS = new Set([
   "game_id",
   "gender",
@@ -65,7 +67,7 @@ export const RESERVED_FIELD_KEYS = new Set([
   "title",
 ]);
 
-export const tournamentFieldKeySchema = z
+export const activityFieldKeySchema = z
   .string()
   .trim()
   .toLowerCase()
@@ -74,15 +76,15 @@ export const tournamentFieldKeySchema = z
   .regex(/^[a-z][a-z0-9_]*$/, "Use lowercase letters, numbers, and underscores, starting with a letter")
   .refine((key) => !RESERVED_FIELD_KEYS.has(key), "That key is already one of the standard schedule fields");
 
-export const tournamentFieldInputSchema = z.object({
-  tournamentId: z.string().cuid(),
-  key: tournamentFieldKeySchema,
+export const activityFieldInputSchema = z.object({
+  activityId: z.string().cuid(),
+  key: activityFieldKeySchema,
   label: z.string().trim().min(1).max(60),
 });
 
-// A Season is one year's edition of a Tournament - its own dates and host.
-export const seasonInputSchema = z.object({
-  tournamentId: z.string().cuid(),
+// A Tournament is one year's edition of an Activity - its own dates and host.
+export const tournamentInputSchema = z.object({
+  activityId: z.string().cuid(),
   name: z.string().trim().min(1).max(120),
   slug: slugSchema,
   startDate: z.coerce.date(),
@@ -99,7 +101,7 @@ export const streamUrlSchema = z
   .or(z.literal(""));
 
 export const eventInputSchema = z.object({
-  seasonId: z.string().cuid(),
+  tournamentId: z.string().cuid(),
   divisionId: z.string().cuid().optional().nullable(),
   title: z.string().trim().max(160).optional().or(z.literal("")),
   date: z.coerce.date(),
