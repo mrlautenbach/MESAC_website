@@ -2,10 +2,11 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
+import { TournamentResults } from "@/components/TournamentGames";
 
 export const dynamic = "force-dynamic";
 
-export default async function DivisionPage({
+export default async function DivisionResultsPage({
   params,
 }: {
   params: Promise<{ season: string; division: string }>;
@@ -19,11 +20,6 @@ export default async function DivisionPage({
 
   const division = tournament.activity.divisions.find((d) => d.slug === divisionSlug);
   if (!division) notFound();
-
-  const nextLiveEvent = await prisma.event.findFirst({
-    where: { tournamentId: tournament.id, divisionId: division.id, status: "SCHEDULED", streamUrl: { not: null } },
-    orderBy: { date: "asc" },
-  });
 
   return (
     <div>
@@ -41,10 +37,12 @@ export default async function DivisionPage({
       />
 
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <TournamentSubNav
+        <TournamentSubNav tournamentSlug={tournament.slug} divisionSlug={division.slug} active="results" />
+        <TournamentResults
+          tournamentId={tournament.id}
           tournamentSlug={tournament.slug}
-          divisionSlug={division.slug}
-          liveStreamUrl={nextLiveEvent?.streamUrl}
+          divisionId={division.id}
+          activity={tournament.activity}
         />
       </div>
     </div>

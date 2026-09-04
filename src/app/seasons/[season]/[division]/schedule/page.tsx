@@ -2,10 +2,11 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
+import { TournamentSchedule } from "@/components/TournamentGames";
 
 export const dynamic = "force-dynamic";
 
-export default async function DivisionPage({
+export default async function DivisionSchedulePage({
   params,
 }: {
   params: Promise<{ season: string; division: string }>;
@@ -44,7 +45,15 @@ export default async function DivisionPage({
         <TournamentSubNav
           tournamentSlug={tournament.slug}
           divisionSlug={division.slug}
+          active="schedule"
           liveStreamUrl={nextLiveEvent?.streamUrl}
+        />
+        <h4 className="mb-3">Schedule</h4>
+        <TournamentSchedule
+          tournamentId={tournament.id}
+          tournamentSlug={tournament.slug}
+          divisionId={division.id}
+          activity={tournament.activity}
         />
       </div>
     </div>

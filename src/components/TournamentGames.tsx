@@ -18,23 +18,88 @@ type Activity = {
   showPlayed: boolean;
 };
 
-// Shared by the tournament (edition) page for ungendered activities and the
-// division sub-page for gendered ones - same rendering, just scoped to a
-// division or not.
-export async function SeasonStandingsAndSchedule({
+type Scope = { tournamentId: string; tournamentSlug: string; divisionId?: string | null };
+
+// The full schedule for a tournament (or one of its divisions) - every
+// game regardless of status, in date order. Lives at its own page so it
+// can be linked to directly, separate from the Results page.
+export async function TournamentSchedule({ tournamentId, tournamentSlug, divisionId, activity }: Scope & { activity: Activity }) {
+  return (
+    <section>
+      <EventsTable
+        tournamentId={tournamentId}
+        tournamentSlug={tournamentSlug}
+        divisionId={divisionId}
+        activityId={activity.id}
+        scoringType={activity.scoringType}
+        statusFilter={null}
+        emptyMessage="No events scheduled yet."
+      />
+    </section>
+  );
+}
+
+// The results page: the standings table (if this activity uses one) plus
+// completed games only - upcoming/scheduled games belong on the Schedule
+// page, not here.
+export async function TournamentResults({ tournamentId, tournamentSlug, divisionId, activity }: Scope & { activity: Activity }) {
+  const schools = await prisma.school.findMany({ select: { id: true, themeColor: true, themeColorSecondary: true } });
+  const colorBySchoolId = new Map(schools.map((s) => [s.id, { color: s.themeColor, secondaryColor: s.themeColorSecondary }]));
+
+  return (
+    <div className="space-y-10">
+      {activity.scoringType === "WIN_LOSS" && (
+        <WinLossStandings tournamentId={tournamentId} divisionId={divisionId} activity={activity} colorBySchoolId={colorBySchoolId} />
+      )}
+      {activity.scoringType === "LOW_SCORE" && (
+        <LowScoreStandings tournamentId={tournamentId} divisionId={divisionId} colorBySchoolId={colorBySchoolId} />
+      )}
+      {activity.scoringType === "NONE" && (
+        <p className="text-sm text-muted">This activity doesn&apos;t use a results table — check each game below.</p>
+      )}
+
+      <section>
+        <h4 className="mb-3">Completed games</h4>
+        <EventsTable
+          tournamentId={tournamentId}
+          tournamentSlug={tournamentSlug}
+          divisionId={divisionId}
+          activityId={activity.id}
+          scoringType={activity.scoringType}
+          statusFilter="COMPLETED"
+          emptyMessage="No games have been completed yet."
+        />
+      </section>
+    </div>
+  );
+}
+
+async function EventsTable({
   tournamentId,
   tournamentSlug,
   divisionId,
-  activity,
+  activityId,
+  scoringType,
+  statusFilter,
+  emptyMessage,
 }: {
   tournamentId: string;
   tournamentSlug: string;
   divisionId?: string | null;
-  activity: Activity;
+  activityId: string;
+  scoringType: Activity["scoringType"];
+  statusFilter: "COMPLETED" | null;
+  emptyMessage: string;
 }) {
-  const [events, customFields, schools] = await Promise.all([
+  const where = {
+    tournamentId,
+    ...(divisionId ? { divisionId } : {}),
+    ...(statusFilter ? { status: statusFilter } : {}),
+  };
+
+  const [events, customFields] = await Promise.all([
     prisma.event.findMany({
-      where: divisionId ? { tournamentId, divisionId } : { tournamentId },
+      where,
       orderBy: { date: "asc" },
       include: {
         participants: { include: { school: true } },
@@ -44,121 +109,97 @@ export async function SeasonStandingsAndSchedule({
         fieldValues: true,
       },
     }),
-    prisma.activityField.findMany({ where: { activityId: activity.id }, orderBy: { order: "asc" } }),
-    prisma.school.findMany({ select: { id: true, themeColor: true, themeColorSecondary: true } }),
+    prisma.activityField.findMany({ where: { activityId }, orderBy: { order: "asc" } }),
   ]);
-  const colorBySchoolId = new Map(
-    schools.map((s) => [s.id, { color: s.themeColor, secondaryColor: s.themeColorSecondary }])
-  );
 
-  // Event detail always lives at one canonical URL regardless of division -
-  // an event's identity is (tournamentId, slug), not tied to the division route.
   const eventHref = (eventSlug: string) => `/seasons/${tournamentSlug}/events/${eventSlug}`;
+  const showWatch = statusFilter === null;
+
+  if (events.length === 0) return <p className="text-muted">{emptyMessage}</p>;
 
   return (
-    <div className="space-y-10">
-      <div id="results">
-        {activity.scoringType === "WIN_LOSS" && (
-          <WinLossStandings tournamentId={tournamentId} divisionId={divisionId} activity={activity} colorBySchoolId={colorBySchoolId} />
-        )}
-        {activity.scoringType === "LOW_SCORE" && (
-          <LowScoreStandings tournamentId={tournamentId} divisionId={divisionId} colorBySchoolId={colorBySchoolId} />
-        )}
-        {activity.scoringType === "NONE" && (
-          <p className="text-sm text-muted">
-            This activity doesn&apos;t use a results table — check each event below for results.
-          </p>
-        )}
-      </div>
-
-      <section id="schedule">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h4>Schedule</h4>
-        </div>
-        {events.length === 0 ? (
-          <p className="text-muted">No events scheduled yet.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="mtable">
-              <thead>
-                <tr>
-                  {activity.scoringType !== "NONE" && <th>Game</th>}
-                  <th>Home</th>
-                  {activity.scoringType !== "NONE" && <th className="text-right">Score</th>}
-                  <th>Away</th>
-                  {activity.scoringType !== "NONE" && <th className="text-right">Score</th>}
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Court</th>
-                  {customFields.map((f) => (
-                    <th key={f.id}>{f.label}</th>
-                  ))}
-                  <th>Status</th>
-                  <th>Watch</th>
-                </tr>
-              </thead>
-              <tbody>
-                {events.map((event) => {
-                  const home = event.participants.find((p) => p.isHome);
-                  const away = event.participants.find((p) => !p.isHome);
-                  const homeResult = home && event.results.find((r) => r.schoolId === home.schoolId);
-                  const awayResult = away && event.results.find((r) => r.schoolId === away.schoolId);
-                  const valueByFieldId = new Map(event.fieldValues.map((v) => [v.fieldId, v.value]));
-                  return (
-                    <tr key={event.id}>
-                      {activity.scoringType !== "NONE" && (
-                        <td className="text-muted">
-                          <Link href={eventHref(event.slug)} className="hover:text-primary">
-                            {event.externalId ?? "—"}
-                          </Link>
-                        </td>
+    <div className="overflow-x-auto">
+      <table className="mtable">
+        <thead>
+          <tr>
+            {scoringType !== "NONE" && <th>Game</th>}
+            <th>Home</th>
+            {scoringType !== "NONE" && <th className="text-right">Score</th>}
+            <th>Away</th>
+            {scoringType !== "NONE" && <th className="text-right">Score</th>}
+            <th>Date</th>
+            <th>Time</th>
+            <th>Court</th>
+            {customFields.map((f) => (
+              <th key={f.id}>{f.label}</th>
+            ))}
+            {showWatch && (
+              <>
+                <th>Status</th>
+                <th>Watch</th>
+              </>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {events.map((event) => {
+            const home = event.participants.find((p) => p.isHome);
+            const away = event.participants.find((p) => !p.isHome);
+            const homeResult = home && event.results.find((r) => r.schoolId === home.schoolId);
+            const awayResult = away && event.results.find((r) => r.schoolId === away.schoolId);
+            const valueByFieldId = new Map(event.fieldValues.map((v) => [v.fieldId, v.value]));
+            return (
+              <tr key={event.id}>
+                {scoringType !== "NONE" && (
+                  <td className="text-muted">
+                    <Link href={eventHref(event.slug)} className="hover:text-primary">
+                      {event.externalId ?? "—"}
+                    </Link>
+                  </td>
+                )}
+                <td className="font-extrabold">
+                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 hover:text-primary">
+                    <SchoolColorDot color={home?.school.themeColor} secondaryColor={home?.school.themeColorSecondary} />
+                    {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
+                  </Link>
+                </td>
+                {scoringType !== "NONE" && <td className="text-right tabular-nums">{homeResult?.score ?? "—"}</td>}
+                <td className="font-extrabold">
+                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 hover:text-primary">
+                    <SchoolColorDot color={away?.school.themeColor} secondaryColor={away?.school.themeColorSecondary} />
+                    {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
+                  </Link>
+                </td>
+                {scoringType !== "NONE" && <td className="text-right tabular-nums">{awayResult?.score ?? "—"}</td>}
+                <td className="text-muted">{format(event.date, "MMM d, yyyy")}</td>
+                <td className="text-muted tabular-nums">{format(event.date, "h:mm a")}</td>
+                <td className="text-muted">{event.location ?? "—"}</td>
+                {customFields.map((f) => (
+                  <td key={f.id} className="text-muted">
+                    {valueByFieldId.get(f.id) ?? "—"}
+                  </td>
+                ))}
+                {showWatch && (
+                  <>
+                    <td>
+                      <StatusTag status={event.status} />
+                    </td>
+                    <td>
+                      {event.streamUrl && event.status === "SCHEDULED" ? (
+                        <a href={event.streamUrl} target="_blank" rel="noopener noreferrer" className="tag tag-accent">
+                          Watch live
+                        </a>
+                      ) : (
+                        "—"
                       )}
-                      <td className="font-extrabold">
-                        <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 hover:text-primary">
-                          <SchoolColorDot color={home?.school.themeColor} secondaryColor={home?.school.themeColorSecondary} />
-                          {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
-                        </Link>
-                      </td>
-                      {activity.scoringType !== "NONE" && (
-                        <td className="text-right tabular-nums">{homeResult?.score ?? "—"}</td>
-                      )}
-                      <td className="font-extrabold">
-                        <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 hover:text-primary">
-                          <SchoolColorDot color={away?.school.themeColor} secondaryColor={away?.school.themeColorSecondary} />
-                          {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
-                        </Link>
-                      </td>
-                      {activity.scoringType !== "NONE" && (
-                        <td className="text-right tabular-nums">{awayResult?.score ?? "—"}</td>
-                      )}
-                      <td className="text-muted">{format(event.date, "MMM d, yyyy")}</td>
-                      <td className="text-muted tabular-nums">{format(event.date, "h:mm a")}</td>
-                      <td className="text-muted">{event.location ?? "—"}</td>
-                      {customFields.map((f) => (
-                        <td key={f.id} className="text-muted">
-                          {valueByFieldId.get(f.id) ?? "—"}
-                        </td>
-                      ))}
-                      <td>
-                        <StatusTag status={event.status} />
-                      </td>
-                      <td>
-                        {event.streamUrl && event.status === "SCHEDULED" ? (
-                          <a href={event.streamUrl} target="_blank" rel="noopener noreferrer" className="tag tag-accent">
-                            Watch live
-                          </a>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                    </td>
+                  </>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -177,7 +218,7 @@ async function WinLossStandings({
   const standings = await computeStandings(tournamentId, divisionId);
   return (
     <section>
-      <h4 className="mb-3">Results</h4>
+      <h4 className="mb-3">Standings</h4>
       {standings.length === 0 ? (
         <p className="text-muted">No results have been posted yet.</p>
       ) : (

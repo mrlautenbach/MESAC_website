@@ -16,7 +16,7 @@ function loadSeasons() {
     include: {
       activities: {
         orderBy: [{ name: "asc" }],
-        include: { tournaments: { where: { isCurrent: true }, take: 1 } },
+        include: { tournaments: { where: { isCurrent: true }, take: 1 }, divisions: true },
       },
     },
   });
@@ -108,13 +108,16 @@ export default async function SchedulePage() {
                             <div key={row.key}>
                               <div className="mb-1.5 flex items-baseline gap-2">
                                 <Link
-                                  href={current ? `/seasons/${current.slug}#schedule` : `/tournaments/${a.slug}`}
+                                  href={current ? `/seasons/${current.slug}` : `/tournaments/${a.slug}`}
                                   className="font-bold hover:text-primary"
                                 >
                                   {a.name}
                                 </Link>
                                 {current && events.length > 0 && (
-                                  <Link href={`/seasons/${current.slug}#schedule`} className="text-xs text-primary-dark hover:underline">
+                                  <Link
+                                    href={a.divisions.length === 0 ? `/seasons/${current.slug}/schedule` : `/seasons/${current.slug}`}
+                                    className="text-xs text-primary-dark hover:underline"
+                                  >
                                     Full schedule &rarr;
                                   </Link>
                                 )}
@@ -131,8 +134,8 @@ export default async function SchedulePage() {
                                     const away = event.participants.find((p) => !p.isHome) ?? null;
                                     const isDual = event.participants.length <= 2;
                                     const href = event.division
-                                      ? `/seasons/${current.slug}/${event.division.slug}#schedule`
-                                      : `/seasons/${current.slug}#schedule`;
+                                      ? `/seasons/${current.slug}/${event.division.slug}/schedule`
+                                      : `/seasons/${current.slug}/schedule`;
                                     return (
                                       <li key={event.id} className="text-sm">
                                         <Link href={href} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 hover:text-primary">
