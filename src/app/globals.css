@@ -21,6 +21,10 @@
   --muted: color-mix(in srgb, #0c3446 55%, transparent);
   --danger: #b3261e;
   --success: #1f7a4d;
+  --girls: #a33b5e; /* division color-coding, kept apart from --danger/--primary */
+  --girls-tint: #f6dde6;
+  --boys: #2a5a8a;
+  --boys-tint: #dee8f4;
 }
 
 @theme inline {
@@ -38,6 +42,10 @@
   --color-muted: var(--muted);
   --color-danger: var(--danger);
   --color-success: var(--success);
+  --color-girls: var(--girls);
+  --color-girls-tint: var(--girls-tint);
+  --color-boys: var(--boys);
+  --color-boys-tint: var(--boys-tint);
   --font-sans: var(--font-archivo);
   --font-mono: var(--font-archivo);
 }
@@ -193,6 +201,14 @@ h6 {
   .tag-outline {
     border: 1px solid var(--primary);
     color: var(--primary);
+  }
+  .tag-girls {
+    background: var(--girls-tint);
+    color: var(--girls);
+  }
+  .tag-boys {
+    background: var(--boys-tint);
+    color: var(--boys);
   }
 
   .mtable {

@@ -93,7 +93,7 @@ export async function createEventAction(_prevState: ActionResult | null, formDat
 }
 
 export type ImportEventsResult =
-  | { ok: true; created: number; updated: number }
+  | { ok: true; created: number; updated: number; removed: number }
   | { ok: false; error: string; rowErrors?: { row: number; message: string }[] };
 
 const STATUS_VALUES = new Set(["SCHEDULED", "COMPLETED", "CANCELLED"]);
@@ -155,6 +155,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
   if (typeof tournamentId !== "string" || !tournamentId) {
     return { ok: false, error: "Choose a tournament first." };
   }
+  const replaceExisting = formData.get("replaceExisting") === "on";
 
   const file = formData.get("csvFile");
   const pastedText = formData.get("csvText");
@@ -336,7 +337,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     | { participantAction: "create" | "replace"; schoolId: string }
     | { participantAction: "pending"; sourceEventId: string; outcome: "WINNER" | "LOSER" };
 
-  const { createdIds, updatedIds } = await prisma.$transaction(
+  const { createdIds, updatedIds, removedIds } = await prisma.$transaction(
     async (tx) => {
       const claimedSlugs = new Set<string>();
       const gameIdToEventId = new Map(Array.from(existingByGameId.entries()).map(([gid, e]) => [gid, e.id]));
@@ -485,7 +486,17 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
         if (row.gameId) gameIdToEventId.set(row.gameId, eventId);
       }
 
-      return { createdIds, updatedIds };
+      const removedIds: string[] = [];
+      if (replaceExisting) {
+        const fileGameIds = new Set(planned.map((r) => r.gameId).filter((id): id is string => id !== null));
+        const toRemove = existingEvents.filter((e) => e.externalId && !fileGameIds.has(e.externalId));
+        if (toRemove.length > 0) {
+          await tx.event.deleteMany({ where: { id: { in: toRemove.map((e) => e.id) } } });
+          removedIds.push(...toRemove.map((e) => e.id));
+        }
+      }
+
+      return { createdIds, updatedIds, removedIds };
     },
     { timeout: 60_000 }
   );
@@ -497,15 +508,15 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     action: "EVENT_IMPORT",
     entityType: "Event",
     entityId: allIds[0],
-    summary: `${admin.name} imported a schedule into ${tournament.activity.name} — ${tournament.name} from a CSV file (${createdIds.length} new, ${updatedIds.length} updated)`,
-    after: { tournamentId: tournament.id, created: createdIds.length, updated: updatedIds.length },
+    summary: `${admin.name} imported a schedule into ${tournament.activity.name} — ${tournament.name} from a CSV file (${createdIds.length} new, ${updatedIds.length} updated${removedIds.length > 0 ? `, ${removedIds.length} removed` : ""})`,
+    after: { tournamentId: tournament.id, created: createdIds.length, updated: updatedIds.length, removed: removedIds.length },
   });
 
   revalidatePath(`/seasons/${tournament.slug}`);
   revalidatePath(`/tournaments/${tournament.activity.slug}`);
   revalidatePath("/schedule");
   revalidatePath("/dashboard");
-  return { ok: true, created: createdIds.length, updated: updatedIds.length };
+  return { ok: true, created: createdIds.length, updated: updatedIds.length, removed: removedIds.length };
 }
 
 const updateEventSchema = z.object({

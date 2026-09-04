@@ -41,7 +41,8 @@ export function EventImportForm({ seasons, schoolCodes }: Props) {
     return (
       <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-success">
         Imported {state.created} new game{state.created === 1 ? "" : "s"}
-        {state.updated > 0 && ` and updated ${state.updated} existing game${state.updated === 1 ? "" : "s"}`}. Refresh
+        {state.updated > 0 && `, updated ${state.updated} existing game${state.updated === 1 ? "" : "s"}`}
+        {state.removed > 0 && `, and removed ${state.removed} game${state.removed === 1 ? "" : "s"} no longer in the file`}. Refresh
         the schedule to see them, or{" "}
         <button type="button" className="underline" onClick={() => window.location.reload()}>
           import another file
@@ -134,6 +135,17 @@ export function EventImportForm({ seasons, schoolCodes }: Props) {
           placeholder={`date,home,away,court\n2026-09-12,ASD,DAA,Main Gym`}
         />
       </div>
+
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" name="replaceExisting" className="mt-0.5" />
+        <span>
+          Replace existing schedule — after importing this file, remove any previously-imported game (matched by{" "}
+          <code>game_id</code>) that isn&apos;t in it. Use this when you&apos;ve edited a full schedule file and want
+          the site to match it exactly, including removals. Requires every row to have a <code>game_id</code>;
+          games without one are never removed. This permanently deletes the removed games and anything attached to
+          them (results, photos, documents).
+        </span>
+      </label>
 
       {state && !state.ok && (
         <div role="alert" className="space-y-2 rounded-md bg-red-50 px-4 py-3 text-sm text-danger">
