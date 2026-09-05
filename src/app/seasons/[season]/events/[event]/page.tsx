@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { DocumentList } from "@/components/DocumentList";
+import { MeetResultsView } from "@/components/MeetResultsView";
 import { sideLabel } from "@/lib/eventDisplay";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +31,59 @@ export default async function EventPage({
       division: true,
       homeSourceEvent: { select: { externalId: true } },
       awaySourceEvent: { select: { externalId: true } },
+      meetResults: { include: { school: true }, orderBy: { rowOrder: "asc" } },
     },
   });
   if (!event) notFound();
+
+  // Group by event name (program order, from the CSV), each split into
+  // preliminary/final rows sorted by place (unplaced - DQ/NT/etc - last).
+  const meetResultGroups = (() => {
+    const order: string[] = [];
+    const byName = new Map<
+      string,
+      { prelim: typeof event.meetResults; final: typeof event.meetResults }
+    >();
+    for (const r of event.meetResults) {
+      if (!byName.has(r.eventName)) {
+        order.push(r.eventName);
+        byName.set(r.eventName, { prelim: [], final: [] });
+      }
+      byName.get(r.eventName)![r.round === "PRELIM" ? "prelim" : "final"].push(r);
+    }
+    const byPlace = (a: (typeof event.meetResults)[number], b: (typeof event.meetResults)[number]) =>
+      (a.place ?? Infinity) - (b.place ?? Infinity);
+    return order.map((eventName) => {
+      const group = byName.get(eventName)!;
+      return {
+        eventName,
+        prelim: group.prelim
+          .slice()
+          .sort(byPlace)
+          .map((r) => ({
+            id: r.id,
+            place: r.place,
+            athleteName: r.athleteName,
+            schoolName: r.school.name,
+            mark: r.mark,
+            points: r.points,
+            recordNotation: r.recordNotation,
+          })),
+        final: group.final
+          .slice()
+          .sort(byPlace)
+          .map((r) => ({
+            id: r.id,
+            place: r.place,
+            athleteName: r.athleteName,
+            schoolName: r.school.name,
+            mark: r.mark,
+            points: r.points,
+            recordNotation: r.recordNotation,
+          })),
+      };
+    });
+  })();
 
   const user = await getCurrentUser();
   const participantSchoolIds = event.participants.map((p) => p.schoolId);
@@ -145,6 +196,13 @@ export default async function EventPage({
               </div>
             </div>
           )}
+        </section>
+      )}
+
+      {tournament.activity.usesMeetResults && meetResultGroups.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-bold">Results</h2>
+          <MeetResultsView groups={meetResultGroups} />
         </section>
       )}
 

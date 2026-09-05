@@ -38,6 +38,7 @@ export async function createActivityAction(
     showPointsAgainst: formData.get("showPointsAgainst") === "on",
     showPlayed: formData.get("showPlayed") === "on",
     usesSetScores: formData.get("usesSetScores") === "on",
+    usesMeetResults: formData.get("usesMeetResults") === "on",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -66,6 +67,7 @@ export async function createActivityAction(
       showPointsAgainst: parsed.data.showPointsAgainst,
       showPlayed: parsed.data.showPlayed,
       usesSetScores: parsed.data.usesSetScores,
+      usesMeetResults: parsed.data.usesMeetResults,
       divisions: {
         create: parsed.data.divisionNames.map((name) => ({ name, slug: slugify(name) })),
       },
@@ -111,6 +113,7 @@ export async function updateActivityAction(
     showPointsAgainst: formData.get("showPointsAgainst") === "on",
     showPlayed: formData.get("showPlayed") === "on",
     usesSetScores: formData.get("usesSetScores") === "on",
+    usesMeetResults: formData.get("usesMeetResults") === "on",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };

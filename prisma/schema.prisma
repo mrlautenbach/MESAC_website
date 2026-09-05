@@ -80,6 +80,7 @@ model School {
   hallOfFameEntries HallOfFameEntry[]
   defaultHostForActivities Activity[] @relation("ActivityDefaultHost")
   teamPhotos               TeamPhoto[]
+  meetResults              MeetResult[]
 }
 
 model User {
@@ -155,6 +156,11 @@ model Activity {
   // can end in 2 sets or run the full 5) whose point totals feed the
   // standings For/Against columns instead of Result.score.
   usesSetScores     Boolean  @default(false)
+  // Meet-style activities (Swimming, Track & Field) with no win/loss
+  // results table (scoringType NONE) can instead offer a per-session CSV
+  // import of individual placings - see MeetResult. Off by default; only
+  // meaningful when scoringType is NONE.
+  usesMeetResults   Boolean  @default(false)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -304,6 +310,7 @@ model Event {
   results           Result[]
   individualResults IndividualResult[]
   sets              EventSet[]
+  meetResults       MeetResult[]
   photos            Photo[]
   documents         Document[]
   fieldValues       EventFieldValue[]
@@ -329,6 +336,43 @@ model EventSet {
 
   @@unique([eventId, setNumber])
   @@index([eventId])
+}
+
+enum MeetResultRound {
+  PRELIM
+  FINAL
+}
+
+// One athlete's placing in one named event ("100m Freestyle", "Long
+// Jump") within a meet session (Event.usesMeetResults activities like
+// Swimming or Track & Field - Event here is one day/session of the
+// meet). Comes from a CSV import, separate from the whole-session
+// results document (Document/recap) - an activity can use either or
+// both. A re-import replaces every row for that Event, so there's no
+// per-row edit UI; fix a mistake by re-uploading the corrected file.
+model MeetResult {
+  id             String           @id @default(cuid())
+  eventId        String
+  event          Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventName      String
+  round          MeetResultRound  @default(FINAL)
+  place          Int?
+  athleteName    String
+  schoolId       String
+  school         School           @relation(fields: [schoolId], references: [id])
+  mark           String
+  points         Float?
+  // Free text so admins can use whatever notation their meet uses (e.g.
+  // "MR" for meet record, "SR" for school record) - not a fixed enum.
+  recordNotation String?
+  // Original CSV row position - a same-batch createMany can give every row
+  // an identical createdAt, so this is what keeps event-name groups (and
+  // rows within a tied place) in the file's own order on display.
+  rowOrder       Int              @default(0)
+  createdAt      DateTime         @default(now())
+
+  @@index([eventId])
+  @@index([eventId, eventName])
 }
 
 // An admin-entered value for one of the activity's custom schedule fields

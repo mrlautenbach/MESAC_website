@@ -21,6 +21,7 @@ type ExistingActivity = {
   showPointsAgainst: boolean;
   showPlayed: boolean;
   usesSetScores: boolean;
+  usesMeetResults: boolean;
 };
 
 export function ActivityForm({
@@ -96,6 +97,20 @@ export function ActivityForm({
           <option value="NONE">No results table, just post a results document (meets, festivals)</option>
         </select>
       </div>
+
+      {scoringType === "NONE" && (
+        <div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="usesMeetResults" defaultChecked={existing?.usesMeetResults ?? false} />
+            Uses meet-style results (e.g. swimming, track &amp; field)
+          </label>
+          <p className="mt-1 text-xs text-muted">
+            Adds a CSV import per event for individual placings (event name, place, name, school, time/mark, points,
+            record notation), split by preliminary vs. final round - in addition to, not instead of, the results
+            document above.
+          </p>
+        </div>
+      )}
 
       {scoringType === "WIN_LOSS" && (
         <div>

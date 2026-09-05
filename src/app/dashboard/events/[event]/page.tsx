@@ -8,6 +8,7 @@ import { PhotoUploader } from "@/components/PhotoUploader";
 import { PhotoCaptionEditor } from "@/components/PhotoCaptionEditor";
 import { DocumentUploader } from "@/components/DocumentUploader";
 import { DocumentList } from "@/components/DocumentList";
+import { MeetResultsImportForm } from "@/components/MeetResultsImportForm";
 import { EventHistory } from "@/components/EventHistory";
 
 export default async function EditEventPage({ params }: { params: Promise<{ event: string }> }) {
@@ -29,6 +30,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
         documents: { orderBy: { createdAt: "desc" } },
         homeSourceEvent: { select: { externalId: true } },
         awaySourceEvent: { select: { externalId: true } },
+        meetResults: { select: { id: true } },
       },
     }),
     prisma.school.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -147,6 +149,16 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
           </div>
         )}
       </section>
+
+      {isAdmin && event.tournament.activity.usesMeetResults && (
+        <section>
+          <h2 className="mb-3 text-lg font-bold">Meet results</h2>
+          <p className="mb-3 text-sm text-muted">
+            Import individual placings for this session from a CSV file, in addition to the results document above.
+          </p>
+          <MeetResultsImportForm eventId={event.id} resultCount={event.meetResults.length} />
+        </section>
+      )}
 
       <section>
         <h2 className="mb-3 text-lg font-bold">Add photos</h2>

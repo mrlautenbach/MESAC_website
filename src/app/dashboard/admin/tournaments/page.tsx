@@ -160,6 +160,7 @@ export default async function TournamentsAdminPage() {
                               showPointsAgainst: activity.showPointsAgainst,
                               showPlayed: activity.showPlayed,
                               usesSetScores: activity.usesSetScores,
+                              usesMeetResults: activity.usesMeetResults,
                             }}
                           />
 

@@ -75,6 +75,29 @@ export const activityInputSchema = z.object({
   // Volleyball-style: matches are decided by sets, so schedule/results also
   // gets a per-set score editor whose point totals feed Points For/Against.
   usesSetScores: z.boolean(),
+  // Meet-style (swimming, track & field): a per-event CSV import of
+  // individual placings, in addition to the results document.
+  usesMeetResults: z.boolean(),
+});
+
+export const meetResultRowSchema = z.object({
+  eventName: z.string().trim().min(1).max(120),
+  round: z.enum(["PRELIM", "FINAL"]),
+  // "" checked before the number coercion - z.coerce.number() reads "" as
+  // 0 (Number("") === 0), which a min(0) bound would silently accept as a
+  // real value instead of falling through to the blank case.
+  place: z
+    .union([z.literal(""), z.coerce.number().int().min(1).max(9999)])
+    .optional()
+    .transform((v) => (v === "" || v === undefined ? null : v)),
+  athleteName: z.string().trim().min(1).max(120),
+  schoolId: z.string().cuid(),
+  mark: z.string().trim().min(1).max(40),
+  points: z
+    .union([z.literal(""), z.coerce.number().min(0).max(9999)])
+    .optional()
+    .transform((v) => (v === "" || v === undefined ? null : v)),
+  recordNotation: z.string().trim().max(20).optional().or(z.literal("")),
 });
 
 export const setScoreEntrySchema = z.object({
