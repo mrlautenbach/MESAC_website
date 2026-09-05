@@ -134,7 +134,8 @@ export async function updateSchoolAction(_prevState: ActionResult | null, formDa
       logoUrl = processed.url;
     } catch (error) {
       if (error instanceof PhotoValidationError) return { ok: false, error: error.message };
-      throw error;
+      console.error("Logo upload failed", error);
+      return { ok: false, error: "Something went wrong uploading that logo. Please try again in a moment." };
     }
   }
 
