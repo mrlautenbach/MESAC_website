@@ -135,6 +135,34 @@ export async function updatePhotoCaptionAction(
   return { ok: true };
 }
 
+// Admin-only: whether this photo is in the running for the home page
+// slider. Not scoped to the uploading school - it affects the whole
+// site's home page, so it's not offered to a school-scoped editor.
+export async function setPhotoFeaturedAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  const photoId = String(formData.get("photoId") ?? "");
+  const featured = formData.get("featuredOnHome") === "on";
+
+  const photo = await prisma.photo.findUnique({ where: { id: photoId } });
+  if (!photo) return { ok: false, error: "Photo not found." };
+
+  await prisma.photo.update({ where: { id: photo.id }, data: { featuredOnHome: featured } });
+
+  await recordAudit({
+    actorId: admin.id,
+    actorLabel: admin.name,
+    action: "PHOTO_FEATURE_TOGGLE",
+    entityType: "Photo",
+    entityId: photo.id,
+    summary: `${admin.name} ${featured ? "featured" : "unfeatured"} a photo on the home page`,
+    before: { featuredOnHome: photo.featuredOnHome },
+    after: { featuredOnHome: featured },
+  });
+
+  revalidatePath("/");
+  return { ok: true };
+}
+
 export async function deletePhotoAction(photoId: string): Promise<ActionResult> {
   const admin = await requireAdmin();
   const photo = await prisma.photo.findUnique({ where: { id: photoId }, include: { event: { include: { tournament: true } } } });

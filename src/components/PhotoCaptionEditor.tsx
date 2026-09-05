@@ -2,15 +2,16 @@
 
 import { useActionState } from "react";
 import Image from "next/image";
-import { updatePhotoCaptionAction, deletePhotoAction } from "@/lib/actions/photos";
+import { updatePhotoCaptionAction, setPhotoFeaturedAction, deletePhotoAction } from "@/lib/actions/photos";
 
 type Props = {
-  photo: { id: string; url: string; caption: string | null; altText: string | null };
+  photo: { id: string; url: string; caption: string | null; altText: string | null; featuredOnHome: boolean };
   canDelete: boolean;
 };
 
 export function PhotoCaptionEditor({ photo, canDelete }: Props) {
   const [state, formAction, pending] = useActionState(updatePhotoCaptionAction, null);
+  const [featuredState, featuredAction] = useActionState(setPhotoFeaturedAction, null);
 
   return (
     <div className="card overflow-hidden">
@@ -43,6 +44,21 @@ export function PhotoCaptionEditor({ photo, canDelete }: Props) {
           {state && !state.ok && <span className="text-xs text-danger">{state.error}</span>}
         </div>
       </form>
+      {canDelete && (
+        <form action={featuredAction} className="border-t border-border p-2">
+          <input type="hidden" name="photoId" value={photo.id} />
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              name="featuredOnHome"
+              defaultChecked={photo.featuredOnHome}
+              onChange={(e) => e.currentTarget.form?.requestSubmit()}
+            />
+            Show on homepage
+          </label>
+          {featuredState && !featuredState.ok && <span className="text-xs text-danger">{featuredState.error}</span>}
+        </form>
+      )}
       {canDelete && (
         <form
           action={async () => {

@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { sideLabel } from "@/lib/eventDisplay";
 import { SeasonBrowser } from "@/components/SeasonBrowser";
+import { PhotoSlider } from "@/components/PhotoSlider";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +30,7 @@ export default async function HomePage() {
   const countries = new Set(schools.map((s) => s.city?.split(",").pop()?.trim()).filter(Boolean)).size;
   const currentTerm = currentTournaments[0]?.name ?? "this term";
 
-  const [recentResults, upcomingEvents, recentPhoto, recentRecap] = await Promise.all([
+  const [recentResults, upcomingEvents, featuredPhotos, recentPhotos, recentRecap] = await Promise.all([
     currentTournamentIds.length
       ? prisma.event.findMany({
           where: { tournamentId: { in: currentTournamentIds }, status: "COMPLETED" },
@@ -51,7 +52,8 @@ export default async function HomePage() {
           },
         })
       : [],
-    prisma.photo.findFirst({ orderBy: { createdAt: "desc" } }),
+    prisma.photo.findMany({ where: { featuredOnHome: true }, orderBy: { createdAt: "desc" }, take: 10 }),
+    prisma.photo.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
     prisma.event.findFirst({
       where: { recap: { not: null } },
       orderBy: { date: "desc" },
@@ -72,6 +74,9 @@ export default async function HomePage() {
 
   const scoreCells = recentResults.slice(0, 2);
   const nextUp = upcomingEvents[0];
+  // Admin-picked photos always win over recency - the newest-photos pool
+  // only fills the slider until an admin has actually chosen anything.
+  const homePhotos = featuredPhotos.length > 0 ? featuredPhotos : recentPhotos;
 
   return (
     <div>
@@ -239,13 +244,7 @@ export default async function HomePage() {
 
       {/* Photo */}
       <div className="relative min-h-[480px] border-b-2 border-divider">
-        {recentPhoto ? (
-          <Image src={recentPhoto.url} alt={recentPhoto.altText ?? ""} fill className="object-cover grayscale contrast-[1.08]" />
-        ) : (
-          <div className="flex h-full min-h-[480px] items-center justify-center bg-foreground/10">
-            <span className="px-4 text-center text-xs tracking-[0.12em] text-muted">PHOTOGRAPH · B&amp;W</span>
-          </div>
-        )}
+        <PhotoSlider photos={homePhotos.map((p) => ({ id: p.id, url: p.url, altText: p.altText }))} />
       </div>
 
       {/* Footer duo */}

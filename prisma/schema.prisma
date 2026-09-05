@@ -423,6 +423,10 @@ model Photo {
   width        Int?
   height       Int?
   createdAt    DateTime @default(now())
+  // Admin-picked for the home page slider. Chosen photos always take
+  // priority there over recency; the slider only falls back to the
+  // newest photos site-wide when nothing has been picked yet.
+  featuredOnHome Boolean @default(false)
 
   @@index([eventId])
 }
