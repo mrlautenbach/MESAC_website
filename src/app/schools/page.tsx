@@ -40,18 +40,24 @@ export default async function SchoolsPage() {
             {rows.map((s) => (
               <li
                 key={s.id}
-                className="grid grid-cols-[64px_32px_1fr_auto] items-center gap-3 border-b border-divider py-3 last:border-0"
+                className="grid grid-cols-[64px_48px_1fr_auto] items-center border-b border-divider py-4 last:border-0"
               >
                 <span className="text-[15px] font-extrabold text-primary-dark">{s.code ?? "—"}</span>
-                <span className="flex items-center justify-center">
-                  <SchoolBadge logoUrl={s.logoUrl} name={s.name} color={s.themeColor} secondaryColor={s.themeColorSecondary} />
+                <span className="ml-1 flex items-center justify-center">
+                  <SchoolBadge
+                    logoUrl={s.logoUrl}
+                    name={s.name}
+                    color={s.themeColor}
+                    secondaryColor={s.themeColorSecondary}
+                    size={40}
+                  />
                 </span>
-                <span className="text-sm leading-snug">
+                <span className="ml-2 text-sm leading-snug">
                   {s.name}
                   <br />
                   <span className="text-[11.5px] text-muted">{s.city ?? "—"}</span>
                 </span>
-                <span className="text-[11.5px] tabular-nums text-muted">{s.teams} teams</span>
+                <span className="ml-3 text-[11.5px] tabular-nums text-muted">{s.teams} teams</span>
               </li>
             ))}
           </ul>

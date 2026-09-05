@@ -39,7 +39,11 @@ export default async function HomePage() {
       where: { status: "COMPLETED" },
       orderBy: { date: "desc" },
       take: 4,
-      include: { participants: { include: { school: true } }, results: true, tournament: { include: { activity: true } } },
+      include: {
+        participants: { include: { school: true } },
+        results: true,
+        tournament: { include: { activity: true, hostSchool: true } },
+      },
     }),
     // Upcoming tournaments (editions), not individual games - driven purely
     // by each tournament's own dates, so it doesn't depend on isCurrent
@@ -129,7 +133,7 @@ export default async function HomePage() {
           {shuffledSchools.map((school) => (
             <div
               key={school.id}
-              className="flex h-24 items-center justify-center border border-white/20 bg-white/5 border-b-[3px]"
+              className="flex h-24 items-center justify-center border border-white/20 bg-[color-mix(in_srgb,var(--primary-tint)_16%,transparent)] border-b-[3px]"
               style={school.themeColor ? { borderBottomColor: school.themeColor } : undefined}
             >
               {school.logoUrl ? (
@@ -184,8 +188,8 @@ export default async function HomePage() {
             </div>
           );
         })}
-        <div className="lattice-panel relative overflow-hidden bg-foreground p-7 text-background">
-          <div className="absolute inset-0 text-accent opacity-[.26]" />
+        <div className="relative overflow-hidden bg-foreground p-7 text-background">
+          <div className="lattice-panel absolute inset-0 text-accent opacity-[.16]" />
           {nextUp ? (
             <div className="relative">
               <h6 className="text-accent opacity-90">Next up</h6>
@@ -275,9 +279,8 @@ type ResultEvent = {
   id: string;
   participants: { school: { name: string } }[];
   results: { score: number | null; outcome: string | null }[];
-  location: string | null;
   date: Date;
-  tournament: { activity: { name: string } };
+  tournament: { activity: { name: string }; hostSchool: { name: string } | null };
 };
 
 function ScoreCell({ event }: { event: ResultEvent }) {
@@ -299,7 +302,7 @@ function ScoreCell({ event }: { event: ResultEvent }) {
       ))}
       <p className="mt-3.5 text-xs text-muted">
         {format(event.date, "EEE d MMM")}
-        {event.location ? ` · ${event.location}` : ""}
+        {event.tournament.hostSchool ? ` · Hosted by ${event.tournament.hostSchool.name}` : ""}
       </p>
     </div>
   );

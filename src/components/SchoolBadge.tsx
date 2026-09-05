@@ -9,12 +9,17 @@ export function SchoolBadge({
   name,
   color,
   secondaryColor,
+  size = 24,
   className = "",
 }: {
   logoUrl?: string | null;
   name: string;
   color?: string | null;
   secondaryColor?: string | null;
+  // Pixel size for the logo image only - the color-dot fallback stays its
+  // own small fixed size regardless, since it's a decorative accent, not
+  // a stand-in for an actual logo.
+  size?: number;
   className?: string;
 }) {
   if (logoUrl) {
@@ -22,9 +27,10 @@ export function SchoolBadge({
       <Image
         src={logoUrl}
         alt={name}
-        width={24}
-        height={24}
-        className={`h-6 w-6 shrink-0 rounded-full border border-black/10 object-contain align-middle ${className}`}
+        width={size}
+        height={size}
+        style={{ width: size, height: size }}
+        className={`shrink-0 rounded-full border border-black/10 object-contain align-middle ${className}`}
       />
     );
   }
