@@ -80,7 +80,10 @@ export default async function SchedulePage() {
               // different name and already has a live tournament - fall
               // back to matching by sport in that case.
               match = season.activities.find(
-                (a) => a.sport.trim().toLowerCase() === expected.sport.trim().toLowerCase() && a.tournaments[0]
+                (a) =>
+                  !matchedIds.has(a.id) &&
+                  a.sport.trim().toLowerCase() === expected.sport.trim().toLowerCase() &&
+                  a.tournaments[0]
               );
               if (match) matchedIds.add(match.id);
             }
