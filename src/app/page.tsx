@@ -2,10 +2,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
-import { sideLabel } from "@/lib/eventDisplay";
 import { SeasonBrowser } from "@/components/SeasonBrowser";
 import { PhotoSlider } from "@/components/PhotoSlider";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
+import { dailyShuffle } from "@/lib/dailyShuffle";
 
 export const dynamic = "force-dynamic";
 
@@ -26,32 +26,30 @@ export default async function HomePage() {
       },
     }),
   ]);
-  const currentTournamentIds = currentTournaments.map((t) => t.id);
   const countries = new Set(schools.map((s) => s.city?.split(",").pop()?.trim()).filter(Boolean)).size;
   const currentTerm = currentTournaments[0]?.name ?? "this term";
+  const shuffledSchools = dailyShuffle(schools);
 
-  const [recentResults, upcomingEvents, featuredPhotos, recentPhotos, recentRecap] = await Promise.all([
-    currentTournamentIds.length
-      ? prisma.event.findMany({
-          where: { tournamentId: { in: currentTournamentIds }, status: "COMPLETED" },
-          orderBy: { date: "desc" },
-          take: 4,
-          include: { participants: { include: { school: true } }, results: true, tournament: { include: { activity: true } } },
-        })
-      : [],
-    currentTournamentIds.length
-      ? prisma.event.findMany({
-          where: { tournamentId: { in: currentTournamentIds }, date: { gte: now }, status: { not: "CANCELLED" } },
-          orderBy: { date: "asc" },
-          take: 6,
-          include: {
-            participants: { include: { school: true } },
-            tournament: { include: { activity: true } },
-            homeSourceEvent: { select: { externalId: true } },
-            awaySourceEvent: { select: { externalId: true } },
-          },
-        })
-      : [],
+  const [recentResults, upcomingTournaments, featuredPhotos, recentPhotos, recentRecap] = await Promise.all([
+    // Site-wide, not scoped to isCurrent tournaments - isCurrent only picks
+    // which edition an activity page defaults to, and can legitimately be
+    // wrong or unset for a while, which would otherwise make this look
+    // empty even with real completed games on the schedule.
+    prisma.event.findMany({
+      where: { status: "COMPLETED" },
+      orderBy: { date: "desc" },
+      take: 4,
+      include: { participants: { include: { school: true } }, results: true, tournament: { include: { activity: true } } },
+    }),
+    // Upcoming tournaments (editions), not individual games - driven purely
+    // by each tournament's own dates, so it doesn't depend on isCurrent
+    // either, and surfaces what's coming up across every activity at once.
+    prisma.tournament.findMany({
+      where: { endDate: { gte: now } },
+      orderBy: { startDate: "asc" },
+      take: 3,
+      include: { activity: true, hostSchool: true },
+    }),
     prisma.photo.findMany({ where: { featuredOnHome: true }, orderBy: { createdAt: "desc" }, take: 10 }),
     prisma.photo.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
     prisma.event.findFirst({
@@ -73,7 +71,7 @@ export default async function HomePage() {
   }));
 
   const scoreCells = recentResults.slice(0, 2);
-  const nextUp = upcomingEvents[0];
+  const nextUp = upcomingTournaments[0];
   // Admin-picked photos always win over recency - the newest-photos pool
   // only fills the slider until an admin has actually chosen anything.
   const homePhotos = featuredPhotos.length > 0 ? featuredPhotos : recentPhotos;
@@ -128,14 +126,14 @@ export default async function HomePage() {
         </div>
 
         <div className="relative mx-auto mt-10 grid max-w-6xl grid-cols-3 gap-3 border-t border-white/15 pt-6 sm:grid-cols-6">
-          {schools.map((school) => (
+          {shuffledSchools.map((school) => (
             <div
               key={school.id}
-              className="flex h-14 items-center justify-center border border-white/20 bg-white/5 border-b-[3px]"
+              className="flex h-24 items-center justify-center border border-white/20 bg-white/5 border-b-[3px]"
               style={school.themeColor ? { borderBottomColor: school.themeColor } : undefined}
             >
               {school.logoUrl ? (
-                <Image src={school.logoUrl} alt={school.name} width={88} height={40} className="max-h-9 w-auto object-contain" />
+                <Image src={school.logoUrl} alt={school.name} width={140} height={64} className="max-h-16 w-auto object-contain" />
               ) : (
                 <span className="text-[11px] font-bold tracking-[0.1em] text-background/60">
                   {school.code ?? school.name.slice(0, 3).toUpperCase()}
@@ -178,8 +176,8 @@ export default async function HomePage() {
             <div key={i} className="border-b border-divider p-7 sm:border-b-0 sm:border-r-2 sm:border-divider">
               {event ? (
                 <ScoreCell event={event} />
-              ) : upcomingEvents[i] ? (
-                <UpcomingCell event={upcomingEvents[i]} />
+              ) : upcomingTournaments[i] ? (
+                <UpcomingTournamentCell tournament={upcomingTournaments[i]} />
               ) : (
                 <p className="text-sm text-muted">No games played yet.</p>
               )}
@@ -191,24 +189,17 @@ export default async function HomePage() {
           {nextUp ? (
             <div className="relative">
               <h6 className="text-accent opacity-90">Next up</h6>
-              <div className="mt-3 text-3xl font-extrabold leading-tight tracking-tight">{nextUp.tournament.activity.name}</div>
+              <div className="mt-3 text-3xl font-extrabold leading-tight tracking-tight">{nextUp.activity.name}</div>
               <p className="mt-3 text-[13px] opacity-90">
-                {nextUp.participants.length <= 2
-                  ? `${sideLabel(nextUp.participants.find((p) => p.isHome), nextUp.homeSourceOutcome, nextUp.homeSourceEvent?.externalId)} vs ${sideLabel(
-                      nextUp.participants.find((p) => !p.isHome),
-                      nextUp.awaySourceOutcome,
-                      nextUp.awaySourceEvent?.externalId
-                    )}`
-                  : nextUp.participants.map((p) => p.school.name).join(" vs ")}{" "}
-                · {format(nextUp.date, "EEE d MMM, h:mm a")}
-                {nextUp.location ? ` · ${nextUp.location}` : ""}
+                {format(nextUp.startDate, "MMM d")} – {format(nextUp.endDate, "MMM d")}
+                {nextUp.hostSchool ? ` · Hosted by ${nextUp.hostSchool.name}` : ""}
               </p>
               <Link
-                href={`/seasons/${nextUp.tournament.slug}/events/${nextUp.slug}`}
+                href={`/seasons/${nextUp.slug}`}
                 className="btn btn-block mt-4 text-[13px]"
                 style={{ background: "var(--accent)", color: "var(--primary-deep)" }}
               >
-                Event details →
+                Tournament details →
               </Link>
             </div>
           ) : (
@@ -263,7 +254,7 @@ export default async function HomePage() {
         <div className="p-7">
           <h6 className="text-primary-dark">Six schools</h6>
           <p className="mt-2.5 text-sm leading-[1.9] text-muted">
-            {schools.map((s) => s.name).join(" · ")}
+            {shuffledSchools.map((s) => s.name).join(" · ")}
           </p>
         </div>
       </div>
@@ -314,34 +305,22 @@ function ScoreCell({ event }: { event: ResultEvent }) {
   );
 }
 
-type UpcomingEvent = {
-  participants: { isHome: boolean; school: { name: string } }[];
-  homeSourceOutcome: "WINNER" | "LOSER" | null;
-  awaySourceOutcome: "WINNER" | "LOSER" | null;
-  homeSourceEvent: { externalId: string | null } | null;
-  awaySourceEvent: { externalId: string | null } | null;
-  date: Date;
-  location: string | null;
-  tournament: { activity: { name: string } };
+type UpcomingTournament = {
+  slug: string;
+  startDate: Date;
+  endDate: Date;
+  activity: { name: string };
+  hostSchool: { name: string } | null;
 };
 
-function UpcomingCell({ event }: { event: UpcomingEvent }) {
-  const matchup =
-    event.participants.length <= 2
-      ? `${sideLabel(event.participants.find((p) => p.isHome), event.homeSourceOutcome, event.homeSourceEvent?.externalId)} vs ${sideLabel(
-          event.participants.find((p) => !p.isHome),
-          event.awaySourceOutcome,
-          event.awaySourceEvent?.externalId
-        )}`
-      : event.participants.map((p) => p.school.name).join(" vs ");
+function UpcomingTournamentCell({ tournament }: { tournament: UpcomingTournament }) {
   return (
     <div>
-      <h6 className="text-primary-dark">Upcoming · {event.tournament.activity.name}</h6>
-      <div className="mt-3.5 text-lg font-extrabold">{matchup}</div>
-      <p className="mt-3.5 text-xs text-muted">
-        {format(event.date, "EEE d MMM, h:mm a")}
-        {event.location ? ` · ${event.location}` : ""}
-      </p>
+      <h6 className="text-primary-dark">Upcoming · {tournament.activity.name}</h6>
+      <div className="mt-3.5 text-lg font-extrabold">
+        {format(tournament.startDate, "MMM d")} – {format(tournament.endDate, "MMM d")}
+      </div>
+      <p className="mt-3.5 text-xs text-muted">{tournament.hostSchool ? `Hosted by ${tournament.hostSchool.name}` : "Host TBD"}</p>
     </div>
   );
 }
