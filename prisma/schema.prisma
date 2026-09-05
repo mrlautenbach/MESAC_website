@@ -4,8 +4,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // migrate deploy's advisory lock needs a direct connection - Neon's
+  // pooled DATABASE_URL routes statements through pgbouncer, which can
+  // hand the lock/unlock calls to different backend connections and
+  // leave migrate deploy timed out waiting on a lock nothing will ever
+  // release.
+  directUrl = env("Database_POSTGRES_URL_NON_POOLING")
 }
 
 enum Role {
