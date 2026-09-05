@@ -8,12 +8,17 @@ export class PhotoValidationError extends Error {}
 const MAX_DIMENSION = 2000;
 const JPEG_QUALITY = 82;
 
-// Re-encodes every upload to a fresh JPEG at a capped resolution. This:
+// Re-encodes every upload at a capped resolution. This:
 //  - strips EXIF/GPS and any other embedded metadata,
 //  - neutralizes files that are disguised as images but aren't
 //    (sharp will fail to parse them, regardless of their claimed MIME type
 //    or file extension),
 //  - keeps event pages fast by capping resolution/file size.
+// Re-encodes to JPEG unless the source actually has transparency (e.g. a
+// logo PNG with a transparent background) - JPEG has no alpha channel at
+// all, so that case is kept as PNG instead of flattening it onto a solid
+// color. Everything else (photos, which are never meaningfully
+// transparent) stays JPEG for the smaller file size.
 export async function processAndStorePhoto(file: File, eventId: string) {
   // Some OS/browser combinations report no MIME type, or a generic one like
   // "application/octet-stream", for a valid image file that lacks a
@@ -34,31 +39,36 @@ export async function processAndStorePhoto(file: File, eventId: string) {
   const inputBuffer = Buffer.from(await file.arrayBuffer());
 
   let output;
+  let isPng;
   try {
-    output = await sharp(inputBuffer, { limitInputPixels: 268_402_689 })
+    // Checked against the raw input, before any resize/rotate is queued -
+    // hasAlpha reflects the decoded source's channel layout, which those
+    // operations don't change either way.
+    isPng = (await sharp(inputBuffer).metadata()).hasAlpha ?? false;
+
+    const pipeline = sharp(inputBuffer, { limitInputPixels: 268_402_689 })
       .rotate() // apply EXIF orientation before it gets stripped
       .resize({
         width: MAX_DIMENSION,
         height: MAX_DIMENSION,
         fit: "inside",
         withoutEnlargement: true,
-      })
-      // JPEG has no alpha channel, so any transparency (e.g. a logo PNG)
-      // gets flattened onto a solid color - sharp defaults that to black;
-      // white matches this site's light background instead.
-      .flatten({ background: "#ffffff" })
-      .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
-      .toBuffer({ resolveWithObject: true });
+      });
+
+    output = await (isPng
+      ? pipeline.png({ compressionLevel: 9 })
+      : pipeline.jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
+    ).toBuffer({ resolveWithObject: true });
   } catch {
     throw new PhotoValidationError(
       "That file couldn't be read as an image. It may be corrupted or not actually a photo."
     );
   }
 
-  const pathname = `events/${eventId}/${randomUUID()}.jpg`;
+  const pathname = `events/${eventId}/${randomUUID()}.${isPng ? "png" : "jpg"}`;
   const blob = await put(pathname, output.data, {
     access: "public",
-    contentType: "image/jpeg",
+    contentType: isPng ? "image/png" : "image/jpeg",
     addRandomSuffix: false,
   });
 
