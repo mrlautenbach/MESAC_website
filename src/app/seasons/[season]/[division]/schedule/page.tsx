@@ -21,11 +21,6 @@ export default async function DivisionSchedulePage({
   const division = tournament.activity.divisions.find((d) => d.slug === divisionSlug);
   if (!division) notFound();
 
-  const nextLiveEvent = await prisma.event.findFirst({
-    where: { tournamentId: tournament.id, divisionId: division.id, status: "SCHEDULED", streamUrl: { not: null } },
-    orderBy: { date: "asc" },
-  });
-
   return (
     <div>
       <SeasonHero
@@ -42,12 +37,7 @@ export default async function DivisionSchedulePage({
       />
 
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <TournamentSubNav
-          tournamentSlug={tournament.slug}
-          divisionSlug={division.slug}
-          active="schedule"
-          liveStreamUrl={nextLiveEvent?.streamUrl}
-        />
+        <TournamentSubNav tournamentSlug={tournament.slug} divisionSlug={division.slug} active="schedule" />
         <h4 className="mb-3">Schedule</h4>
         <TournamentSchedule
           tournamentId={tournament.id}

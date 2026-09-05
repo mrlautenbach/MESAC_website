@@ -4,7 +4,7 @@ import { format, startOfDay } from "date-fns";
 import { sideLabel } from "@/lib/eventDisplay";
 import { SchoolColorDot } from "@/components/SchoolColorDot";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
-import { EXPECTED_ROSTER } from "@/lib/expectedRoster";
+import { matchRosterForSeason } from "@/lib/matchRoster";
 import { LiveIcon } from "@/components/icons/LiveIcon";
 
 export const dynamic = "force-dynamic";
@@ -29,9 +29,6 @@ function loadSeasons() {
     },
   });
 }
-
-type SeasonWithActivities = Awaited<ReturnType<typeof loadSeasons>>[number];
-type ActivityRow = SeasonWithActivities["activities"][number];
 
 export default async function SchedulePage() {
   const today = startOfDay(new Date());
@@ -64,36 +61,9 @@ export default async function SchedulePage() {
 
       <div className="space-y-10">
         {seasons.map((season) => {
-          const byName = new Map(season.activities.map((a) => [a.name.trim().toLowerCase(), a]));
-          const matchedIds = new Set<string>();
+          const rows = matchRosterForSeason(season.order, season.activities);
 
-          type Row = { key: string; sport: string; name: string; activity?: ActivityRow };
-          const rows: Row[] = [];
-
-          for (const expected of EXPECTED_ROSTER.filter((e) => e.seasonOrder === season.order)) {
-            let match = byName.get(expected.name.trim().toLowerCase());
-            if (match) {
-              matchedIds.add(match.id);
-            } else {
-              // No exact name match, but don't show "coming soon" right next
-              // to an activity that's clearly the same thing under a
-              // different name and already has a live tournament - fall
-              // back to matching by sport in that case.
-              match = season.activities.find(
-                (a) =>
-                  !matchedIds.has(a.id) &&
-                  a.sport.trim().toLowerCase() === expected.sport.trim().toLowerCase() &&
-                  a.tournaments[0]
-              );
-              if (match) matchedIds.add(match.id);
-            }
-            rows.push({ key: expected.name, sport: expected.sport, name: expected.name, activity: match });
-          }
-          for (const a of season.activities) {
-            if (!matchedIds.has(a.id)) rows.push({ key: a.id, sport: a.sport, name: a.name, activity: a });
-          }
-
-          const groups = new Map<string, Row[]>();
+          const groups = new Map<string, typeof rows>();
           for (const row of rows) {
             const group = groups.get(row.sport) ?? [];
             group.push(row);

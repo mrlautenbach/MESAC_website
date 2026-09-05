@@ -14,26 +14,6 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
   if (!tournament) notFound();
 
   const hasDivisions = tournament.activity.divisions.length > 0;
-  const nextLiveEvent = hasDivisions
-    ? null
-    : await prisma.event.findFirst({
-        where: { tournamentId: tournament.id, status: "SCHEDULED", streamUrl: { not: null } },
-        orderBy: { date: "asc" },
-      });
-
-  const nextLiveEventsByDivision = hasDivisions
-    ? await prisma.event.findMany({
-        where: {
-          tournamentId: tournament.id,
-          divisionId: { in: tournament.activity.divisions.map((d) => d.id) },
-          status: "SCHEDULED",
-          streamUrl: { not: null },
-        },
-        orderBy: { date: "asc" },
-        distinct: ["divisionId"],
-      })
-    : [];
-  const nextLiveEventByDivisionId = new Map(nextLiveEventsByDivision.map((e) => [e.divisionId, e]));
 
   return (
     <div>
@@ -55,16 +35,12 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
             {tournament.activity.divisions.map((division) => (
               <section key={division.id}>
                 <h4 className="mb-3">{division.name}</h4>
-                <TournamentSubNav
-                  tournamentSlug={tournament.slug}
-                  divisionSlug={division.slug}
-                  liveStreamUrl={nextLiveEventByDivisionId.get(division.id)?.streamUrl}
-                />
+                <TournamentSubNav tournamentSlug={tournament.slug} divisionSlug={division.slug} />
               </section>
             ))}
           </div>
         ) : (
-          <TournamentSubNav tournamentSlug={tournament.slug} liveStreamUrl={nextLiveEvent?.streamUrl} />
+          <TournamentSubNav tournamentSlug={tournament.slug} />
         )}
       </div>
     </div>

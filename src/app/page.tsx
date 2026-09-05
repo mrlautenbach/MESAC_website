@@ -6,6 +6,7 @@ import { SeasonBrowser } from "@/components/SeasonBrowser";
 import { PhotoSlider } from "@/components/PhotoSlider";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
 import { dailyShuffle } from "@/lib/dailyShuffle";
+import { matchRosterForSeason } from "@/lib/matchRoster";
 
 export const dynamic = "force-dynamic";
 
@@ -69,10 +70,10 @@ export default async function HomePage() {
     id: s.id,
     name: s.name,
     order: s.order,
-    activities: s.activities.map((a) => ({
-      id: a.id,
-      name: a.name,
-      href: a.tournaments[0] ? `/seasons/${a.tournaments[0].slug}` : `/tournaments/${a.slug}`,
+    activities: matchRosterForSeason(s.order, s.activities).map((row) => ({
+      key: row.key,
+      name: row.activity?.name ?? row.name,
+      href: row.activity ? (row.activity.tournaments[0] ? `/seasons/${row.activity.tournaments[0].slug}` : `/tournaments/${row.activity.slug}`) : null,
     })),
   }));
 
@@ -110,17 +111,19 @@ export default async function HomePage() {
               <p className="mt-3 text-sm text-muted">Results will appear here once the season kicks off.</p>
             ) : (
               recentResults.map((event) => {
-                const [a, b] = event.results;
+                const home = event.participants[0];
+                const away = event.participants[1];
+                const homeScore = event.results.find((r) => r.schoolId === home?.school.id)?.score;
+                const awayScore = event.results.find((r) => r.schoolId === away?.school.id)?.score;
                 return (
                   <div key={event.id} className="flex items-baseline justify-between gap-3 border-b border-divider py-2.5 last:border-0">
                     <span className="text-[13px]">
-                      <b>{event.participants[0]?.school.code || event.participants[0]?.school.name}</b> v{" "}
-                      {event.participants[1]?.school.code || event.participants[1]?.school.name}
+                      <b>{home?.school.code || home?.school.name}</b> v {away?.school.code || away?.school.name}
                       <br />
                       <span className="text-[11.5px] text-muted">{event.tournament.activity.name}</span>
                     </span>
                     <span className="text-2xl font-extrabold tracking-tight tabular-nums">
-                      {a?.score ?? "–"}–{b?.score ?? "–"}
+                      {homeScore ?? "–"}–{awayScore ?? "–"}
                     </span>
                   </div>
                 );
@@ -280,22 +283,25 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 type ResultEvent = {
   id: string;
-  participants: { school: { name: string; code: string | null } }[];
-  results: { score: number | null; outcome: string | null }[];
+  participants: { school: { id: string; name: string; code: string | null } }[];
+  results: { schoolId: string; score: number | null; outcome: string | null }[];
   date: Date;
   tournament: { activity: { name: string }; hostSchool: { name: string } | null };
 };
 
 function ScoreCell({ event }: { event: ResultEvent }) {
-  const sorted = [...event.results].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-  const names = event.participants.map((p) => p.school.name);
+  const pairs = event.participants.map((p) => ({
+    name: p.school.name,
+    score: event.results.find((r) => r.schoolId === p.school.id)?.score ?? null,
+  }));
+  const sorted = [...pairs].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   return (
     <div>
       <h6 className="text-primary-dark">Final · {event.tournament.activity.name}</h6>
       {sorted.map((r, i) => (
         <div key={i}>
           <div className="mt-3.5 flex items-baseline justify-between">
-            <span className={`text-[19px] font-extrabold ${i > 0 ? "text-muted" : ""}`}>{names[i] ?? "—"}</span>
+            <span className={`text-[19px] font-extrabold ${i > 0 ? "text-muted" : ""}`}>{r.name ?? "—"}</span>
             <span className={`text-6xl font-extrabold leading-[.9] tracking-tight tabular-nums ${i > 0 ? "text-muted" : ""}`}>
               {r.score ?? "—"}
             </span>

@@ -1,15 +1,14 @@
 import Link from "next/link";
+import { LiveIcon } from "@/components/icons/LiveIcon";
 
 export function TournamentSubNav({
   tournamentSlug,
   divisionSlug,
   active,
-  liveStreamUrl,
 }: {
   tournamentSlug: string;
   divisionSlug?: string | null;
-  active?: "schedule" | "results";
-  liveStreamUrl?: string | null;
+  active?: "schedule" | "results" | "watch-live";
 }) {
   const base = divisionSlug ? `/seasons/${tournamentSlug}/${divisionSlug}` : `/seasons/${tournamentSlug}`;
   return (
@@ -20,11 +19,13 @@ export function TournamentSubNav({
       <Link href={`${base}/results`} className={`btn ${active === "results" ? "btn-primary" : "btn-secondary"}`}>
         Results
       </Link>
-      {liveStreamUrl && (
-        <a href={liveStreamUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
-          Watch live &rarr;
-        </a>
-      )}
+      <Link
+        href={`/seasons/${tournamentSlug}/watch-live`}
+        className={`btn inline-flex items-center gap-1 ${active === "watch-live" ? "btn-primary" : "btn-secondary"}`}
+      >
+        <LiveIcon />
+        Watch live
+      </Link>
       <Link href={`/seasons/${tournamentSlug}/team-photos`} className="btn btn-secondary">
         Team photos
       </Link>
