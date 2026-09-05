@@ -20,14 +20,14 @@ export function TournamentSubNav({
       <Link href={`${base}/results`} className={`btn ${active === "results" ? "btn-primary" : "btn-secondary"}`}>
         Results
       </Link>
-      <Link href={`/seasons/${tournamentSlug}/team-photos`} className="btn btn-secondary">
-        Team photos
-      </Link>
       {liveStreamUrl && (
         <a href={liveStreamUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
           Watch live &rarr;
         </a>
       )}
+      <Link href={`/seasons/${tournamentSlug}/team-photos`} className="btn btn-secondary">
+        Team photos
+      </Link>
     </div>
   );
 }

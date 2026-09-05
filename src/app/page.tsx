@@ -277,7 +277,7 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 type ResultEvent = {
   id: string;
-  participants: { school: { name: string } }[];
+  participants: { school: { name: string; code: string | null } }[];
   results: { score: number | null; outcome: string | null }[];
   date: Date;
   tournament: { activity: { name: string }; hostSchool: { name: string } | null };
@@ -285,7 +285,7 @@ type ResultEvent = {
 
 function ScoreCell({ event }: { event: ResultEvent }) {
   const sorted = [...event.results].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-  const names = event.participants.map((p) => p.school.name);
+  const names = event.participants.map((p) => p.school.code || p.school.name);
   return (
     <div>
       <h6 className="text-primary-dark">Final · {event.tournament.activity.name}</h6>

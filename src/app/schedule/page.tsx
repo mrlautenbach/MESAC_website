@@ -63,8 +63,22 @@ export default async function SchedulePage() {
           const rows: Row[] = [];
 
           for (const expected of EXPECTED_ROSTER.filter((e) => e.seasonOrder === season.order)) {
-            const match = byName.get(expected.name.trim().toLowerCase());
-            if (match) matchedIds.add(match.id);
+            let match = byName.get(expected.name.trim().toLowerCase());
+            if (match) {
+              matchedIds.add(match.id);
+            } else {
+              // No exact name match, but don't show "coming soon" right next
+              // to an activity that's clearly the same thing under a
+              // different name and already has a live tournament - fall
+              // back to matching by sport in that case.
+              match = season.activities.find(
+                (a) =>
+                  a.sport.trim().toLowerCase() === expected.sport.trim().toLowerCase() &&
+                  a.tournaments[0] &&
+                  !a.tournaments[0].archived
+              );
+              if (match) matchedIds.add(match.id);
+            }
             rows.push({ key: expected.name, sport: expected.sport, name: expected.name, activity: match });
           }
           for (const a of season.activities) {

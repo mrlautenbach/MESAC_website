@@ -3,7 +3,15 @@
 import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 
-type SchoolPoint = { code: string; name: string; city: string; teams: number; lat: number; lon: number };
+type SchoolPoint = {
+  code: string;
+  name: string;
+  city: string;
+  teams: number;
+  lat: number;
+  lon: number;
+  themeColor?: string | null;
+};
 
 // A real basemap (OpenStreetMap tiles via Leaflet, no API key needed)
 // instead of the earlier schematic grid - schools within ~1km of each other
@@ -43,10 +51,13 @@ export function SchoolsMap({ schools }: { schools: SchoolPoint[] }) {
         const code = cluster.members.map((m) => m.code).join(" / ");
         const place = cluster.members[0].city.split(",")[0];
         const teams = cluster.members.reduce((n, m) => n + m.teams, 0);
+        // A cluster of very-close schools (e.g. Dubai's two campuses) shows
+        // the first member's color - rare enough that picking one is fine.
+        const color = cluster.members[0].themeColor || "var(--primary)";
 
         const icon = L.divIcon({
           className: "",
-          html: `<span style="display:block;width:14px;height:14px;background:var(--primary);box-shadow:0 0 0 6px color-mix(in srgb, var(--primary) 22%, transparent);"></span>`,
+          html: `<span style="display:block;width:14px;height:14px;background:${color};box-shadow:0 0 0 6px color-mix(in srgb, ${color} 22%, transparent);"></span>`,
           iconSize: [14, 14],
           iconAnchor: [7, 7],
         });
