@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { computeStandings, computeLowScoreTeamStandings, computeIndividualStandings } from "@/lib/standings";
 import { sideLabel } from "@/lib/eventDisplay";
 import { SchoolBadge } from "@/components/SchoolBadge";
+import { LiveIcon } from "@/components/icons/LiveIcon";
 
 type Activity = {
   id: string;
@@ -208,8 +209,9 @@ async function EventsTable({
                   href={event.streamUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="tag tag-accent mt-2 inline-block"
+                  className="tag tag-accent mt-2 inline-flex gap-1"
                 >
+                  <LiveIcon />
                   Watch live
                 </a>
               )}
@@ -324,7 +326,8 @@ async function EventsTable({
                             </td>
                             <td>
                               {event.streamUrl && event.status === "SCHEDULED" ? (
-                                <a href={event.streamUrl} target="_blank" rel="noopener noreferrer" className="tag tag-accent">
+                                <a href={event.streamUrl} target="_blank" rel="noopener noreferrer" className="tag tag-accent gap-1">
+                                  <LiveIcon />
                                   Watch live
                                 </a>
                               ) : (

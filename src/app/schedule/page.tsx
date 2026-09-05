@@ -5,6 +5,7 @@ import { sideLabel } from "@/lib/eventDisplay";
 import { SchoolColorDot } from "@/components/SchoolColorDot";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
 import { EXPECTED_ROSTER } from "@/lib/expectedRoster";
+import { LiveIcon } from "@/components/icons/LiveIcon";
 
 export const dynamic = "force-dynamic";
 
@@ -186,8 +187,9 @@ export default async function SchedulePage() {
                                             href={event.streamUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="tag tag-accent shrink-0"
+                                            className="tag tag-accent shrink-0 gap-1"
                                           >
+                                            <LiveIcon />
                                             Watch live
                                           </a>
                                         )}
