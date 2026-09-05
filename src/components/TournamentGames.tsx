@@ -125,6 +125,21 @@ async function EventsTable({
 
   if (events.length === 0) return <p className="text-muted">{emptyMessage}</p>;
 
+  // Grouped by calendar day - each group gets a date banner instead of a
+  // per-row Date column, freeing up width for a bigger school badge.
+  // events is already ordered by date asc, so first-seen day order is
+  // already chronological.
+  const dayGroups: { key: string; events: typeof events }[] = [];
+  const dayIndexByKey = new Map<string, number>();
+  for (const event of events) {
+    const key = format(event.date, "yyyy-MM-dd");
+    if (!dayIndexByKey.has(key)) {
+      dayIndexByKey.set(key, dayGroups.length);
+      dayGroups.push({ key, events: [] });
+    }
+    dayGroups[dayIndexByKey.get(key)!].events.push(event);
+  }
+
   return (
     <>
       {/* Below sm: one card per game instead of a wide table, so every
@@ -151,6 +166,7 @@ async function EventsTable({
                 <div className="flex items-center justify-between gap-2">
                   <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 font-extrabold hover:text-primary">
                     <SchoolBadge
+                      size={36}
                       logoUrl={home?.school.logoUrl}
                       name={home?.school.name ?? "TBD"}
                       color={home?.school.themeColor}
@@ -163,6 +179,7 @@ async function EventsTable({
                 <div className="flex items-center justify-between gap-2">
                   <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 font-extrabold hover:text-primary">
                     <SchoolBadge
+                      size={36}
                       logoUrl={away?.school.logoUrl}
                       name={away?.school.name ?? "TBD"}
                       color={away?.school.themeColor}
@@ -201,106 +218,129 @@ async function EventsTable({
         })}
       </div>
 
-      <div className="hidden overflow-x-auto sm:block">
-        <table className="mtable">
-          <thead>
-          <tr>
-            {scoringType !== "NONE" && <th>Game</th>}
-            <th>Home</th>
-            {scoringType !== "NONE" && <th className="text-right">Score</th>}
-            <th>Away</th>
-            {scoringType !== "NONE" && <th className="text-right">Score</th>}
-            {usesSetScores && <th>Sets</th>}
-            <th>Date</th>
-            <th>Time</th>
-            <th>Court</th>
-            {customFields.map((f) => (
-              <th key={f.id}>{f.label}</th>
-            ))}
-            {showWatch && (
-              <>
-                <th>Status</th>
-                <th>Watch</th>
-              </>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {events.map((event) => {
-            const home = event.participants.find((p) => p.isHome);
-            const away = event.participants.find((p) => !p.isHome);
-            const homeResult = home && event.results.find((r) => r.schoolId === home.schoolId);
-            const awayResult = away && event.results.find((r) => r.schoolId === away.schoolId);
-            const valueByFieldId = new Map(event.fieldValues.map((v) => [v.fieldId, v.value]));
-            return (
-              <tr key={event.id}>
-                {scoringType !== "NONE" && (
-                  <td className="text-muted">
-                    <Link href={eventHref(event.slug)} className="hover:text-primary">
-                      {event.externalId ?? "—"}
-                    </Link>
-                  </td>
-                )}
-                <td className="font-extrabold">
-                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 hover:text-primary">
-                    <SchoolBadge
-                      logoUrl={home?.school.logoUrl}
-                      name={home?.school.name ?? "TBD"}
-                      color={home?.school.themeColor}
-                      secondaryColor={home?.school.themeColorSecondary}
-                    />
-                    {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
-                  </Link>
-                </td>
-                {scoringType !== "NONE" && <td className="text-right tabular-nums">{homeResult?.score ?? "—"}</td>}
-                <td className="font-extrabold">
-                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 hover:text-primary">
-                    <SchoolBadge
-                      logoUrl={away?.school.logoUrl}
-                      name={away?.school.name ?? "TBD"}
-                      color={away?.school.themeColor}
-                      secondaryColor={away?.school.themeColorSecondary}
-                    />
-                    {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
-                  </Link>
-                </td>
-                {scoringType !== "NONE" && <td className="text-right tabular-nums">{awayResult?.score ?? "—"}</td>}
-                {usesSetScores && (
-                  <td className="whitespace-nowrap text-sm text-muted">
-                    {event.sets.length > 0
-                      ? event.sets.map((s) => `${s.homeScore}-${s.awayScore}`).join(", ")
-                      : "—"}
-                  </td>
-                )}
-                <td className="text-muted">{format(event.date, "MMM d, yyyy")}</td>
-                <td className="text-muted tabular-nums">{format(event.date, "h:mm a")}</td>
-                <td className="text-muted">{event.location ?? "—"}</td>
-                {customFields.map((f) => (
-                  <td key={f.id} className="text-muted">
-                    {valueByFieldId.get(f.id) ?? "—"}
-                  </td>
-                ))}
-                {showWatch && (
-                  <>
-                    <td>
-                      <StatusTag status={event.status} />
-                    </td>
-                    <td>
-                      {event.streamUrl && event.status === "SCHEDULED" ? (
-                        <a href={event.streamUrl} target="_blank" rel="noopener noreferrer" className="tag tag-accent">
-                          Watch live
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-        </table>
+      {/* Desktop: grouped by day under a date banner instead of a per-row
+          Date column - frees up width for a bigger school badge. */}
+      <div className="hidden space-y-6 sm:block">
+        {dayGroups.map((group) => (
+          <div key={group.key}>
+            <h5 className="mb-2 border-b-2 border-divider pb-1.5 text-sm font-bold text-primary-dark">
+              {format(group.events[0].date, "EEEE, MMM d, yyyy")}
+            </h5>
+            <div className="overflow-x-auto">
+              <table className="mtable">
+                <thead>
+                  <tr>
+                    {scoringType !== "NONE" && <th>Game</th>}
+                    <th>Home</th>
+                    {scoringType !== "NONE" && (
+                      <th className="text-center" style={{ width: 56 }}>
+                        Score
+                      </th>
+                    )}
+                    <th>Away</th>
+                    {scoringType !== "NONE" && (
+                      <th className="text-center" style={{ width: 56 }}>
+                        Score
+                      </th>
+                    )}
+                    {usesSetScores && <th>Sets</th>}
+                    <th>Time</th>
+                    <th>Court</th>
+                    {customFields.map((f) => (
+                      <th key={f.id}>{f.label}</th>
+                    ))}
+                    {showWatch && (
+                      <>
+                        <th>Status</th>
+                        <th>Watch</th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.events.map((event) => {
+                    const home = event.participants.find((p) => p.isHome);
+                    const away = event.participants.find((p) => !p.isHome);
+                    const homeResult = home && event.results.find((r) => r.schoolId === home.schoolId);
+                    const awayResult = away && event.results.find((r) => r.schoolId === away.schoolId);
+                    const valueByFieldId = new Map(event.fieldValues.map((v) => [v.fieldId, v.value]));
+                    return (
+                      <tr key={event.id}>
+                        {scoringType !== "NONE" && (
+                          <td className="text-muted">
+                            <Link href={eventHref(event.slug)} className="hover:text-primary">
+                              {event.externalId ?? "—"}
+                            </Link>
+                          </td>
+                        )}
+                        <td className="font-extrabold">
+                          <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 hover:text-primary">
+                            <SchoolBadge
+                              size={36}
+                              logoUrl={home?.school.logoUrl}
+                              name={home?.school.name ?? "TBD"}
+                              color={home?.school.themeColor}
+                              secondaryColor={home?.school.themeColorSecondary}
+                            />
+                            {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
+                          </Link>
+                        </td>
+                        {scoringType !== "NONE" && (
+                          <td className="text-center tabular-nums">{homeResult?.score ?? "—"}</td>
+                        )}
+                        <td className="font-extrabold">
+                          <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 hover:text-primary">
+                            <SchoolBadge
+                              size={36}
+                              logoUrl={away?.school.logoUrl}
+                              name={away?.school.name ?? "TBD"}
+                              color={away?.school.themeColor}
+                              secondaryColor={away?.school.themeColorSecondary}
+                            />
+                            {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
+                          </Link>
+                        </td>
+                        {scoringType !== "NONE" && (
+                          <td className="text-center tabular-nums">{awayResult?.score ?? "—"}</td>
+                        )}
+                        {usesSetScores && (
+                          <td className="whitespace-nowrap text-sm text-muted">
+                            {event.sets.length > 0
+                              ? event.sets.map((s) => `${s.homeScore}-${s.awayScore}`).join(", ")
+                              : "—"}
+                          </td>
+                        )}
+                        <td className="text-muted tabular-nums">{format(event.date, "h:mm a")}</td>
+                        <td className="text-muted">{event.location ?? "—"}</td>
+                        {customFields.map((f) => (
+                          <td key={f.id} className="text-muted">
+                            {valueByFieldId.get(f.id) ?? "—"}
+                          </td>
+                        ))}
+                        {showWatch && (
+                          <>
+                            <td>
+                              <StatusTag status={event.status} />
+                            </td>
+                            <td>
+                              {event.streamUrl && event.status === "SCHEDULED" ? (
+                                <a href={event.streamUrl} target="_blank" rel="noopener noreferrer" className="tag tag-accent">
+                                  Watch live
+                                </a>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
       </div>
     </>
   );
@@ -333,6 +373,7 @@ async function WinLossStandings({
                   <span className="inline-flex items-center gap-1 font-extrabold">
                     <span className="text-primary-deep">{i + 1}.</span>
                     <SchoolBadge
+                      size={36}
                       logoUrl={colorBySchoolId.get(row.schoolId)?.logoUrl}
                       name={row.schoolName}
                       color={colorBySchoolId.get(row.schoolId)?.color}
@@ -382,6 +423,7 @@ async function WinLossStandings({
                   <td className="font-extrabold">
                     <span className="inline-flex items-center gap-1">
                       <SchoolBadge
+                        size={36}
                         logoUrl={colorBySchoolId.get(row.schoolId)?.logoUrl}
                         name={row.schoolName}
                         color={colorBySchoolId.get(row.schoolId)?.color}
@@ -452,6 +494,7 @@ async function LowScoreStandings({
                     <td className="font-extrabold">
                       <span className="inline-flex items-center gap-1">
                         <SchoolBadge
+                          size={36}
                           logoUrl={colorBySchoolId.get(row.schoolId)?.logoUrl}
                           name={row.schoolName}
                           color={colorBySchoolId.get(row.schoolId)?.color}
@@ -492,6 +535,7 @@ async function LowScoreStandings({
                     <td className="text-muted">
                       <span className="inline-flex items-center gap-1">
                         <SchoolBadge
+                          size={36}
                           logoUrl={colorBySchoolId.get(row.schoolId)?.logoUrl}
                           name={row.schoolName}
                           color={colorBySchoolId.get(row.schoolId)?.color}

@@ -133,11 +133,11 @@ export default async function HomePage() {
           {shuffledSchools.map((school) => (
             <div
               key={school.id}
-              className="flex h-24 items-center justify-center border border-white/20 bg-[color-mix(in_srgb,var(--primary-tint)_16%,transparent)] border-b-[3px]"
+              className="flex h-32 items-center justify-center border border-white/20 bg-[color-mix(in_srgb,var(--primary-tint)_16%,transparent)] border-b-[3px]"
               style={school.themeColor ? { borderBottomColor: school.themeColor } : undefined}
             >
               {school.logoUrl ? (
-                <Image src={school.logoUrl} alt={school.name} width={140} height={64} className="max-h-16 w-auto object-contain" />
+                <Image src={school.logoUrl} alt={school.name} width={210} height={96} className="max-h-24 w-auto object-contain" />
               ) : (
                 <span className="text-[11px] font-bold tracking-[0.1em] text-background/60">
                   {school.code ?? school.name.slice(0, 3).toUpperCase()}
