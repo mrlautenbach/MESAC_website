@@ -27,7 +27,7 @@ export default async function TournamentsAdminPage() {
           orderBy: { name: "asc" },
           include: {
             divisions: true,
-            tournaments: { orderBy: { startDate: "desc" } },
+            tournaments: { orderBy: [{ archived: "asc" }, { startDate: "desc" }] },
             fields: { orderBy: { order: "asc" } },
           },
         },

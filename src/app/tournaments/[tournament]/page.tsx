@@ -11,7 +11,10 @@ export default async function TournamentPage({ params }: { params: Promise<{ tou
     where: { slug },
     include: {
       divisions: true,
-      tournaments: { orderBy: { startDate: "desc" }, include: { hostSchool: true } },
+      // Non-archived editions first, archived ones after - each group
+      // newest-first by date. Keeps this newest-on-top even in the rare
+      // case an admin archives a tournament out of date order.
+      tournaments: { orderBy: [{ archived: "asc" }, { startDate: "desc" }], include: { hostSchool: true } },
     },
   });
   if (!activity) notFound();
