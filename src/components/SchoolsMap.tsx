@@ -48,28 +48,31 @@ export function SchoolsMap({ schools }: { schools: SchoolPoint[] }) {
       }
 
       for (const cluster of clusters) {
-        const code = cluster.members.map((m) => m.code).join(" / ");
-        const place = cluster.members[0].city.split(",")[0];
-        const teams = cluster.members.reduce((n, m) => n + m.teams, 0);
-        // A cluster of very-close schools (e.g. Dubai's two campuses) shows
-        // the first member's color - rare enough that picking one is fine.
-        const color = cluster.members[0].themeColor || "var(--primary)";
+        const n = cluster.members.length;
+        // A cluster of very-close schools (e.g. Dubai's two campuses) gets
+        // one marker per school, nudged apart along longitude so both stay
+        // visible and keep their own color instead of collapsing into one.
+        cluster.members.forEach((school, i) => {
+          const lon = cluster.lon + (i - (n - 1) / 2) * 0.018;
+          const place = school.city.split(",")[0];
+          const color = school.themeColor || "var(--primary)";
 
-        const icon = L.divIcon({
-          className: "",
-          html: `<span style="display:block;width:14px;height:14px;background:${color};box-shadow:0 0 0 6px color-mix(in srgb, ${color} 22%, transparent);"></span>`,
-          iconSize: [14, 14],
-          iconAnchor: [7, 7],
-        });
-
-        L.marker([cluster.lat, cluster.lon], { icon })
-          .addTo(map)
-          .bindTooltip(`<b>${code}</b><br/>${place.toUpperCase()} · ${teams} TEAMS`, {
-            permanent: true,
-            direction: "right",
-            offset: [10, 0],
-            className: "schools-map-tooltip",
+          const icon = L.divIcon({
+            className: "",
+            html: `<span style="display:block;width:14px;height:14px;background:${color};box-shadow:0 0 0 6px color-mix(in srgb, ${color} 22%, transparent);"></span>`,
+            iconSize: [14, 14],
+            iconAnchor: [7, 7],
           });
+
+          L.marker([cluster.lat, lon], { icon })
+            .addTo(map)
+            .bindTooltip(`<b>${school.code}</b><br/>${place.toUpperCase()} · ${school.teams} TEAMS`, {
+              permanent: true,
+              direction: "right",
+              offset: [10, 0],
+              className: "schools-map-tooltip",
+            });
+        });
       }
 
       const bounds = L.latLngBounds(schools.map((s) => [s.lat, s.lon] as [number, number]));

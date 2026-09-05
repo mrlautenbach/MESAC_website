@@ -14,7 +14,11 @@ function loadSeasons() {
     include: {
       activities: {
         orderBy: [{ name: "asc" }],
-        include: { tournaments: { where: { isCurrent: true }, take: 1 } },
+        // The most recent non-archived tournament, not "isCurrent: true" -
+        // that flag is hand-set per activity and can be wrong or unset,
+        // which would otherwise make a genuinely live tournament vanish
+        // from its own activity and show up as an unmatched duplicate.
+        include: { tournaments: { where: { archived: false }, orderBy: { startDate: "desc" }, take: 1 } },
       },
     },
   });
@@ -51,10 +55,7 @@ export default async function TournamentsIndexPage() {
               // a live tournament - fall back to matching by sport in that
               // case instead of showing a duplicate placeholder.
               match = season.activities.find(
-                (a) =>
-                  a.sport.trim().toLowerCase() === expected.sport.trim().toLowerCase() &&
-                  a.tournaments[0] &&
-                  !a.tournaments[0].archived
+                (a) => a.sport.trim().toLowerCase() === expected.sport.trim().toLowerCase() && a.tournaments[0]
               );
               if (match) matchedIds.add(match.id);
             }

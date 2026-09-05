@@ -21,7 +21,9 @@ export default async function HomePage() {
       include: {
         activities: {
           orderBy: { name: "asc" },
-          include: { tournaments: { where: { isCurrent: true }, take: 1 } },
+          // Latest non-archived tournament, not "isCurrent: true" - see the
+          // matching comment in /tournaments and /schedule for why.
+          include: { tournaments: { where: { archived: false }, orderBy: { startDate: "desc" }, take: 1 } },
         },
       },
     }),
@@ -112,7 +114,8 @@ export default async function HomePage() {
                 return (
                   <div key={event.id} className="flex items-baseline justify-between gap-3 border-b border-divider py-2.5 last:border-0">
                     <span className="text-[13px]">
-                      <b>{event.participants[0]?.school.name}</b> v {event.participants[1]?.school.name}
+                      <b>{event.participants[0]?.school.code || event.participants[0]?.school.name}</b> v{" "}
+                      {event.participants[1]?.school.code || event.participants[1]?.school.name}
                       <br />
                       <span className="text-[11.5px] text-muted">{event.tournament.activity.name}</span>
                     </span>
@@ -285,7 +288,7 @@ type ResultEvent = {
 
 function ScoreCell({ event }: { event: ResultEvent }) {
   const sorted = [...event.results].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-  const names = event.participants.map((p) => p.school.code || p.school.name);
+  const names = event.participants.map((p) => p.school.name);
   return (
     <div>
       <h6 className="text-primary-dark">Final · {event.tournament.activity.name}</h6>
