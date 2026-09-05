@@ -37,7 +37,7 @@ export default async function RecordsPage() {
               </p>
             </div>
           ) : (
-            <p className="relative text-muted">No records logged yet — check back once a season is underway.</p>
+            <p className="relative text-muted">No records logged yet. Check back once a season is underway.</p>
           )}
         </div>
       </div>

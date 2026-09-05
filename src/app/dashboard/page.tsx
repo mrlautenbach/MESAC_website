@@ -132,7 +132,7 @@ function EventRow({ event }: EventRowProps) {
         <div className="font-semibold">{matchup}</div>
         <div className="text-sm text-muted">
           {event.tournament.activity.name}
-          {event.division ? ` — ${event.division.name}` : ""} ({event.tournament.name}) ·{" "}
+          {event.division ? ` · ${event.division.name}` : ""} ({event.tournament.name}) ·{" "}
           {format(event.date, "EEE, MMM d, yyyy · h:mm a")}
           {event.location ? ` · ${event.location}` : ""}
         </div>

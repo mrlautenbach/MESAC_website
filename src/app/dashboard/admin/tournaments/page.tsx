@@ -185,7 +185,7 @@ export default async function TournamentsAdminPage() {
       <div>
         <h2 className="mb-1 text-xl font-bold">Create an activity</h2>
         <p className="mb-6 text-sm text-muted">
-          For a new sport or division not already listed above — most years won&apos;t need this.
+          For a new sport or division not already listed above. Most years won&apos;t need this.
         </p>
         <ActivityForm seasons={seasons.map((s) => ({ id: s.id, name: s.name }))} schools={schools} />
       </div>

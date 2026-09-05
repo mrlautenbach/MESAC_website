@@ -247,7 +247,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       if (!division) fail(`Unknown gender "${genderRaw}".`);
       else divisionId = division.id;
     } else if (requiresDivision) {
-      fail("This tournament has divisions — set the gender column.");
+      fail("This tournament has divisions. Set the gender column.");
     }
 
     const homeRaw = get("home");
@@ -290,7 +290,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     let homeScore: number | null = null;
     let awayScore: number | null = null;
     if (scoringType === "NONE") {
-      if (homeScoreRaw || awayScoreRaw) fail("This tournament doesn't use scores — leave home_score and away_score blank.");
+      if (homeScoreRaw || awayScoreRaw) fail("This tournament doesn't use scores. Leave home_score and away_score blank.");
     } else {
       const parsedHome = parseScore(homeScoreRaw);
       if (parsedHome && typeof parsedHome === "object") fail(`home_score "${homeScoreRaw}" must be a whole number 0-9999.`);
@@ -514,7 +514,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     action: "EVENT_IMPORT",
     entityType: "Event",
     entityId: allIds[0],
-    summary: `${admin.name} imported a schedule into ${tournament.activity.name} — ${tournament.name} from a CSV file (${createdIds.length} new, ${updatedIds.length} updated${removedIds.length > 0 ? `, ${removedIds.length} removed` : ""})`,
+    summary: `${admin.name} imported a schedule into ${tournament.activity.name} · ${tournament.name} from a CSV file (${createdIds.length} new, ${updatedIds.length} updated${removedIds.length > 0 ? `, ${removedIds.length} removed` : ""})`,
     after: { tournamentId: tournament.id, created: createdIds.length, updated: updatedIds.length, removed: removedIds.length },
   });
 

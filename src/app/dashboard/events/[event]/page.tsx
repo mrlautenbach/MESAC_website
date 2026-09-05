@@ -107,7 +107,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
         </h1>
         <p className="text-muted">
           {event.tournament.activity.name}
-          {event.division ? ` — ${event.division.name}` : ""} ({event.tournament.name})
+          {event.division ? ` · ${event.division.name}` : ""} ({event.tournament.name})
         </p>
       </div>
 
@@ -138,7 +138,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
       <section>
         <h2 className="mb-3 text-lg font-bold">Results document</h2>
         <p className="mb-3 text-sm text-muted">
-          Attach a PDF of full results — useful for meets and festivals that don&apos;t fit a simple win/loss score.
+          Attach a PDF of full results. Useful for meets and festivals that don&apos;t fit a simple win/loss score.
         </p>
         <DocumentUploader eventId={event.id} />
         {event.documents.length > 0 && (

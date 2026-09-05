@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { computeStandings, computeLowScoreTeamStandings, computeIndividualStandings } from "@/lib/standings";
 import { sideLabel } from "@/lib/eventDisplay";
-import { SchoolColorDot } from "@/components/SchoolColorDot";
+import { SchoolBadge } from "@/components/SchoolBadge";
 
 type Activity = {
   id: string;
@@ -45,8 +45,10 @@ export async function TournamentSchedule({ tournamentId, tournamentSlug, divisio
 // completed games only - upcoming/scheduled games belong on the Schedule
 // page, not here.
 export async function TournamentResults({ tournamentId, tournamentSlug, divisionId, activity }: Scope & { activity: Activity }) {
-  const schools = await prisma.school.findMany({ select: { id: true, themeColor: true, themeColorSecondary: true } });
-  const colorBySchoolId = new Map(schools.map((s) => [s.id, { color: s.themeColor, secondaryColor: s.themeColorSecondary }]));
+  const schools = await prisma.school.findMany({ select: { id: true, themeColor: true, themeColorSecondary: true, logoUrl: true } });
+  const colorBySchoolId = new Map(
+    schools.map((s) => [s.id, { color: s.themeColor, secondaryColor: s.themeColorSecondary, logoUrl: s.logoUrl }])
+  );
 
   return (
     <div className="space-y-10">
@@ -57,7 +59,7 @@ export async function TournamentResults({ tournamentId, tournamentSlug, division
         <LowScoreStandings tournamentId={tournamentId} divisionId={divisionId} colorBySchoolId={colorBySchoolId} />
       )}
       {activity.scoringType === "NONE" && (
-        <p className="text-sm text-muted">This activity doesn&apos;t use a results table — check each game below.</p>
+        <p className="text-sm text-muted">This activity doesn&apos;t use a results table. Check each game below.</p>
       )}
 
       <section>
@@ -124,9 +126,84 @@ async function EventsTable({
   if (events.length === 0) return <p className="text-muted">{emptyMessage}</p>;
 
   return (
-    <div className="overflow-x-auto">
-      <table className="mtable">
-        <thead>
+    <>
+      {/* Below sm: one card per game instead of a wide table, so every
+          column (score, sets, date, status, watch link) stays readable
+          without horizontal scrolling. Desktop keeps the table as-is. */}
+      <div className="space-y-3 sm:hidden">
+        {events.map((event) => {
+          const home = event.participants.find((p) => p.isHome);
+          const away = event.participants.find((p) => !p.isHome);
+          const homeResult = home && event.results.find((r) => r.schoolId === home.schoolId);
+          const awayResult = away && event.results.find((r) => r.schoolId === away.schoolId);
+          const valueByFieldId = new Map(event.fieldValues.map((v) => [v.fieldId, v.value]));
+          const hasFieldValues = customFields.some((f) => valueByFieldId.get(f.id));
+          return (
+            <div key={event.id} className="card p-3 text-sm">
+              <div className="mb-2 flex items-center justify-between gap-2 text-xs text-muted">
+                <Link href={eventHref(event.slug)} className="hover:text-primary">
+                  {format(event.date, "MMM d, yyyy")} · {format(event.date, "h:mm a")}
+                  {scoringType !== "NONE" && event.externalId ? ` · ${event.externalId}` : ""}
+                </Link>
+                {showWatch && <StatusTag status={event.status} />}
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 font-extrabold hover:text-primary">
+                    <SchoolBadge
+                      logoUrl={home?.school.logoUrl}
+                      name={home?.school.name ?? "TBD"}
+                      color={home?.school.themeColor}
+                      secondaryColor={home?.school.themeColorSecondary}
+                    />
+                    {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
+                  </Link>
+                  {scoringType !== "NONE" && <span className="tabular-nums font-extrabold">{homeResult?.score ?? "—"}</span>}
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 font-extrabold hover:text-primary">
+                    <SchoolBadge
+                      logoUrl={away?.school.logoUrl}
+                      name={away?.school.name ?? "TBD"}
+                      color={away?.school.themeColor}
+                      secondaryColor={away?.school.themeColorSecondary}
+                    />
+                    {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
+                  </Link>
+                  {scoringType !== "NONE" && <span className="tabular-nums font-extrabold">{awayResult?.score ?? "—"}</span>}
+                </div>
+              </div>
+              {usesSetScores && (
+                <p className="mt-2 text-xs text-muted">
+                  Sets: {event.sets.length > 0 ? event.sets.map((s) => `${s.homeScore}-${s.awayScore}`).join(", ") : "—"}
+                </p>
+              )}
+              {(event.location || hasFieldValues) && (
+                <p className="mt-2 text-xs text-muted">
+                  {event.location ?? "—"}
+                  {customFields.map(
+                    (f) => valueByFieldId.get(f.id) && <span key={f.id}> · {f.label}: {valueByFieldId.get(f.id)}</span>
+                  )}
+                </p>
+              )}
+              {showWatch && event.streamUrl && event.status === "SCHEDULED" && (
+                <a
+                  href={event.streamUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="tag tag-accent mt-2 inline-block"
+                >
+                  Watch live
+                </a>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hidden overflow-x-auto sm:block">
+        <table className="mtable">
+          <thead>
           <tr>
             {scoringType !== "NONE" && <th>Game</th>}
             <th>Home</th>
@@ -166,14 +243,24 @@ async function EventsTable({
                 )}
                 <td className="font-extrabold">
                   <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 hover:text-primary">
-                    <SchoolColorDot color={home?.school.themeColor} secondaryColor={home?.school.themeColorSecondary} />
+                    <SchoolBadge
+                      logoUrl={home?.school.logoUrl}
+                      name={home?.school.name ?? "TBD"}
+                      color={home?.school.themeColor}
+                      secondaryColor={home?.school.themeColorSecondary}
+                    />
                     {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
                   </Link>
                 </td>
                 {scoringType !== "NONE" && <td className="text-right tabular-nums">{homeResult?.score ?? "—"}</td>}
                 <td className="font-extrabold">
                   <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 hover:text-primary">
-                    <SchoolColorDot color={away?.school.themeColor} secondaryColor={away?.school.themeColorSecondary} />
+                    <SchoolBadge
+                      logoUrl={away?.school.logoUrl}
+                      name={away?.school.name ?? "TBD"}
+                      color={away?.school.themeColor}
+                      secondaryColor={away?.school.themeColorSecondary}
+                    />
                     {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
                   </Link>
                 </td>
@@ -213,8 +300,9 @@ async function EventsTable({
             );
           })}
         </tbody>
-      </table>
-    </div>
+        </table>
+      </div>
+    </>
   );
 }
 
@@ -227,7 +315,7 @@ async function WinLossStandings({
   tournamentId: string;
   divisionId?: string | null;
   activity: Activity;
-  colorBySchoolId: Map<string, { color: string | null; secondaryColor: string | null }>;
+  colorBySchoolId: Map<string, { color: string | null; secondaryColor: string | null; logoUrl: string | null }>;
 }) {
   const standings = await computeStandings(tournamentId, divisionId);
   return (
@@ -236,7 +324,42 @@ async function WinLossStandings({
       {standings.length === 0 ? (
         <p className="text-muted">No results have been posted yet.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+          {/* Below sm: one card per school instead of a wide table. */}
+          <div className="space-y-2 sm:hidden">
+            {standings.map((row, i) => (
+              <div key={row.schoolId} className="card p-3 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 font-extrabold">
+                    <span className="text-primary-deep">{i + 1}.</span>
+                    <SchoolBadge
+                      logoUrl={colorBySchoolId.get(row.schoolId)?.logoUrl}
+                      name={row.schoolName}
+                      color={colorBySchoolId.get(row.schoolId)?.color}
+                      secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor}
+                    />
+                    {row.schoolName}
+                  </span>
+                  <span className="text-[17px] font-extrabold tabular-nums">{row.points} pts</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
+                  {activity.showPlayed && <span>P {row.played}</span>}
+                  {activity.showWins && <span>W {row.wins}</span>}
+                  {activity.showLosses && <span>L {row.losses}</span>}
+                  {row.draws > 0 && <span>D {row.draws}</span>}
+                  {activity.showPointsFor && <span>For {row.totalScore}</span>}
+                  {activity.showPointsAgainst && <span>Ag {row.against}</span>}
+                  <span>
+                    Diff {row.totalScore - row.against > 0 ? "+" : ""}
+                    {row.totalScore - row.against}
+                  </span>
+                  <span>Form {row.form.join(" ") || "—"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto sm:block">
           <table className="mtable">
             <thead>
               <tr>
@@ -258,7 +381,12 @@ async function WinLossStandings({
                   <td className="text-[17px] font-extrabold text-primary-deep">{i + 1}</td>
                   <td className="font-extrabold">
                     <span className="inline-flex items-center gap-1.5">
-                      <SchoolColorDot color={colorBySchoolId.get(row.schoolId)?.color} secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor} />
+                      <SchoolBadge
+                        logoUrl={colorBySchoolId.get(row.schoolId)?.logoUrl}
+                        name={row.schoolName}
+                        color={colorBySchoolId.get(row.schoolId)?.color}
+                        secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor}
+                      />
                       {row.schoolName}
                     </span>{" "}
                     {row.draws > 0 && <span className="font-normal text-muted">· {row.draws} drawn</span>}
@@ -278,7 +406,8 @@ async function WinLossStandings({
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
       <p className="mt-2 text-xs text-muted">
         {activity.winPoints} pts for a win, {activity.drawPoints} for a draw, {activity.lossPoints} for a loss.
@@ -294,7 +423,7 @@ async function LowScoreStandings({
 }: {
   tournamentId: string;
   divisionId?: string | null;
-  colorBySchoolId: Map<string, { color: string | null; secondaryColor: string | null }>;
+  colorBySchoolId: Map<string, { color: string | null; secondaryColor: string | null; logoUrl: string | null }>;
 }) {
   const [teams, individuals] = await Promise.all([
     computeLowScoreTeamStandings(tournamentId, divisionId),
@@ -322,7 +451,12 @@ async function LowScoreStandings({
                   <tr key={row.schoolId}>
                     <td className="font-extrabold">
                       <span className="inline-flex items-center gap-1.5">
-                        <SchoolColorDot color={colorBySchoolId.get(row.schoolId)?.color} secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor} />
+                        <SchoolBadge
+                          logoUrl={colorBySchoolId.get(row.schoolId)?.logoUrl}
+                          name={row.schoolName}
+                          color={colorBySchoolId.get(row.schoolId)?.color}
+                          secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor}
+                        />
                         {row.schoolName}
                       </span>
                     </td>
@@ -357,7 +491,12 @@ async function LowScoreStandings({
                     <td className="font-extrabold">{row.athleteName}</td>
                     <td className="text-muted">
                       <span className="inline-flex items-center gap-1.5">
-                        <SchoolColorDot color={colorBySchoolId.get(row.schoolId)?.color} secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor} />
+                        <SchoolBadge
+                          logoUrl={colorBySchoolId.get(row.schoolId)?.logoUrl}
+                          name={row.schoolName}
+                          color={colorBySchoolId.get(row.schoolId)?.color}
+                          secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor}
+                        />
                         {row.schoolName}
                       </span>
                     </td>

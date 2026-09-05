@@ -37,7 +37,7 @@ export default async function TournamentPhotosAdminPage({
         </Link>
         <h1 className="mt-2 mb-1 text-2xl font-bold">Team photos</h1>
         <p className="text-sm text-muted">
-          {tournament.activity.name} — {tournament.name}. Turn off any slot a school isn&apos;t fielding this year.
+          {tournament.activity.name} · {tournament.name}. Turn off any slot a school isn&apos;t fielding this year.
         </p>
       </div>
 

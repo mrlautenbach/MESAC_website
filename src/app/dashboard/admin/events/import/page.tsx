@@ -28,7 +28,7 @@ export default async function ImportEventsPage() {
 
   const tournamentOptions = tournaments.map((t) => ({
     id: t.id,
-    label: `${t.activity.name} — ${t.name}${t.isCurrent ? "" : " (archived)"}`,
+    label: `${t.activity.name} · ${t.name}${t.isCurrent ? "" : " (archived)"}`,
     divisions: t.activity.divisions.map((d) => ({ id: d.id, name: d.name })),
     fields: t.activity.fields.map((f) => ({ id: f.id, key: f.key, label: f.label })),
   }));

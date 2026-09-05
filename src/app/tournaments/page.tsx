@@ -78,7 +78,7 @@ export default async function TournamentsIndexPage() {
                                   className="btn cursor-default border border-dashed border-divider text-muted"
                                   title="Not set up yet"
                                 >
-                                  {row.name} — coming soon
+                                  {row.name} (coming soon)
                                 </span>
                               </li>
                             );

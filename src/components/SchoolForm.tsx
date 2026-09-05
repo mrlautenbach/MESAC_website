@@ -96,7 +96,7 @@ export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
         </div>
       </div>
       <p className="text-xs text-muted">
-        Code, city, and coordinates are optional — they power the Schools Atlas map. Leave blank to omit a school
+        Code, city, and coordinates are optional. They power the Schools Atlas map. Leave blank to omit a school
         from the map. Teams is the number shown on the public schools page.
       </p>
       <div>

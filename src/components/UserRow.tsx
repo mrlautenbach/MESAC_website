@@ -81,7 +81,7 @@ export function UserRow({ user }: Props) {
               <code className="rounded bg-white px-2 py-1 font-mono text-foreground">{resetState.tempPassword}</code>
             </>
           )}{" "}
-          Share it with them directly — it won&apos;t be shown again.
+          Share it with them directly. It won&apos;t be shown again.
         </div>
       )}
     </li>

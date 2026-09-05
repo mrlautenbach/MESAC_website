@@ -175,7 +175,7 @@ export function EventEditForm({
                     <ul className="mt-2 space-y-1 pl-2 text-sm text-muted">
                       {individualResultsBySchool[p.schoolId].map((entry, i) => (
                         <li key={i}>
-                          {entry.athleteName} — {entry.score}
+                          {entry.athleteName}: {entry.score}
                         </li>
                       ))}
                     </ul>
@@ -198,7 +198,7 @@ export function EventEditForm({
 
       {scoringType === "NONE" && (
         <p className="text-sm text-muted">
-          This activity doesn&apos;t use a results table — post results as a document below, and use the recap for
+          This activity doesn&apos;t use a results table. Post results as a document below, and use the recap for
           a summary.
         </p>
       )}
@@ -252,7 +252,7 @@ function MatchupEditor({
         <SideSelect label="Away" name="away-schoolId" schools={schools} side={awaySide} />
       </div>
       <p className="mt-1 text-xs text-muted">
-        Change who&apos;s playing on either side — this overrides any pending bracket reference (e.g. &quot;Winner
+        Change who&apos;s playing on either side. This overrides any pending bracket reference (e.g. &quot;Winner
         of G3&quot;) for that side. Leave a side as &quot;Not decided yet&quot; to keep it waiting on the referenced
         game.
       </p>
@@ -277,7 +277,7 @@ function SideSelect({
         {label}
       </label>
       <select id={name} name={name} defaultValue={side.schoolId ?? ""} className="field-input">
-        <option value="">{side.pendingLabel ? `Not decided yet — ${side.pendingLabel}` : "Not decided yet"}</option>
+        <option value="">{side.pendingLabel ? `Not decided yet: ${side.pendingLabel}` : "Not decided yet"}</option>
         {schools.map((s) => (
           <option key={s.id} value={s.id}>
             {s.name}
@@ -374,7 +374,7 @@ function SetScoresEditor({
         + Add set
       </button>
       <p className="mt-1 text-xs text-muted">
-        One row per set played — a match can end in as few as 2 sets or run the full 5.
+        One row per set played. A match can end in as few as 2 sets or run the full 5.
       </p>
     </div>
   );

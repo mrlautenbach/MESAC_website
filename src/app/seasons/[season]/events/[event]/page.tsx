@@ -66,7 +66,7 @@ export default async function EventPage({
           className="text-sm font-semibold text-primary hover:underline"
         >
           &larr; {tournament.activity.name}
-          {event.division ? ` — ${event.division.name}` : ""} ({tournament.name})
+          {event.division ? ` · ${event.division.name}` : ""} ({tournament.name})
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <h1 className="text-2xl font-bold sm:text-3xl">{matchupTitle}</h1>

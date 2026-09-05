@@ -35,7 +35,7 @@ export function SeasonEditionForm({
 
       {!existing && !isFirstEdition && (
         <p className="rounded-md bg-blue-50 px-3 py-2 text-sm text-primary">
-          Starting a new tournament archives the current one — its schedule, results, and photos stay exactly as
+          Starting a new tournament archives the current one. Its schedule, results, and photos stay exactly as
           they are, just no longer shown as the active tournament.
         </p>
       )}
@@ -93,7 +93,7 @@ export function SeasonEditionForm({
           ))}
         </select>
         {!existing && defaultHostSchoolId && (
-          <p className="mt-1 text-xs text-muted">Pre-filled from this activity&apos;s default host — change if needed.</p>
+          <p className="mt-1 text-xs text-muted">Pre-filled from this activity&apos;s default host. Change if needed.</p>
         )}
       </div>
 
@@ -103,7 +103,7 @@ export function SeasonEditionForm({
           Archived
         </label>
         <p className="mt-1 text-xs text-muted">
-          Shows an &quot;Archived&quot; tag on this tournament&apos;s public pages. Off by default — a tournament
+          Shows an &quot;Archived&quot; tag on this tournament&apos;s public pages. Off by default: a tournament
           isn&apos;t archived just because a newer one exists.
         </p>
       </div>

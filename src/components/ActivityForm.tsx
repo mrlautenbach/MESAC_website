@@ -93,7 +93,7 @@ export function ActivityForm({
         >
           <option value="WIN_LOSS">Win / loss / draw per game (most team sports)</option>
           <option value="LOW_SCORE">Team + individual score, lowest wins (e.g. golf)</option>
-          <option value="NONE">No results table — just post a results document (meets, festivals)</option>
+          <option value="NONE">No results table, just post a results document (meets, festivals)</option>
         </select>
       </div>
 
@@ -219,7 +219,7 @@ export function ActivityForm({
         </select>
         <p className="mt-1 text-xs text-muted">
           Pre-fills the host when this activity&apos;s first tournament is created. Hosting still rotates year to
-          year — set on each tournament separately from then on.
+          year. Set on each tournament separately from then on.
         </p>
       </div>
 

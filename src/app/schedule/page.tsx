@@ -96,7 +96,7 @@ export default async function SchedulePage() {
                           if (!row.activity) {
                             return (
                               <p key={row.key} className="text-sm text-muted">
-                                {row.name} — not set up yet
+                                {row.name} (not set up yet)
                               </p>
                             );
                           }
@@ -137,7 +137,7 @@ export default async function SchedulePage() {
                                       ? `/seasons/${current.slug}/${event.division.slug}/schedule`
                                       : `/seasons/${current.slug}/schedule`;
                                     return (
-                                      <li key={event.id} className="text-sm">
+                                      <li key={event.id} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-sm">
                                         <Link href={href} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 hover:text-primary">
                                           <span className="tabular-nums text-muted">{format(event.date, "MMM d, h:mm a")}</span>
                                           {event.division && (
@@ -163,6 +163,16 @@ export default async function SchedulePage() {
                                             <span>{event.participants.map((p) => p.school.name).join(" vs ")}</span>
                                           )}
                                         </Link>
+                                        {event.streamUrl && event.status === "SCHEDULED" && (
+                                          <a
+                                            href={event.streamUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="tag tag-accent shrink-0"
+                                          >
+                                            Watch live
+                                          </a>
+                                        )}
                                       </li>
                                     );
                                   })}

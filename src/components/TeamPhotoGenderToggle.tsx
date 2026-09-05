@@ -31,7 +31,7 @@ export function TeamPhotoGenderToggle({
         Boys
       </label>
       <span className="text-xs text-muted">
-        Turn a gender off if it isn&apos;t fielded this year — schools then show the other gender&apos;s photo, or
+        Turn a gender off if it isn&apos;t fielded this year. Schools then show the other gender&apos;s photo, or
         just their name if both are off.
       </span>
       {state && !state.ok && <span className="text-xs text-danger">{state.error}</span>}

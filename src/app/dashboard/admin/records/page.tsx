@@ -52,7 +52,7 @@ export default async function RecordsAdminPage() {
                 <span className="font-semibold">
                   {r.sport} · {r.eventName}
                 </span>{" "}
-                — {r.mark} · {r.athleteName}
+                · {r.mark} · {r.athleteName}
                 {r.school && ` (${r.school.name})`} · {r.year}
               </div>
               <form

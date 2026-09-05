@@ -78,11 +78,11 @@ export function EventImportForm({ seasons, schoolCodes }: Props) {
         <p className="font-semibold">CSV columns</p>
         <p className="text-muted">
           Required: <code>date</code> (YYYY-MM-DD), <code>home</code>, <code>away</code>. Optional:{" "}
-          <code>game_id</code> (a short id like &quot;G14&quot; — set this to update the same game on a later
+          <code>game_id</code> (a short id like &quot;G14&quot;; set this to update the same game on a later
           re-upload instead of duplicating it),{" "}
           {season && season.divisions.length > 0 && (
             <>
-              <code>gender</code> ({season.divisions.map((d) => d.name).join(" or ")} — required for this
+              <code>gender</code> ({season.divisions.map((d) => d.name).join(" or ")}; required for this
               tournament),{" "}
             </>
           )}
@@ -107,7 +107,7 @@ export function EventImportForm({ seasons, schoolCodes }: Props) {
         </p>
         <p className="text-muted">
           For a playoff round, set <code>home</code> or <code>away</code> to <code>WINNER(G1)</code> or{" "}
-          <code>LOSER(G1)</code> instead of a school — once game G1 is scored, that slot fills in automatically. A
+          <code>LOSER(G1)</code> instead of a school. Once game G1 is scored, that slot fills in automatically. A
           game can only reference a <code>game_id</code> from an earlier row in the file, or one already on the
           schedule.
         </p>
@@ -139,7 +139,7 @@ export function EventImportForm({ seasons, schoolCodes }: Props) {
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" name="replaceExisting" className="mt-0.5" />
         <span>
-          Replace existing schedule — after importing this file, remove any previously-imported game (matched by{" "}
+          Replace existing schedule. After importing this file, remove any previously-imported game (matched by{" "}
           <code>game_id</code>) that isn&apos;t in it. Use this when you&apos;ve edited a full schedule file and want
           the site to match it exactly, including removals. Requires every row to have a <code>game_id</code>;
           games without one are never removed. This permanently deletes the removed games and anything attached to

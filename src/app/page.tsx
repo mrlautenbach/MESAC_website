@@ -149,7 +149,7 @@ export default async function HomePage() {
               {recentResults.length === 0 ? (
                 <span className="whitespace-nowrap border-r border-white/20 px-6 py-2.5">
                   <span className="mr-2.5 font-extrabold text-accent">●</span>
-                  {currentTerm} is underway — check back after the first whistle
+                  {currentTerm} is underway. Check back after the first whistle
                 </span>
               ) : (
                 recentResults.map((event, j) => (
