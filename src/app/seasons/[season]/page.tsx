@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SeasonHero } from "@/components/SeasonHero";
@@ -22,6 +21,20 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
         orderBy: { date: "asc" },
       });
 
+  const nextLiveEventsByDivision = hasDivisions
+    ? await prisma.event.findMany({
+        where: {
+          tournamentId: tournament.id,
+          divisionId: { in: tournament.activity.divisions.map((d) => d.id) },
+          status: "SCHEDULED",
+          streamUrl: { not: null },
+        },
+        orderBy: { date: "asc" },
+        distinct: ["divisionId"],
+      })
+    : [];
+  const nextLiveEventByDivisionId = new Map(nextLiveEventsByDivision.map((e) => [e.divisionId, e]));
+
   return (
     <div>
       <SeasonHero
@@ -38,25 +51,18 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
 
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         {hasDivisions ? (
-          <>
-            <div className="mb-8 flex flex-wrap gap-3">
-              <Link href={`/seasons/${tournament.slug}/team-photos`} className="btn btn-secondary">
-                Team photos
-              </Link>
-            </div>
-            <section>
-              <h4 className="mb-3">Divisions</h4>
-              <ul className="flex flex-wrap gap-3">
-                {tournament.activity.divisions.map((division) => (
-                  <li key={division.id}>
-                    <Link href={`/seasons/${tournament.slug}/${division.slug}`} className="btn btn-primary">
-                      {division.name} &rarr;
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </>
+          <div className="space-y-8">
+            {tournament.activity.divisions.map((division) => (
+              <section key={division.id}>
+                <h4 className="mb-3">{division.name}</h4>
+                <TournamentSubNav
+                  tournamentSlug={tournament.slug}
+                  divisionSlug={division.slug}
+                  liveStreamUrl={nextLiveEventByDivisionId.get(division.id)?.streamUrl}
+                />
+              </section>
+            ))}
+          </div>
         ) : (
           <TournamentSubNav tournamentSlug={tournament.slug} liveStreamUrl={nextLiveEvent?.streamUrl} />
         )}

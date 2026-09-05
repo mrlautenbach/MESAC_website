@@ -20,6 +20,7 @@ type ExistingActivity = {
   showPointsFor: boolean;
   showPointsAgainst: boolean;
   showPlayed: boolean;
+  usesSetScores: boolean;
 };
 
 export function ActivityForm({
@@ -163,6 +164,19 @@ export function ActivityForm({
             </label>
           </div>
           <p className="mt-1 text-xs text-muted">Team Name is always shown. Turn off any of these to simplify the table.</p>
+        </div>
+      )}
+
+      {scoringType === "WIN_LOSS" && (
+        <div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="usesSetScores" defaultChecked={existing?.usesSetScores ?? false} />
+            Matches are decided by sets (e.g. volleyball)
+          </label>
+          <p className="mt-1 text-xs text-muted">
+            Adds a per-set score editor to each game, and uses the total points across sets for Points For/Against
+            instead of the win/loss score.
+          </p>
         </div>
       )}
 

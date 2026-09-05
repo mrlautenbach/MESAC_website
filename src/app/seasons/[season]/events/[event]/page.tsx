@@ -24,6 +24,7 @@ export default async function EventPage({
       participants: { include: { school: true } },
       results: { include: { school: true } },
       individualResults: { include: { school: true } },
+      sets: { orderBy: { setNumber: "asc" } },
       photos: { orderBy: { createdAt: "desc" } },
       documents: { orderBy: { createdAt: "desc" } },
       division: true,
@@ -59,7 +60,9 @@ export default async function EventPage({
     <div className="mx-auto max-w-4xl px-4 py-8 space-y-8">
       <div>
         <Link
-          href={event.division ? `/seasons/${tournament.slug}/${event.division.slug}` : `/seasons/${tournament.slug}`}
+          href={
+            event.division ? `/seasons/${tournament.slug}/${event.division.slug}/schedule` : `/seasons/${tournament.slug}`
+          }
           className="text-sm font-semibold text-primary hover:underline"
         >
           &larr; {tournament.activity.name}
@@ -104,6 +107,19 @@ export default async function EventPage({
                 </li>
               ))}
             </ul>
+          )}
+
+          {tournament.activity.usesSetScores && event.sets.length > 0 && (
+            <div className="mt-4 border-t border-border pt-4">
+              <h3 className="mb-2 text-sm font-bold">Set scores</h3>
+              <ul className="flex flex-wrap gap-4 text-sm">
+                {event.sets.map((s) => (
+                  <li key={s.id} className="text-muted">
+                    Set {s.setNumber}: <span className="font-medium text-foreground">{s.homeScore}–{s.awayScore}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           {tournament.activity.scoringType === "LOW_SCORE" && event.individualResults.length > 0 && (

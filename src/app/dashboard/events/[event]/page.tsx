@@ -23,6 +23,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
       participants: { include: { school: true } },
       results: true,
       individualResults: true,
+      sets: { orderBy: { setNumber: "asc" } },
       photos: { orderBy: { createdAt: "desc" } },
       documents: { orderBy: { createdAt: "desc" } },
     },
@@ -49,6 +50,8 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
       outcome: result?.outcome ?? null,
     };
   });
+
+  const homeParticipant = event.participants.find((p) => p.isHome);
 
   const individualResultsBySchool: Record<string, { athleteName: string; score: number }[]> = {};
   for (const entry of event.individualResults) {
@@ -102,8 +105,11 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
           recap={event.recap ?? ""}
           streamUrl={event.streamUrl ?? ""}
           scoringType={event.tournament.activity.scoringType}
+          usesSetScores={event.tournament.activity.usesSetScores}
           participants={participants}
+          homeSchoolId={homeParticipant?.schoolId ?? null}
           individualResultsBySchool={individualResultsBySchool}
+          initialSets={event.sets.map((s) => ({ setNumber: s.setNumber, homeScore: s.homeScore, awayScore: s.awayScore }))}
         />
       </section>
 

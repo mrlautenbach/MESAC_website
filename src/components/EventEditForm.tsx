@@ -14,6 +14,8 @@ type ParticipantResult = {
 
 type IndividualEntry = { athleteName: string; score: number };
 
+type SetEntry = { setNumber: number; homeScore: number; awayScore: number };
+
 type Props = {
   eventId: string;
   isAdmin: boolean;
@@ -24,8 +26,11 @@ type Props = {
   recap: string;
   streamUrl: string;
   scoringType: ScoringType;
+  usesSetScores: boolean;
   participants: ParticipantResult[];
+  homeSchoolId: string | null;
   individualResultsBySchool: Record<string, IndividualEntry[]>;
+  initialSets: SetEntry[];
 };
 
 export function EventEditForm({
@@ -38,8 +43,11 @@ export function EventEditForm({
   recap,
   streamUrl,
   scoringType,
+  usesSetScores,
   participants,
+  homeSchoolId,
   individualResultsBySchool,
+  initialSets,
 }: Props) {
   const [state, formAction, pending] = useActionState(updateEventAction, null);
 
@@ -105,7 +113,7 @@ export function EventEditForm({
                     {editable ? (
                       <>
                         <label className="flex items-center gap-2 text-sm">
-                          {scoringType === "LOW_SCORE" ? "Team score" : "Score"}
+                          {scoringType === "LOW_SCORE" ? "Team score" : usesSetScores ? "Sets won" : "Score"}
                           <input
                             type="number"
                             min={0}
@@ -159,6 +167,15 @@ export function EventEditForm({
               );
             })}
           </div>
+
+          {scoringType === "WIN_LOSS" && usesSetScores && participants.length === 2 && (
+            <SetScoresEditor
+              homeSchoolName={participants.find((p) => p.schoolId === homeSchoolId)?.schoolName ?? participants[0].schoolName}
+              awaySchoolName={participants.find((p) => p.schoolId !== homeSchoolId)?.schoolName ?? participants[1].schoolName}
+              editable={isAdmin || participants.some((p) => p.schoolId === viewerSchoolId)}
+              initialSets={initialSets}
+            />
+          )}
         </div>
       )}
 
@@ -198,6 +215,98 @@ export function EventEditForm({
         {pending ? "Saving…" : "Save"}
       </button>
     </form>
+  );
+}
+
+function SetScoresEditor({
+  homeSchoolName,
+  awaySchoolName,
+  editable,
+  initialSets,
+}: {
+  homeSchoolName: string;
+  awaySchoolName: string;
+  editable: boolean;
+  initialSets: SetEntry[];
+}) {
+  const idPrefix = useId();
+  const [rows, setRows] = useState(
+    initialSets.length > 0
+      ? initialSets.map((s, i) => ({ key: `${idPrefix}-${i}`, homeScore: s.homeScore, awayScore: s.awayScore }))
+      : [{ key: `${idPrefix}-0`, homeScore: 0, awayScore: 0 }]
+  );
+
+  function addRow() {
+    setRows((r) => [...r, { key: `${idPrefix}-${r.length}-${Date.now()}`, homeScore: 0, awayScore: 0 }]);
+  }
+  function removeRow(key: string) {
+    setRows((r) => (r.length > 1 ? r.filter((row) => row.key !== key) : r));
+  }
+
+  if (!editable) {
+    return (
+      <div className="mt-3 border-t border-border pt-3">
+        <p className="mb-2 text-xs font-semibold text-muted">Set scores</p>
+        {initialSets.length === 0 ? (
+          <p className="text-sm text-muted">No set scores entered.</p>
+        ) : (
+          <ul className="flex flex-wrap gap-3 text-sm text-muted">
+            {initialSets.map((s) => (
+              <li key={s.setNumber}>
+                Set {s.setNumber}: {s.homeScore}–{s.awayScore}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <input type="hidden" name="sets-present" value="1" />
+      <p className="mb-2 text-xs font-semibold text-muted">
+        Set scores ({homeSchoolName} – {awaySchoolName})
+      </p>
+      <div className="space-y-2">
+        {rows.map((row, i) => (
+          <div key={row.key} className="flex items-center gap-2">
+            <span className="w-12 text-xs text-muted">Set {i + 1}</span>
+            <input
+              type="number"
+              name="set-home-score"
+              defaultValue={row.homeScore}
+              min={0}
+              max={999}
+              className="field-input w-16 text-sm"
+            />
+            <span className="text-muted">–</span>
+            <input
+              type="number"
+              name="set-away-score"
+              defaultValue={row.awayScore}
+              min={0}
+              max={999}
+              className="field-input w-16 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => removeRow(row.key)}
+              aria-label="Remove set"
+              className="btn btn-secondary px-2 py-1 text-xs"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={addRow} className="btn btn-secondary mt-2 px-3 py-1 text-xs">
+        + Add set
+      </button>
+      <p className="mt-1 text-xs text-muted">
+        One row per set played — a match can end in as few as 2 sets or run the full 5.
+      </p>
+    </div>
   );
 }
 

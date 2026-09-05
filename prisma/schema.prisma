@@ -148,6 +148,13 @@ model Activity {
   showPointsFor     Boolean  @default(true)
   showPointsAgainst Boolean  @default(true)
   showPlayed        Boolean  @default(true)
+  // Volleyball-style scoring: a match is decided by sets rather than a
+  // single running score, and each event's Result.score/outcome still
+  // record the match-level sets-won total, but the schedule/results pages
+  // also expose a per-set score editor (variable set count, since a match
+  // can end in 2 sets or run the full 5) whose point totals feed the
+  // standings For/Against columns instead of Result.score.
+  usesSetScores     Boolean  @default(false)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -290,6 +297,7 @@ model Event {
   participants      EventParticipant[]
   results           Result[]
   individualResults IndividualResult[]
+  sets              EventSet[]
   photos            Photo[]
   documents         Document[]
   fieldValues       EventFieldValue[]
@@ -297,6 +305,24 @@ model Event {
   @@unique([tournamentId, slug])
   @@unique([tournamentId, externalId])
   @@index([tournamentId])
+}
+
+// One row per set played in a volleyball-style (Activity.usesSetScores)
+// match, home/away scored directly against EventParticipant.isHome rather
+// than schoolId - only meaningful for a two-side dual match. A match can
+// have anywhere from 2 to 5 rows; nothing pads it out to a fixed count.
+model EventSet {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  setNumber Int
+  homeScore Int
+  awayScore Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, setNumber])
+  @@index([eventId])
 }
 
 // An admin-entered value for one of the activity's custom schedule fields

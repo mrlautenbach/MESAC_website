@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, requireUser } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
-import { eventInputSchema, resultEntrySchema, individualResultEntrySchema, streamUrlSchema } from "@/lib/validation";
+import {
+  eventInputSchema,
+  resultEntrySchema,
+  individualResultEntrySchema,
+  setScoreEntrySchema,
+  streamUrlSchema,
+} from "@/lib/validation";
 import { parseCsv } from "@/lib/csv";
 import { computeOutcomes, resolvePlayoffSlots, tryFillFromExistingSource } from "@/lib/playoffs";
 import type { ActionResult } from "@/lib/actions/auth";
@@ -545,7 +551,7 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
 
   const event = await prisma.event.findUnique({
     where: { id: parsed.data.eventId },
-    include: { participants: true, results: true, tournament: { include: { activity: true } }, division: true },
+    include: { participants: true, results: true, sets: true, tournament: { include: { activity: true } }, division: true },
   });
   if (!event) return { ok: false, error: "Event not found." };
 
@@ -628,6 +634,47 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
     });
   }
 
+  // Per-set scores, for volleyball-style (usesSetScores) activities - a
+  // match-wide sheet rather than school-scoped, so anyone with edit access
+  // to this event (admin or either participating school) can enter it.
+  // The "present" marker distinguishes "not rendered for this event" from
+  // "submitted as an empty list" (clear all sets), same as individual scores.
+  if (event.tournament.activity.usesSetScores && formData.get("sets-present") !== null) {
+    const homeScores = formData.getAll("set-home-score").map(String);
+    const awayScores = formData.getAll("set-away-score").map(String);
+    const newSets: { setNumber: number; homeScore: number; awayScore: number }[] = [];
+    for (let i = 0; i < homeScores.length; i++) {
+      const setParsed = setScoreEntrySchema.safeParse({
+        setNumber: i + 1,
+        homeScore: homeScores[i],
+        awayScore: awayScores[i],
+      });
+      if (setParsed.success) newSets.push(setParsed.data);
+    }
+
+    const setsBefore = event.sets.map((s) => ({ setNumber: s.setNumber, homeScore: s.homeScore, awayScore: s.awayScore }));
+    if (setsBefore.length > 0 || newSets.length > 0) {
+      await prisma.$transaction([
+        prisma.eventSet.deleteMany({ where: { eventId: event.id } }),
+        ...(newSets.length > 0
+          ? [prisma.eventSet.createMany({ data: newSets.map((s) => ({ eventId: event.id, ...s })) })]
+          : []),
+      ]);
+
+      await recordAudit({
+        actorId: user.id,
+        actorLabel: user.name,
+        action: "EVENT_SETS_UPDATE",
+        entityType: "EventSet",
+        entityId: event.id,
+        schoolId: isScopedEditor ? user.schoolId : null,
+        summary: `${user.name} updated set scores for this event`,
+        before: { sets: setsBefore },
+        after: { sets: newSets },
+      });
+    }
+  }
+
   // This game might now be decided - fill in any playoff slot waiting on
   // its winner/loser ("winner of this game plays...").
   await resolvePlayoffSlots(prisma, event.id);
@@ -680,7 +727,10 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
 
   revalidatePath(`/seasons/${event.tournament.slug}`);
   revalidatePath(`/seasons/${event.tournament.slug}/events/${event.slug}`);
-  if (event.division) revalidatePath(`/seasons/${event.tournament.slug}/${event.division.slug}`);
+  if (event.division) {
+    revalidatePath(`/seasons/${event.tournament.slug}/${event.division.slug}/schedule`);
+    revalidatePath(`/seasons/${event.tournament.slug}/${event.division.slug}/results`);
+  }
   revalidatePath(`/tournaments/${event.tournament.activity.slug}`);
   revalidatePath("/dashboard");
   return { ok: true };

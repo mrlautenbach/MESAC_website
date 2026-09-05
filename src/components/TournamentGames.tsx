@@ -16,6 +16,7 @@ type Activity = {
   showPointsFor: boolean;
   showPointsAgainst: boolean;
   showPlayed: boolean;
+  usesSetScores: boolean;
 };
 
 type Scope = { tournamentId: string; tournamentSlug: string; divisionId?: string | null };
@@ -32,6 +33,7 @@ export async function TournamentSchedule({ tournamentId, tournamentSlug, divisio
         divisionId={divisionId}
         activityId={activity.id}
         scoringType={activity.scoringType}
+        usesSetScores={activity.usesSetScores}
         statusFilter={null}
         emptyMessage="No events scheduled yet."
       />
@@ -66,6 +68,7 @@ export async function TournamentResults({ tournamentId, tournamentSlug, division
           divisionId={divisionId}
           activityId={activity.id}
           scoringType={activity.scoringType}
+          usesSetScores={activity.usesSetScores}
           statusFilter="COMPLETED"
           emptyMessage="No games have been completed yet."
         />
@@ -80,6 +83,7 @@ async function EventsTable({
   divisionId,
   activityId,
   scoringType,
+  usesSetScores,
   statusFilter,
   emptyMessage,
 }: {
@@ -88,6 +92,7 @@ async function EventsTable({
   divisionId?: string | null;
   activityId: string;
   scoringType: Activity["scoringType"];
+  usesSetScores: boolean;
   statusFilter: "COMPLETED" | null;
   emptyMessage: string;
 }) {
@@ -104,6 +109,7 @@ async function EventsTable({
       include: {
         participants: { include: { school: true } },
         results: true,
+        sets: { orderBy: { setNumber: "asc" } },
         homeSourceEvent: { select: { externalId: true } },
         awaySourceEvent: { select: { externalId: true } },
         fieldValues: true,
@@ -127,6 +133,7 @@ async function EventsTable({
             {scoringType !== "NONE" && <th className="text-right">Score</th>}
             <th>Away</th>
             {scoringType !== "NONE" && <th className="text-right">Score</th>}
+            {usesSetScores && <th>Sets</th>}
             <th>Date</th>
             <th>Time</th>
             <th>Court</th>
@@ -171,6 +178,13 @@ async function EventsTable({
                   </Link>
                 </td>
                 {scoringType !== "NONE" && <td className="text-right tabular-nums">{awayResult?.score ?? "—"}</td>}
+                {usesSetScores && (
+                  <td className="whitespace-nowrap text-sm text-muted">
+                    {event.sets.length > 0
+                      ? event.sets.map((s) => `${s.homeScore}-${s.awayScore}`).join(", ")
+                      : "—"}
+                  </td>
+                )}
                 <td className="text-muted">{format(event.date, "MMM d, yyyy")}</td>
                 <td className="text-muted tabular-nums">{format(event.date, "h:mm a")}</td>
                 <td className="text-muted">{event.location ?? "—"}</td>

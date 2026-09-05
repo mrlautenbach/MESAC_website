@@ -72,6 +72,15 @@ export const activityInputSchema = z.object({
   showPointsFor: z.boolean(),
   showPointsAgainst: z.boolean(),
   showPlayed: z.boolean(),
+  // Volleyball-style: matches are decided by sets, so schedule/results also
+  // gets a per-set score editor whose point totals feed Points For/Against.
+  usesSetScores: z.boolean(),
+});
+
+export const setScoreEntrySchema = z.object({
+  setNumber: z.coerce.number().int().min(1).max(9),
+  homeScore: z.coerce.number().int().min(0).max(999),
+  awayScore: z.coerce.number().int().min(0).max(999),
 });
 
 // The CSV/schedule columns every activity already has as real Event

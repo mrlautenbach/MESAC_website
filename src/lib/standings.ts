@@ -36,13 +36,24 @@ export async function computeStandings(tournamentId: string, divisionId?: string
   const events = await prisma.event.findMany({
     where: eventWhere(tournamentId, divisionId),
     orderBy: { date: "asc" },
-    include: { results: { include: { school: true } } },
+    include: { results: { include: { school: true } }, participants: true, sets: true },
   });
 
   const table = new Map<string, StandingsRow>();
   const formHistory = new Map<string, ("W" | "L" | "D")[]>();
 
   for (const event of events) {
+    // Volleyball-style (usesSetScores) events record set wins as the
+    // Result.score, not raw points - when set scores have been entered,
+    // substitute each side's summed set points for the For/Against columns.
+    const pointsBySchoolId = new Map<string, number>();
+    if (event.sets.length > 0) {
+      const home = event.participants.find((p) => p.isHome);
+      const away = event.participants.find((p) => !p.isHome);
+      if (home) pointsBySchoolId.set(home.schoolId, event.sets.reduce((sum, s) => sum + s.homeScore, 0));
+      if (away) pointsBySchoolId.set(away.schoolId, event.sets.reduce((sum, s) => sum + s.awayScore, 0));
+    }
+
     const decided = event.results.filter((r) => r.outcome !== null);
     for (const result of decided) {
       let row = table.get(result.schoolId);
@@ -63,11 +74,13 @@ export async function computeStandings(tournamentId: string, divisionId?: string
         table.set(result.schoolId, row);
       }
 
+      const scoreForTotals = pointsBySchoolId.get(result.schoolId) ?? result.score;
+
       row.played += 1;
-      if (result.score !== null) row.totalScore += result.score;
+      if (scoreForTotals !== null && scoreForTotals !== undefined) row.totalScore += scoreForTotals;
       row.against += decided
         .filter((r) => r.schoolId !== result.schoolId)
-        .reduce((sum, r) => sum + (r.score ?? 0), 0);
+        .reduce((sum, r) => sum + (pointsBySchoolId.get(r.schoolId) ?? r.score ?? 0), 0);
 
       if (result.outcome === "WIN") {
         row.wins += 1;
