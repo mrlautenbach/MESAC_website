@@ -123,6 +123,9 @@ export const tournamentInputSchema = z.object({
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   hostSchoolId: z.string().cuid().optional().nullable(),
+  // Explicit admin toggle for the public "Archived" label - not derived
+  // from isCurrent or from today's date vs. the tournament's dates.
+  archived: z.boolean(),
 });
 
 export const streamUrlSchema = z

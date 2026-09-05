@@ -220,6 +220,12 @@ model Tournament {
   hostSchoolId String?
   hostSchool   School?  @relation(fields: [hostSchoolId], references: [id])
   isCurrent    Boolean  @default(true)
+  // Explicit admin control over the "Archived" label shown on this
+  // tournament's public pages - independent of isCurrent, which only
+  // decides which edition an activity page picks as the default one to
+  // link to. Defaults off so a tournament never shows Archived unless an
+  // admin has actually chosen to mark it that way.
+  archived     Boolean  @default(false)
   // For a gendered activity's team photo page - when one is off, that
   // division's slots don't get their own section; schools show the other
   // division's photo instead. When both are off, every school's tile is

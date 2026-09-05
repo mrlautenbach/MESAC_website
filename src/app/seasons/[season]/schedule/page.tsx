@@ -31,7 +31,7 @@ export default async function TournamentSchedulePage({ params }: { params: Promi
         endDate={tournament.endDate}
         hostSchoolName={tournament.hostSchool?.name}
         hostSchoolLogoUrl={tournament.hostSchool?.logoUrl}
-        isCurrent={tournament.isCurrent}
+        archived={tournament.archived}
       />
 
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">

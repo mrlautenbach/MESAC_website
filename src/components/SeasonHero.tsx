@@ -12,7 +12,7 @@ export function SeasonHero({
   endDate,
   hostSchoolName,
   hostSchoolLogoUrl,
-  isCurrent,
+  archived,
 }: {
   activityName: string;
   activitySport: string;
@@ -23,8 +23,15 @@ export function SeasonHero({
   endDate: Date;
   hostSchoolName?: string | null;
   hostSchoolLogoUrl?: string | null;
-  isCurrent: boolean;
+  archived: boolean;
 }) {
+  // The tournament's own dates decide the year shown here - never today's
+  // date or which edition happens to be "current" - so an archived tag
+  // always names the actual year it ran, even years after the fact.
+  const startYear = format(startDate, "yyyy");
+  const endYear = format(endDate, "yyyy");
+  const archivedYearLabel = startYear === endYear ? startYear : `${startYear}–${endYear.slice(2)}`;
+
   return (
     <div className="relative overflow-hidden bg-foreground px-6 py-10 text-background sm:px-10">
       <div className="lattice-panel absolute inset-0 text-accent opacity-[.16]" />
@@ -36,7 +43,7 @@ export function SeasonHero({
           <div>
             <h6 className="text-accent opacity-90">
               {activitySport} · {tournamentName}
-              {!isCurrent && " · Archived"}
+              {archived && ` · Archived (${archivedYearLabel})`}
             </h6>
             <div className="mt-3 text-4xl font-extrabold leading-[.95] tracking-tight sm:text-6xl">
               {divisionName ? `${divisionName} ${activityName}` : activityName}

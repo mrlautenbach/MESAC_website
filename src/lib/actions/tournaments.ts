@@ -22,6 +22,7 @@ export async function createTournamentAction(_prevState: ActionResult | null, fo
     startDate: formData.get("startDate"),
     endDate: formData.get("endDate"),
     hostSchoolId: formData.get("hostSchoolId") || null,
+    archived: formData.get("archived") === "on",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -71,6 +72,7 @@ export async function updateTournamentAction(_prevState: ActionResult | null, fo
     startDate: formData.get("startDate"),
     endDate: formData.get("endDate"),
     hostSchoolId: formData.get("hostSchoolId") || null,
+    archived: formData.get("archived") === "on",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };

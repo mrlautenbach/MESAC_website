@@ -121,6 +121,7 @@ export default async function TournamentsAdminPage() {
                                   startDate: format(current.startDate, "yyyy-MM-dd"),
                                   endDate: format(current.endDate, "yyyy-MM-dd"),
                                   hostSchoolId: current.hostSchoolId,
+                                  archived: current.archived,
                                 }}
                               />
                             </div>

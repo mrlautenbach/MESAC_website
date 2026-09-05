@@ -9,6 +9,7 @@ type ExistingSeason = {
   startDate: string; // yyyy-MM-dd
   endDate: string; // yyyy-MM-dd
   hostSchoolId: string | null;
+  archived: boolean;
 };
 
 export function SeasonEditionForm({
@@ -94,6 +95,17 @@ export function SeasonEditionForm({
         {!existing && defaultHostSchoolId && (
           <p className="mt-1 text-xs text-muted">Pre-filled from this activity&apos;s default host — change if needed.</p>
         )}
+      </div>
+
+      <div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="archived" defaultChecked={existing?.archived ?? false} />
+          Archived
+        </label>
+        <p className="mt-1 text-xs text-muted">
+          Shows an &quot;Archived&quot; tag on this tournament&apos;s public pages. Off by default — a tournament
+          isn&apos;t archived just because a newer one exists.
+        </p>
       </div>
 
       {state && !state.ok && (
