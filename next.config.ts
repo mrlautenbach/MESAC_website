@@ -19,6 +19,15 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@prisma/client", "bcryptjs", "sharp"],
+  experimental: {
+    serverActions: {
+      // Next's own default (1MB) is well under what our upload forms
+      // advertise - up to 10 photos at 15MB each, or a 20MB document -
+      // so real uploads were silently hitting this platform-level cap
+      // before our own size validation (and its friendly error) ever ran.
+      bodySizeLimit: "150mb",
+    },
+  },
   async headers() {
     return [
       {

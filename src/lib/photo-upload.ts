@@ -43,6 +43,10 @@ export async function processAndStorePhoto(file: File, eventId: string) {
         fit: "inside",
         withoutEnlargement: true,
       })
+      // JPEG has no alpha channel, so any transparency (e.g. a logo PNG)
+      // gets flattened onto a solid color - sharp defaults that to black;
+      // white matches this site's light background instead.
+      .flatten({ background: "#ffffff" })
       .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
       .toBuffer({ resolveWithObject: true });
   } catch {

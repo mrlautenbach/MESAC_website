@@ -40,7 +40,7 @@ export default async function SchoolsPage() {
             {rows.map((s) => (
               <li
                 key={s.id}
-                className="grid grid-cols-[64px_28px_1fr_auto] items-center gap-5 border-b border-divider py-3 last:border-0"
+                className="grid grid-cols-[64px_32px_1fr_auto] items-center gap-3 border-b border-divider py-3 last:border-0"
               >
                 <span className="text-[15px] font-extrabold text-primary-dark">{s.code ?? "—"}</span>
                 <span className="flex items-center justify-center">

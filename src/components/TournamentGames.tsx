@@ -149,7 +149,7 @@ async function EventsTable({
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
-                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 font-extrabold hover:text-primary">
+                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 font-extrabold hover:text-primary">
                     <SchoolBadge
                       logoUrl={home?.school.logoUrl}
                       name={home?.school.name ?? "TBD"}
@@ -161,7 +161,7 @@ async function EventsTable({
                   {scoringType !== "NONE" && <span className="tabular-nums font-extrabold">{homeResult?.score ?? "—"}</span>}
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 font-extrabold hover:text-primary">
+                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 font-extrabold hover:text-primary">
                     <SchoolBadge
                       logoUrl={away?.school.logoUrl}
                       name={away?.school.name ?? "TBD"}
@@ -242,7 +242,7 @@ async function EventsTable({
                   </td>
                 )}
                 <td className="font-extrabold">
-                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 hover:text-primary">
+                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 hover:text-primary">
                     <SchoolBadge
                       logoUrl={home?.school.logoUrl}
                       name={home?.school.name ?? "TBD"}
@@ -254,7 +254,7 @@ async function EventsTable({
                 </td>
                 {scoringType !== "NONE" && <td className="text-right tabular-nums">{homeResult?.score ?? "—"}</td>}
                 <td className="font-extrabold">
-                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1.5 hover:text-primary">
+                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 hover:text-primary">
                     <SchoolBadge
                       logoUrl={away?.school.logoUrl}
                       name={away?.school.name ?? "TBD"}
@@ -330,7 +330,7 @@ async function WinLossStandings({
             {standings.map((row, i) => (
               <div key={row.schoolId} className="card p-3 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1.5 font-extrabold">
+                  <span className="inline-flex items-center gap-1 font-extrabold">
                     <span className="text-primary-deep">{i + 1}.</span>
                     <SchoolBadge
                       logoUrl={colorBySchoolId.get(row.schoolId)?.logoUrl}
@@ -380,7 +380,7 @@ async function WinLossStandings({
                 <tr key={row.schoolId}>
                   <td className="text-[17px] font-extrabold text-primary-deep">{i + 1}</td>
                   <td className="font-extrabold">
-                    <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1">
                       <SchoolBadge
                         logoUrl={colorBySchoolId.get(row.schoolId)?.logoUrl}
                         name={row.schoolName}
@@ -450,7 +450,7 @@ async function LowScoreStandings({
                 {teams.map((row) => (
                   <tr key={row.schoolId}>
                     <td className="font-extrabold">
-                      <span className="inline-flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1">
                         <SchoolBadge
                           logoUrl={colorBySchoolId.get(row.schoolId)?.logoUrl}
                           name={row.schoolName}
@@ -490,7 +490,7 @@ async function LowScoreStandings({
                   <tr key={`${row.schoolId}-${row.athleteName}`}>
                     <td className="font-extrabold">{row.athleteName}</td>
                     <td className="text-muted">
-                      <span className="inline-flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1">
                         <SchoolBadge
                           logoUrl={colorBySchoolId.get(row.schoolId)?.logoUrl}
                           name={row.schoolName}
