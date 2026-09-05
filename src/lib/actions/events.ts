@@ -591,13 +591,105 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
     after,
   });
 
+  // Admin-only override of who's on each side of a dual-match event -
+  // fixes a mistaken assignment, or manually sets a side ahead of the game
+  // it's waiting on (a CSV "WINNER(G3)" playoff reference) actually being
+  // decided. Only offered for a 2-sided event (see homeSide/awaySide in the
+  // edit page) - a multi-school meet has no single "home"/"away" to swap.
+  // Replacing a side always clears its source reference, since a manual
+  // pick takes precedence; this does NOT retroactively fix any *downstream*
+  // slot that already resolved off this event's old participant - only
+  // this event's own two sides.
+  if (isAdmin && event.participants.length <= 2) {
+    const home = event.participants.find((p) => p.isHome) ?? null;
+    const away = event.participants.find((p) => !p.isHome) ?? null;
+
+    const resolveTarget = (raw: FormDataEntryValue | null): string | null | undefined => {
+      if (raw === null) return undefined; // field not submitted - leave this side alone
+      const value = String(raw);
+      if (value === "") return null; // explicitly cleared to "not decided yet"
+      return z.string().cuid().safeParse(value).success ? value : undefined; // malformed - ignore
+    };
+
+    const homeTarget = resolveTarget(formData.get("home-schoolId"));
+    const awayTarget = resolveTarget(formData.get("away-schoolId"));
+
+    const idsToValidate = [homeTarget, awayTarget].filter((v): v is string => typeof v === "string");
+    const validSchoolIds = new Set(
+      idsToValidate.length ? (await prisma.school.findMany({ where: { id: { in: idsToValidate } } })).map((s) => s.id) : []
+    );
+
+    // A stale/tampered submission putting the same school on both sides -
+    // skip the whole reassignment rather than create an invalid matchup.
+    const conflict = homeTarget && awayTarget && homeTarget === awayTarget;
+
+    if (!conflict) {
+      const sides = [
+        { key: "home" as const, isHome: true, current: home, target: homeTarget },
+        { key: "away" as const, isHome: false, current: away, target: awayTarget },
+      ];
+      for (const side of sides) {
+        if (side.target === undefined) continue;
+        if (side.target !== null && !validSchoolIds.has(side.target)) continue;
+        const currentSchoolId = side.current?.schoolId ?? null;
+        if (side.target === currentSchoolId) continue;
+
+        await prisma.$transaction([
+          ...(currentSchoolId
+            ? [
+                prisma.result.deleteMany({ where: { eventId: event.id, schoolId: currentSchoolId } }),
+                prisma.eventParticipant.deleteMany({ where: { eventId: event.id, isHome: side.isHome } }),
+              ]
+            : []),
+          ...(side.target
+            ? [
+                prisma.eventParticipant.create({ data: { eventId: event.id, schoolId: side.target, isHome: side.isHome } }),
+                prisma.result.upsert({
+                  where: { eventId_schoolId: { eventId: event.id, schoolId: side.target } },
+                  create: { eventId: event.id, schoolId: side.target },
+                  update: {},
+                }),
+              ]
+            : []),
+          prisma.event.update({
+            where: { id: event.id },
+            data: side.isHome
+              ? { homeSourceEventId: null, homeSourceOutcome: null }
+              : { awaySourceEventId: null, awaySourceOutcome: null },
+          }),
+        ]);
+
+        await recordAudit({
+          actorId: user.id,
+          actorLabel: user.name,
+          action: "EVENT_PARTICIPANT_CHANGE",
+          entityType: "EventParticipant",
+          entityId: event.id,
+          summary: `${user.name} changed the ${side.key} side of this event`,
+          before: { schoolId: currentSchoolId },
+          after: { schoolId: side.target },
+        });
+      }
+    }
+  }
+
+  // The participant list above may have just changed - re-read it so the
+  // result/individual-score loops below only touch schools actually still
+  // on this event, instead of the stale list from before this submission
+  // (which would otherwise recreate a Result row for a school that was
+  // just removed, since its score/outcome fields are still present in
+  // this same form submission).
+  const currentParticipantSchoolIds = (await prisma.eventParticipant.findMany({ where: { eventId: event.id } })).map(
+    (p) => p.schoolId
+  );
+
   // Each participating school's result row is only touched if this
   // submission actually included fields for it: admins always include every
   // school; a school editor's form only renders their own school's fields,
   // and any other `result-<schoolId>-*` field is ignored server-side even if
   // present in the raw POST body, so a school can never overwrite another
   // school's result by tampering with the form.
-  for (const schoolId of participantSchoolIds) {
+  for (const schoolId of currentParticipantSchoolIds) {
     if (!isAdmin && schoolId !== user.schoolId) continue;
 
     const scoreRaw = formData.get(`result-${schoolId}-score`);
@@ -683,7 +775,7 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
   // "present" marker distinguishes "no rows submitted for this school"
   // (field not rendered - skip) from "submitted as an empty list" (clear
   // all rows) - same school-scoping rule as team results above.
-  for (const schoolId of participantSchoolIds) {
+  for (const schoolId of currentParticipantSchoolIds) {
     if (!isAdmin && schoolId !== user.schoolId) continue;
     if (formData.get(`individual-${schoolId}-present`) === null) continue;
 

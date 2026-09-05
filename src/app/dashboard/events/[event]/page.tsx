@@ -15,19 +15,24 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
   if (!user) redirect("/login");
 
   const { event: eventId } = await params;
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    include: {
-      tournament: { include: { activity: true } },
-      division: true,
-      participants: { include: { school: true } },
-      results: true,
-      individualResults: true,
-      sets: { orderBy: { setNumber: "asc" } },
-      photos: { orderBy: { createdAt: "desc" } },
-      documents: { orderBy: { createdAt: "desc" } },
-    },
-  });
+  const [event, schools] = await Promise.all([
+    prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        tournament: { include: { activity: true } },
+        division: true,
+        participants: { include: { school: true } },
+        results: true,
+        individualResults: true,
+        sets: { orderBy: { setNumber: "asc" } },
+        photos: { orderBy: { createdAt: "desc" } },
+        documents: { orderBy: { createdAt: "desc" } },
+        homeSourceEvent: { select: { externalId: true } },
+        awaySourceEvent: { select: { externalId: true } },
+      },
+    }),
+    prisma.school.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+  ]);
   if (!event) notFound();
 
   const participantSchoolIds = event.participants.map((p) => p.schoolId);
@@ -51,7 +56,19 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
     };
   });
 
-  const homeParticipant = event.participants.find((p) => p.isHome);
+  const homeParticipant = event.participants.find((p) => p.isHome) ?? null;
+  const awayParticipant = event.participants.find((p) => !p.isHome) ?? null;
+  const canEditMatchup = isAdmin && event.participants.length <= 2;
+  const pendingLabel = (outcome: "WINNER" | "LOSER" | null, externalId: string | null | undefined) =>
+    outcome ? `${outcome === "WINNER" ? "Winner" : "Loser"} of ${externalId ?? "TBD"}` : null;
+  const homeSide = {
+    schoolId: homeParticipant?.schoolId ?? null,
+    pendingLabel: homeParticipant ? null : pendingLabel(event.homeSourceOutcome, event.homeSourceEvent?.externalId),
+  };
+  const awaySide = {
+    schoolId: awayParticipant?.schoolId ?? null,
+    pendingLabel: awayParticipant ? null : pendingLabel(event.awaySourceOutcome, event.awaySourceEvent?.externalId),
+  };
 
   const individualResultsBySchool: Record<string, { athleteName: string; score: number }[]> = {};
   for (const entry of event.individualResults) {
@@ -65,6 +82,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
     where: {
       OR: [
         { entityType: "Event", entityId: event.id },
+        { entityType: "EventParticipant", entityId: event.id },
         { entityType: "Result", entityId: { in: resultIds } },
         { entityType: "IndividualResults", entityId: event.id },
         { entityType: "Photo", entityId: { in: photoIds } },
@@ -110,6 +128,10 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
           homeSchoolId={homeParticipant?.schoolId ?? null}
           individualResultsBySchool={individualResultsBySchool}
           initialSets={event.sets.map((s) => ({ setNumber: s.setNumber, homeScore: s.homeScore, awayScore: s.awayScore }))}
+          schools={schools}
+          canEditMatchup={canEditMatchup}
+          homeSide={homeSide}
+          awaySide={awaySide}
         />
       </section>
 

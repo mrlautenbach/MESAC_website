@@ -16,6 +16,13 @@ type IndividualEntry = { athleteName: string; score: number };
 
 type SetEntry = { setNumber: number; homeScore: number; awayScore: number };
 
+type SideAssignment = {
+  schoolId: string | null;
+  // What this side is currently waiting on if no school is assigned yet
+  // (e.g. "Winner of G3", from a CSV playoff reference) - display only.
+  pendingLabel: string | null;
+};
+
 type Props = {
   eventId: string;
   isAdmin: boolean;
@@ -31,6 +38,10 @@ type Props = {
   homeSchoolId: string | null;
   individualResultsBySchool: Record<string, IndividualEntry[]>;
   initialSets: SetEntry[];
+  schools: { id: string; name: string }[];
+  canEditMatchup: boolean;
+  homeSide: SideAssignment;
+  awaySide: SideAssignment;
 };
 
 export function EventEditForm({
@@ -48,6 +59,10 @@ export function EventEditForm({
   homeSchoolId,
   individualResultsBySchool,
   initialSets,
+  schools,
+  canEditMatchup,
+  homeSide,
+  awaySide,
 }: Props) {
   const [state, formAction, pending] = useActionState(updateEventAction, null);
 
@@ -99,6 +114,8 @@ export function EventEditForm({
           />
         </div>
       </div>
+
+      {canEditMatchup && <MatchupEditor schools={schools} homeSide={homeSide} awaySide={awaySide} />}
 
       {scoringType !== "NONE" && (
         <div>
@@ -215,6 +232,59 @@ export function EventEditForm({
         {pending ? "Saving…" : "Save"}
       </button>
     </form>
+  );
+}
+
+function MatchupEditor({
+  schools,
+  homeSide,
+  awaySide,
+}: {
+  schools: { id: string; name: string }[];
+  homeSide: SideAssignment;
+  awaySide: SideAssignment;
+}) {
+  return (
+    <div>
+      <h3 className="field-label mb-2">Matchup</h3>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SideSelect label="Home" name="home-schoolId" schools={schools} side={homeSide} />
+        <SideSelect label="Away" name="away-schoolId" schools={schools} side={awaySide} />
+      </div>
+      <p className="mt-1 text-xs text-muted">
+        Change who&apos;s playing on either side — this overrides any pending bracket reference (e.g. &quot;Winner
+        of G3&quot;) for that side. Leave a side as &quot;Not decided yet&quot; to keep it waiting on the referenced
+        game.
+      </p>
+    </div>
+  );
+}
+
+function SideSelect({
+  label,
+  name,
+  schools,
+  side,
+}: {
+  label: string;
+  name: string;
+  schools: { id: string; name: string }[];
+  side: SideAssignment;
+}) {
+  return (
+    <div>
+      <label htmlFor={name} className="field-label">
+        {label}
+      </label>
+      <select id={name} name={name} defaultValue={side.schoolId ?? ""} className="field-input">
+        <option value="">{side.pendingLabel ? `Not decided yet — ${side.pendingLabel}` : "Not decided yet"}</option>
+        {schools.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }
 
