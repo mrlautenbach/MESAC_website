@@ -51,16 +51,16 @@ export default async function TournamentsIndexPage() {
 
               <div className="space-y-3">
                 {Array.from(groups.entries()).map(([sport, group]) => (
-                  <div key={sport} className="border-b border-divider py-3">
-                    <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-[160px_1fr]">
-                      <h6 className="pt-1 text-muted">{sport}</h6>
+                  <div key={sport} className="border-b border-divider py-2">
+                    <div className="grid grid-cols-1 items-center gap-x-6 gap-y-2 sm:grid-cols-[160px_1fr]">
+                      <h6 className="text-muted">{sport}</h6>
                       <ul className="flex flex-wrap gap-2">
                         {group.map((a) => {
                           const current = a.tournaments[0];
                           return (
                             <li key={a.id}>
                               <Link href={current ? `/seasons/${current.slug}` : `/tournaments/${a.slug}`} className="btn btn-secondary">
-                                {a.name}
+                                {current ? current.name : a.name}
                               </Link>
                             </li>
                           );

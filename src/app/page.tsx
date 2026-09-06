@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { SeasonBrowser } from "@/components/SeasonBrowser";
 import { PhotoSlider } from "@/components/PhotoSlider";
+import { NextUpGallery } from "@/components/NextUpGallery";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
 import { dailyShuffle } from "@/lib/dailyShuffle";
 
@@ -74,13 +75,19 @@ export default async function HomePage() {
     order: s.order,
     activities: s.activities.map((a) => ({
       key: a.id,
-      name: a.name,
+      name: a.tournaments[0]?.name ?? a.name,
       href: a.tournaments[0] ? `/seasons/${a.tournaments[0].slug}` : `/tournaments/${a.slug}`,
     })),
   }));
 
   const scoreCells = recentResults.slice(0, 2);
-  const nextUp = upcomingTournaments[0];
+  const upcomingCards = upcomingTournaments.map((t) => ({
+    slug: t.slug,
+    name: t.name,
+    startDate: t.startDate,
+    endDate: t.endDate,
+    hostSchoolName: t.hostSchool?.name ?? null,
+  }));
   // Admin-picked photos always win over recency - the newest-photos pool
   // only fills the slider until an admin has actually chosen anything.
   const homePhotos = featuredPhotos.length > 0 ? featuredPhotos : recentPhotos;
@@ -198,25 +205,7 @@ export default async function HomePage() {
         })}
         <div className="relative overflow-hidden bg-foreground p-7 text-background">
           <div className="lattice-panel absolute inset-0 text-accent opacity-[.16]" />
-          {nextUp ? (
-            <div className="relative">
-              <h6 className="text-accent opacity-90">Next up</h6>
-              <div className="mt-3 text-3xl font-extrabold leading-tight tracking-tight">{nextUp.activity.name}</div>
-              <p className="mt-3 text-[13px] opacity-90">
-                {format(nextUp.startDate, "MMM d")} – {format(nextUp.endDate, "MMM d")}
-                {nextUp.hostSchool ? ` · Hosted by ${nextUp.hostSchool.name}` : ""}
-              </p>
-              <Link
-                href={`/seasons/${nextUp.slug}`}
-                className="btn btn-block mt-4 text-[13px]"
-                style={{ background: "var(--accent)", color: "var(--primary-deep)" }}
-              >
-                Tournament details →
-              </Link>
-            </div>
-          ) : (
-            <p className="relative text-sm opacity-90">No upcoming events scheduled.</p>
-          )}
+          <NextUpGallery tournaments={upcomingCards} />
         </div>
       </div>
 
@@ -321,16 +310,16 @@ function ScoreCell({ event }: { event: ResultEvent }) {
 
 type UpcomingTournament = {
   slug: string;
+  name: string;
   startDate: Date;
   endDate: Date;
-  activity: { name: string };
   hostSchool: { name: string } | null;
 };
 
 function UpcomingTournamentCell({ tournament }: { tournament: UpcomingTournament }) {
   return (
     <div>
-      <h6 className="text-primary-dark">Upcoming · {tournament.activity.name}</h6>
+      <h6 className="text-primary-dark">Upcoming · {tournament.name}</h6>
       <div className="mt-3.5 text-lg font-extrabold">
         {format(tournament.startDate, "MMM d")} – {format(tournament.endDate, "MMM d")}
       </div>
