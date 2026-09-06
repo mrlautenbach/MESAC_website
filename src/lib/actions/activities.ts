@@ -140,29 +140,52 @@ export async function updateActivityAction(
   return { ok: true };
 }
 
-export async function addDivisionAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
+// Reconciles an activity's divisions to exactly the checked set: creates
+// any newly-checked name, deletes any existing division that got
+// unchecked (an easy way to correct a mistaken division), and leaves
+// everything else untouched. Refuses the whole submission - no partial
+// changes - if any division slated for removal already has games on it,
+// since Event.divisionId is set null rather than cascaded and silently
+// orphaning real games into an undivided bucket would be confusing.
+export async function syncDivisionsAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const admin = await requireAdmin();
   const activityId = String(formData.get("activityId") ?? "");
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name || name.length > 40) return { ok: false, error: "Enter a division name (up to 40 characters)." };
+  const names = Array.from(new Set(formData.getAll("divisionNames").map((n) => String(n).trim()).filter(Boolean)));
+  if (names.some((n) => n.length > 40)) return { ok: false, error: "Division names must be 40 characters or fewer." };
 
-  const activity = await prisma.activity.findUnique({ where: { id: activityId } });
+  const activity = await prisma.activity.findUnique({
+    where: { id: activityId },
+    include: { divisions: { include: { _count: { select: { events: true } } } } },
+  });
   if (!activity) return { ok: false, error: "Activity not found." };
 
-  const slug = slugify(name);
-  const existing = await prisma.division.findUnique({ where: { activityId_slug: { activityId, slug } } });
-  if (existing) return { ok: false, error: "That division already exists." };
+  const checkedByLower = new Set(names.map((n) => n.toLowerCase()));
+  const toRemove = activity.divisions.filter((d) => !checkedByLower.has(d.name.toLowerCase()));
+  const blocked = toRemove.find((d) => d._count.events > 0);
+  if (blocked) {
+    return {
+      ok: false,
+      error: `Can't remove "${blocked.name}" - it has ${blocked._count.events} game${blocked._count.events === 1 ? "" : "s"} on it. Remove or move those first.`,
+    };
+  }
 
-  const division = await prisma.division.create({ data: { activityId, name, slug } });
+  const existingByLower = new Map(activity.divisions.map((d) => [d.name.toLowerCase(), d]));
+  const toAdd = names.filter((n) => !existingByLower.has(n.toLowerCase()));
+
+  await prisma.$transaction([
+    ...toRemove.map((d) => prisma.division.delete({ where: { id: d.id } })),
+    ...toAdd.map((name) => prisma.division.create({ data: { activityId, name, slug: slugify(name) } })),
+  ]);
 
   await recordAudit({
     actorId: admin.id,
     actorLabel: admin.name,
-    action: "DIVISION_CREATE",
-    entityType: "Division",
-    entityId: division.id,
-    summary: `${admin.name} added division "${name}" to "${activity.name}"`,
-    after: { name },
+    action: "DIVISION_UPDATE",
+    entityType: "Activity",
+    entityId: activityId,
+    summary: `${admin.name} updated divisions for "${activity.name}"`,
+    before: { divisions: activity.divisions.map((d) => d.name) },
+    after: { divisions: names },
   });
 
   revalidatePath(`/dashboard/admin/tournaments`);
