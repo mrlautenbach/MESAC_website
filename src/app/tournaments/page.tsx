@@ -46,15 +46,15 @@ export default async function TournamentsIndexPage() {
           return (
             <section key={season.id}>
               <div className="mb-3 flex items-baseline gap-3">
-                <h2 className="text-xl font-bold">{season.name}</h2>
-                {dateRange && <span className="text-xl text-muted">{dateRange}</span>}
+                <h2 className="text-xl font-bold text-primary-dark">{season.name}</h2>
+                {dateRange && <span className="text-xl text-primary-dark">{dateRange}</span>}
               </div>
 
               <div className="space-y-3">
                 {Array.from(groups.entries()).map(([sport, group]) => (
                   <div key={sport} className="border-b border-divider py-2">
                     <div className="grid grid-cols-1 items-center gap-x-6 gap-y-2 sm:grid-cols-[250px_1fr]">
-                      <h6 className="flex items-center gap-1.5 text-muted" style={{ fontSize: 18, lineHeight: "20px" }}>
+                      <h6 className="flex items-center gap-1.5 text-primary-dark" style={{ fontSize: 18, lineHeight: "20px" }}>
                         <SportIcon sport={sport} size={20} />
                         {sport}
                       </h6>
