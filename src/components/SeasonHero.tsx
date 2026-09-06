@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
+import { SportIcon } from "@/components/icons/SportIcon";
 
 export function SeasonHero({
   activityName,
@@ -41,7 +42,8 @@ export function SeasonHero({
         </Link>
         <div className="mt-3 grid gap-8 sm:grid-cols-[1.4fr_1fr] sm:items-end">
           <div>
-            <h6 className="text-accent opacity-90">
+            <h6 className="flex items-center gap-1.5 text-accent opacity-90">
+              <SportIcon sport={activitySport} size={18} />
               {activitySport} · {tournamentName}
               {archived && ` · Archived (${archivedYearLabel})`}
             </h6>

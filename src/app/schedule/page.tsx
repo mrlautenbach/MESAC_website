@@ -6,6 +6,7 @@ import { SchoolColorDot } from "@/components/SchoolColorDot";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
 import { matchRosterForSeason } from "@/lib/matchRoster";
 import { LiveIcon } from "@/components/icons/LiveIcon";
+import { SportIcon } from "@/components/icons/SportIcon";
 import { divisionTagClass } from "@/lib/divisionTagClass";
 
 export const dynamic = "force-dynamic";
@@ -87,7 +88,10 @@ export default async function SchedulePage() {
                 {Array.from(groups.entries()).map(([sport, group]) => (
                   <div key={sport} className="border-b border-divider py-3">
                     <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-[160px_1fr]">
-                      <h6 className="pt-1 text-muted">{sport}</h6>
+                      <h6 className="flex items-center gap-1.5 pt-1 text-muted">
+                        <SportIcon sport={sport} size={16} />
+                        {sport}
+                      </h6>
                       <div className="space-y-4">
                         {group.map((row) => {
                           if (!row.activity) {

@@ -76,6 +76,7 @@ export default async function HomePage() {
     activities: s.activities.map((a) => ({
       key: a.id,
       name: a.tournaments[0]?.name ?? a.name,
+      sport: a.sport,
       href: a.tournaments[0] ? `/seasons/${a.tournaments[0].slug}` : `/tournaments/${a.slug}`,
     })),
   }));

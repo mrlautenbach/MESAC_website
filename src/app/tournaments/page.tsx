@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
+import { SportIcon } from "@/components/icons/SportIcon";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,10 @@ export default async function TournamentsIndexPage() {
                 {Array.from(groups.entries()).map(([sport, group]) => (
                   <div key={sport} className="border-b border-divider py-2">
                     <div className="grid grid-cols-1 items-center gap-x-6 gap-y-2 sm:grid-cols-[160px_1fr]">
-                      <h6 className="text-muted">{sport}</h6>
+                      <h6 className="flex items-center gap-1.5 text-muted">
+                        <SportIcon sport={sport} size={16} />
+                        {sport}
+                      </h6>
                       <ul className="flex flex-wrap gap-2">
                         {group.map((a) => {
                           const current = a.tournaments[0];

@@ -3,12 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
+import { SportIcon } from "@/components/icons/SportIcon";
 
 type SeasonCard = {
   id: string;
   name: string;
   order: number;
-  activities: { key: string; name: string; href: string }[];
+  activities: { key: string; name: string; sport: string; href: string }[];
 };
 
 // A tab/slider switcher between the three Seasons - "more prominent" than a
@@ -72,7 +73,8 @@ export function SeasonBrowser({ seasons }: { seasons: SeasonCard[] }) {
         <ul className="mt-4 flex flex-wrap gap-2">
           {season.activities.map((a) => (
             <li key={a.key}>
-              <Link href={a.href} className="tag tag-neutral">
+              <Link href={a.href} className="tag tag-neutral gap-1">
+                <SportIcon sport={a.sport} size={14} />
                 {a.name}
               </Link>
             </li>
