@@ -6,7 +6,6 @@ import { SeasonBrowser } from "@/components/SeasonBrowser";
 import { PhotoSlider } from "@/components/PhotoSlider";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
 import { dailyShuffle } from "@/lib/dailyShuffle";
-import { matchRosterForSeason } from "@/lib/matchRoster";
 
 export const dynamic = "force-dynamic";
 
@@ -66,14 +65,17 @@ export default async function HomePage() {
     }),
   ]);
 
+  // Just the activities that actually exist - no "coming soon" placeholders
+  // for a planned-but-not-yet-created sport, since the roster-matching
+  // logic that produced those was a repeated source of bugs.
   const seasonCards = seasons.map((s) => ({
     id: s.id,
     name: s.name,
     order: s.order,
-    activities: matchRosterForSeason(s.order, s.activities).map((row) => ({
-      key: row.key,
-      name: row.activity?.name ?? row.name,
-      href: row.activity ? (row.activity.tournaments[0] ? `/seasons/${row.activity.tournaments[0].slug}` : `/tournaments/${row.activity.slug}`) : null,
+    activities: s.activities.map((a) => ({
+      key: a.id,
+      name: a.name,
+      href: a.tournaments[0] ? `/seasons/${a.tournaments[0].slug}` : `/tournaments/${a.slug}`,
     })),
   }));
 

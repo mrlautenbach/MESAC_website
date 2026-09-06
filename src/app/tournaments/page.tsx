@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
-import { matchRosterForSeason } from "@/lib/matchRoster";
 
 export const dynamic = "force-dynamic";
 
@@ -31,17 +30,15 @@ export default async function TournamentsIndexPage() {
 
       <div className="space-y-10">
         {seasons.map((season) => {
-          // Merge the year's planned roster with whatever's actually been
-          // set up - a sport with no Activity row yet still shows, just as
-          // an unclickable placeholder, so the season doesn't look sparse
-          // while data entry is still in progress.
-          const rows = matchRosterForSeason(season.order, season.activities);
-
-          const groups = new Map<string, typeof rows>();
-          for (const row of rows) {
-            const group = groups.get(row.sport) ?? [];
-            group.push(row);
-            groups.set(row.sport, group);
+          // Just the activities that actually exist - no "coming soon"
+          // placeholders for a planned-but-not-yet-created sport, since the
+          // matching logic that produced those was a repeated source of bugs
+          // (duplicate/mismatched entries).
+          const groups = new Map<string, typeof season.activities>();
+          for (const a of season.activities) {
+            const group = groups.get(a.sport) ?? [];
+            group.push(a);
+            groups.set(a.sport, group);
           }
           const dateRange = SEASON_DATE_RANGES[season.order];
 
@@ -58,23 +55,10 @@ export default async function TournamentsIndexPage() {
                     <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-[160px_1fr]">
                       <h6 className="pt-1 text-muted">{sport}</h6>
                       <ul className="flex flex-wrap gap-2">
-                        {group.map((row) => {
-                          if (!row.activity) {
-                            return (
-                              <li key={row.key}>
-                                <span
-                                  className="btn cursor-default border border-dashed border-divider text-muted"
-                                  title="Not set up yet"
-                                >
-                                  {row.name} (coming soon)
-                                </span>
-                              </li>
-                            );
-                          }
-                          const a = row.activity;
+                        {group.map((a) => {
                           const current = a.tournaments[0];
                           return (
-                            <li key={row.key}>
+                            <li key={a.id}>
                               <Link href={current ? `/seasons/${current.slug}` : `/tournaments/${a.slug}`} className="btn btn-secondary">
                                 {a.name}
                               </Link>
@@ -85,7 +69,7 @@ export default async function TournamentsIndexPage() {
                     </div>
                   </div>
                 ))}
-                {rows.length === 0 && <p className="text-sm text-muted">No activities yet.</p>}
+                {season.activities.length === 0 && <p className="text-sm text-muted">No activities yet.</p>}
               </div>
             </section>
           );

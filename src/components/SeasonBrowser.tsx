@@ -8,7 +8,7 @@ type SeasonCard = {
   id: string;
   name: string;
   order: number;
-  activities: { key: string; name: string; href: string | null }[];
+  activities: { key: string; name: string; href: string }[];
 };
 
 // A tab/slider switcher between the three Seasons - "more prominent" than a
@@ -70,21 +70,13 @@ export function SeasonBrowser({ seasons }: { seasons: SeasonCard[] }) {
         <p className="mt-4 text-sm text-muted">No activities in this season yet.</p>
       ) : (
         <ul className="mt-4 flex flex-wrap gap-2">
-          {season.activities.map((a) =>
-            a.href ? (
-              <li key={a.key}>
-                <Link href={a.href} className="tag tag-neutral">
-                  {a.name}
-                </Link>
-              </li>
-            ) : (
-              <li key={a.key}>
-                <span className="tag border border-dashed border-divider text-muted" title="Not set up yet">
-                  {a.name} (coming soon)
-                </span>
-              </li>
-            )
-          )}
+          {season.activities.map((a) => (
+            <li key={a.key}>
+              <Link href={a.href} className="tag tag-neutral">
+                {a.name}
+              </Link>
+            </li>
+          ))}
         </ul>
       )}
     </div>
