@@ -2,10 +2,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { SchoolBadge } from "@/components/SchoolBadge";
 
 export const dynamic = "force-dynamic";
 
-type School = { id: string; name: string };
+type School = { id: string; name: string; logoUrl: string | null; themeColor: string | null; themeColorSecondary: string | null };
 type Slot = { school: School; photoUrl: string | null };
 
 export default async function TeamPhotosPage({ params }: { params: Promise<{ season: string }> }) {
@@ -83,7 +84,17 @@ export default async function TeamPhotosPage({ params }: { params: Promise<{ sea
                   {nameOnly ? (
                     <ul className="flex flex-wrap gap-3">
                       {slots.map(({ school }) => (
-                        <li key={school.id} className="border border-divider px-4 py-2 text-sm font-semibold">
+                        <li
+                          key={school.id}
+                          className="flex items-center gap-2 border border-divider px-4 py-2 text-sm font-semibold"
+                        >
+                          <SchoolBadge
+                            logoUrl={school.logoUrl}
+                            name={school.name}
+                            color={school.themeColor}
+                            secondaryColor={school.themeColorSecondary}
+                            size={24}
+                          />
                           {school.name}
                         </li>
                       ))}
@@ -99,6 +110,11 @@ export default async function TeamPhotosPage({ params }: { params: Promise<{ sea
                               <span className="px-4 text-center text-[11px] tracking-[0.1em] text-muted">
                                 PHOTO COMING SOON
                               </span>
+                            )}
+                            {school.logoUrl && (
+                              <div className="absolute left-2 top-2 rounded-full bg-background/90 p-1 shadow">
+                                <SchoolBadge logoUrl={school.logoUrl} name={school.name} size={28} />
+                              </div>
                             )}
                           </div>
                           <figcaption className="border-t border-divider p-2 text-center text-sm font-semibold">
