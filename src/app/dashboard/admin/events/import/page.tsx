@@ -12,7 +12,7 @@ export default async function ImportEventsPage() {
   const [tournaments, schools] = await Promise.all([
     prisma.tournament.findMany({
       orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }],
-      include: { activity: { include: { divisions: true, fields: { orderBy: { order: "asc" } } } } },
+      include: { activity: { include: { fields: { orderBy: { order: "asc" } } } }, divisions: true },
     }),
     prisma.school.findMany({ orderBy: { name: "asc" } }),
   ]);
@@ -29,7 +29,7 @@ export default async function ImportEventsPage() {
   const tournamentOptions = tournaments.map((t) => ({
     id: t.id,
     label: `${t.activity.name} · ${t.name}${t.isCurrent ? "" : " (archived)"}`,
-    divisions: t.activity.divisions.map((d) => ({ id: d.id, name: d.name })),
+    divisions: t.divisions.map((d) => ({ id: d.id, name: d.name })),
     fields: t.activity.fields.map((f) => ({ id: f.id, key: f.key, label: f.label })),
   }));
 

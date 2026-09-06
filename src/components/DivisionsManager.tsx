@@ -5,7 +5,15 @@ import { syncDivisionsAction } from "@/lib/actions/activities";
 
 const PRESETS = ["Girls", "Boys", "Girls JV", "Boys JV", "Girls Varsity", "Boys Varsity", "Overall"];
 
-export function DivisionsManager({ activityId, divisions }: { activityId: string; divisions: { id: string; name: string }[] }) {
+export function DivisionsManager({
+  activityId,
+  tournamentId,
+  divisions,
+}: {
+  activityId: string;
+  tournamentId?: string;
+  divisions: { id: string; name: string }[];
+}) {
   const [state, formAction, pending] = useActionState(syncDivisionsAction, null);
   const existingNames = divisions.map((d) => d.name);
   const existingByLower = new Set(existingNames.map((n) => n.toLowerCase()));
@@ -18,11 +26,12 @@ export function DivisionsManager({ activityId, divisions }: { activityId: string
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted">
-        Check every division this activity should have. Unchecking one removes it - blocked if it already has games
-        scheduled on it.
+        Check every division this {tournamentId ? "tournament" : "activity"} should have. Unchecking one removes it -
+        blocked if it already has games scheduled on it.
       </p>
       <form action={formAction} className="space-y-3">
         <input type="hidden" name="activityId" value={activityId} />
+        {tournamentId && <input type="hidden" name="tournamentId" value={tournamentId} />}
         <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
           {options.map((name) => (
             <label key={name} className="flex items-center gap-2">

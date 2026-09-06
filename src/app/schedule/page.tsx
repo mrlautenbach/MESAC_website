@@ -23,8 +23,12 @@ function loadSeasons() {
         // which would otherwise make a genuinely live tournament vanish
         // from its own activity and show up as an unmatched duplicate.
         include: {
-          tournaments: { where: { archived: false }, orderBy: { startDate: "desc" }, take: 1 },
-          divisions: true,
+          tournaments: {
+            where: { archived: false },
+            orderBy: { startDate: "desc" },
+            take: 1,
+            include: { divisions: true },
+          },
         },
       },
     },
@@ -108,7 +112,7 @@ export default async function SchedulePage() {
                                 </Link>
                                 {current && events.length > 0 && (
                                   <Link
-                                    href={a.divisions.length === 0 ? `/seasons/${current.slug}/schedule` : `/seasons/${current.slug}`}
+                                    href={current.divisions.length === 0 ? `/seasons/${current.slug}/schedule` : `/seasons/${current.slug}`}
                                     className="text-xs text-primary-dark hover:underline"
                                   >
                                     Full schedule &rarr;

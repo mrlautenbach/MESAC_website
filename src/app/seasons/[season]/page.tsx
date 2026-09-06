@@ -9,11 +9,11 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
   const { season: slug } = await params;
   const tournament = await prisma.tournament.findUnique({
     where: { slug },
-    include: { activity: { include: { divisions: true } }, hostSchool: true },
+    include: { activity: true, divisions: true, hostSchool: true },
   });
   if (!tournament) notFound();
 
-  const hasDivisions = tournament.activity.divisions.length > 0;
+  const hasDivisions = tournament.divisions.length > 0;
 
   return (
     <div>
@@ -32,7 +32,7 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         {hasDivisions ? (
           <div className="space-y-8">
-            {tournament.activity.divisions.map((division) => (
+            {tournament.divisions.map((division) => (
               <section key={division.id}>
                 <h4 className="mb-3">{division.name}</h4>
                 <TournamentSubNav tournamentSlug={tournament.slug} divisionSlug={division.slug} />

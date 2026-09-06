@@ -7,6 +7,7 @@ import { ActivityForm } from "@/components/ActivityForm";
 import { SeasonEditionForm } from "@/components/SeasonEditionForm";
 import { ActivityFieldsManager } from "@/components/ActivityFieldsManager";
 import { DivisionsManager } from "@/components/DivisionsManager";
+import { DeleteActivityForm } from "@/components/DeleteActivityForm";
 import { EXPECTED_ROSTER } from "@/lib/expectedRoster";
 
 const SCORING_LABELS: Record<string, string> = {
@@ -27,8 +28,13 @@ export default async function TournamentsAdminPage() {
         activities: {
           orderBy: { name: "asc" },
           include: {
-            divisions: true,
-            tournaments: { orderBy: [{ archived: "asc" }, { startDate: "desc" }] },
+            // Only the activity's default template - each tournament has
+            // its own independent copy, fetched separately below.
+            divisions: { where: { tournamentId: null } },
+            tournaments: {
+              orderBy: [{ archived: "asc" }, { startDate: "desc" }],
+              include: { divisions: true },
+            },
             fields: { orderBy: { order: "asc" } },
           },
         },
@@ -165,9 +171,20 @@ export default async function TournamentsAdminPage() {
                             }}
                           />
 
+                          {current && (
+                            <details>
+                              <summary className="cursor-pointer text-xs font-semibold text-muted">
+                                This tournament&apos;s divisions ({current.divisions.length})
+                              </summary>
+                              <div className="mt-3">
+                                <DivisionsManager activityId={activity.id} tournamentId={current.id} divisions={current.divisions} />
+                              </div>
+                            </details>
+                          )}
+
                           <details>
                             <summary className="cursor-pointer text-xs font-semibold text-muted">
-                              Divisions ({activity.divisions.length})
+                              Default divisions for new tournaments ({activity.divisions.length})
                             </summary>
                             <div className="mt-3">
                               <DivisionsManager activityId={activity.id} divisions={activity.divisions} />
@@ -180,6 +197,13 @@ export default async function TournamentsAdminPage() {
                             </summary>
                             <div className="mt-3">
                               <ActivityFieldsManager activityId={activity.id} fields={activity.fields} />
+                            </div>
+                          </details>
+
+                          <details>
+                            <summary className="cursor-pointer text-xs font-semibold text-danger">Delete activity</summary>
+                            <div className="mt-3">
+                              <DeleteActivityForm activityId={activity.id} activityName={activity.name} />
                             </div>
                           </details>
                         </div>

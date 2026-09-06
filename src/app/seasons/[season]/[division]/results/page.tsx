@@ -14,11 +14,11 @@ export default async function DivisionResultsPage({
   const { season: tournamentSlug, division: divisionSlug } = await params;
   const tournament = await prisma.tournament.findUnique({
     where: { slug: tournamentSlug },
-    include: { activity: { include: { divisions: true } }, hostSchool: true },
+    include: { activity: true, divisions: true, hostSchool: true },
   });
   if (!tournament) notFound();
 
-  const division = tournament.activity.divisions.find((d) => d.slug === divisionSlug);
+  const division = tournament.divisions.find((d) => d.slug === divisionSlug);
   if (!division) notFound();
 
   return (

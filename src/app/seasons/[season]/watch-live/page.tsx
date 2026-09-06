@@ -19,11 +19,11 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
   const { season: slug } = await params;
   const tournament = await prisma.tournament.findUnique({
     where: { slug },
-    include: { activity: { include: { divisions: true } }, hostSchool: true },
+    include: { activity: true, divisions: true, hostSchool: true },
   });
   if (!tournament) notFound();
 
-  const hasDivisions = tournament.activity.divisions.length > 0;
+  const hasDivisions = tournament.divisions.length > 0;
 
   const events = await prisma.event.findMany({
     // Every event with a stream link, regardless of status - each row

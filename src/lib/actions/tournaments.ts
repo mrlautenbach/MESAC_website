@@ -31,7 +31,10 @@ export async function createTournamentAction(_prevState: ActionResult | null, fo
     return { ok: false, error: "End date must be after the start date." };
   }
 
-  const activity = await prisma.activity.findUnique({ where: { id: parsed.data.activityId } });
+  const activity = await prisma.activity.findUnique({
+    where: { id: parsed.data.activityId },
+    include: { divisions: { where: { tournamentId: null } } },
+  });
   if (!activity) return { ok: false, error: "Activity not found." };
 
   const existingSlug = await prisma.tournament.findUnique({ where: { slug: parsed.data.slug } });
@@ -44,6 +47,21 @@ export async function createTournamentAction(_prevState: ActionResult | null, fo
       data: { isCurrent: false },
     }),
   ]);
+
+  // Give the new tournament its own independent copy of the activity's
+  // current default divisions - editing them from here on (adding a
+  // division, removing one) never touches the default template or any
+  // other edition of this activity.
+  if (activity.divisions.length > 0) {
+    await prisma.division.createMany({
+      data: activity.divisions.map((d) => ({
+        activityId: activity.id,
+        tournamentId: tournament.id,
+        name: d.name,
+        slug: d.slug,
+      })),
+    });
+  }
 
   await recordAudit({
     actorId: admin.id,

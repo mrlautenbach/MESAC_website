@@ -49,8 +49,8 @@ export async function createEventAction(_prevState: ActionResult | null, formDat
 
   if (parsed.data.divisionId) {
     const division = await prisma.division.findUnique({ where: { id: parsed.data.divisionId } });
-    if (!division || division.activityId !== tournament.activityId) {
-      return { ok: false, error: "That division doesn't belong to this activity." };
+    if (!division || division.tournamentId !== tournament.id) {
+      return { ok: false, error: "That division doesn't belong to this tournament." };
     }
   }
 
@@ -172,7 +172,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
 
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
-    include: { activity: { include: { divisions: true, fields: { orderBy: { order: "asc" } } } } },
+    include: { activity: { include: { fields: { orderBy: { order: "asc" } } } }, divisions: true },
   });
   if (!tournament) return { ok: false, error: "Tournament not found." };
   const scoringType = tournament.activity.scoringType;
@@ -197,8 +197,8 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     schoolByKey.set(s.name.trim().toLowerCase(), s);
     if (s.code) schoolByKey.set(s.code.trim().toLowerCase(), s);
   }
-  const divisionByName = new Map(tournament.activity.divisions.map((d) => [d.name.trim().toLowerCase(), d]));
-  const requiresDivision = tournament.activity.divisions.length > 0;
+  const divisionByName = new Map(tournament.divisions.map((d) => [d.name.trim().toLowerCase(), d]));
+  const requiresDivision = tournament.divisions.length > 0;
   const activityFields = tournament.activity.fields;
 
   const existingEvents = await prisma.event.findMany({

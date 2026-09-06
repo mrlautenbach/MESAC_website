@@ -13,7 +13,7 @@ export default async function TeamPhotosPage({ params }: { params: Promise<{ sea
   const { season: slug } = await params;
   const tournament = await prisma.tournament.findUnique({
     where: { slug },
-    include: { activity: { include: { divisions: true } } },
+    include: { activity: true, divisions: true },
   });
   if (!tournament) notFound();
 
@@ -28,7 +28,7 @@ export default async function TeamPhotosPage({ params }: { params: Promise<{ sea
   const photoFor = (schoolId: string, divisionId: string | null) =>
     slotByKey.get(`${schoolId}:${divisionId ?? "none"}`)?.photoUrl ?? null;
 
-  const realDivisions = tournament.activity.divisions;
+  const realDivisions = tournament.divisions;
   const girlsDivision = realDivisions.find((d) => d.name.toLowerCase() === "girls") ?? null;
   const boysDivision = realDivisions.find((d) => d.name.toLowerCase() === "boys") ?? null;
   const isGendered = realDivisions.length > 0;

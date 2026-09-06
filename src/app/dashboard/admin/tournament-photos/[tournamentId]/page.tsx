@@ -17,7 +17,7 @@ export default async function TournamentPhotosAdminPage({
   const { tournamentId } = await params;
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
-    include: { activity: { include: { divisions: true } } },
+    include: { activity: true, divisions: true },
   });
   if (!tournament) notFound();
 
@@ -26,7 +26,7 @@ export default async function TournamentPhotosAdminPage({
     prisma.teamPhoto.findMany({ where: { tournamentId } }),
   ]);
 
-  const divisions = tournament.activity.divisions.length > 0 ? tournament.activity.divisions : [null];
+  const divisions = tournament.divisions.length > 0 ? tournament.divisions : [null];
   const slotByKey = new Map(teamPhotos.map((p) => [`${p.schoolId}:${p.divisionId ?? "none"}`, p]));
 
   return (
@@ -41,7 +41,7 @@ export default async function TournamentPhotosAdminPage({
         </p>
       </div>
 
-      {tournament.activity.divisions.length > 0 && (
+      {tournament.divisions.length > 0 && (
         <TeamPhotoGenderToggle
           tournamentId={tournamentId}
           showGirlsTeamPhotos={tournament.showGirlsTeamPhotos}

@@ -196,23 +196,33 @@ model ActivityField {
   @@unique([activityId, key])
 }
 
-// Optional Girls/Boys sub-grouping within an activity. Most team sports
-// have two; individual/meet sports and inherently single-gender sports
-// (baseball, softball) have none - their events just have a null
-// divisionId and the tournament page shows one combined schedule/standings.
-// Stable across years, like the Activity it belongs to.
+// Optional Girls/Boys (or JV/Varsity, Overall, etc.) sub-grouping within a
+// tournament. Most team sports have two; individual/meet sports and
+// inherently single-gender sports (baseball, softball) have none - their
+// events just have a null divisionId and the tournament page shows one
+// combined schedule/standings.
+//
+// tournamentId is null only for an Activity's stored "default" divisions -
+// a template that gets copied (see createTournamentAction) into its own
+// independent set of rows, scoped to tournamentId, the moment a new
+// tournament is created. From then on, editing that tournament's divisions
+// never touches the default template or any other edition - "a different
+// tournament with different divisions" is exactly this: two tournaments,
+// two independent sets of rows, both under the same activityId.
 model Division {
-  id         String   @id @default(cuid())
-  activityId String
-  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  name       String
-  slug       String
-  createdAt  DateTime @default(now())
+  id           String      @id @default(cuid())
+  activityId   String
+  activity     Activity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  tournamentId String?
+  tournament   Tournament? @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  name         String
+  slug         String
+  createdAt    DateTime    @default(now())
 
   events     Event[]
   teamPhotos TeamPhoto[]
 
-  @@unique([activityId, slug])
+  @@unique([activityId, tournamentId, slug])
 }
 
 // One year's edition of an Activity - its own dates, host school, and
@@ -250,6 +260,7 @@ model Tournament {
 
   events     Event[]
   teamPhotos TeamPhoto[]
+  divisions  Division[]
 
   @@index([activityId])
 }
