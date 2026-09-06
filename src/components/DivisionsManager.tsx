@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { syncDivisionsAction } from "@/lib/actions/activities";
 
-const PRESETS = ["Girls", "Boys", "Girls JV", "Boys JV", "Girls Varsity", "Boys Varsity", "Overall"];
+const PRESETS = ["Girls", "Boys", "Girls JV", "Boys JV", "Girls Varsity", "Boys Varsity", "JV", "Varsity", "Overall"];
 
 export function DivisionsManager({
   activityId,

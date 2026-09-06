@@ -63,7 +63,7 @@ export const activityInputSchema = z.object({
   // One entry per checked division checkbox in the form (e.g. Girls, Boys,
   // Girls JV, Boys Varsity, Overall); empty for an ungendered/single
   // activity (meets, festivals, baseball, softball).
-  divisionNames: z.array(z.string().trim().min(1).max(40)).max(7).optional().default([]),
+  divisionNames: z.array(z.string().trim().min(1).max(40)).max(9).optional().default([]),
   // An activity is meaningless without its first tournament edition, so
   // creating one creates both together - these describe that first
   // edition. Not present when editing an existing activity (its own

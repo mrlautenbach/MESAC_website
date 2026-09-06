@@ -223,6 +223,14 @@ export function ActivityForm({
               Boys Varsity
             </label>
             <label className="flex items-center gap-2">
+              <input type="checkbox" name="divisionNames" value="JV" />
+              JV
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="divisionNames" value="Varsity" />
+              Varsity
+            </label>
+            <label className="flex items-center gap-2">
               <input type="checkbox" name="divisionNames" value="Overall" />
               Overall
             </label>
