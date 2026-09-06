@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/session";
+import { requireAdmin, requireUser } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import { activityInputSchema } from "@/lib/validation";
 import type { ActionResult } from "@/lib/actions/auth";
@@ -241,7 +241,7 @@ export async function deleteActivityAction(_prevState: ActionResult | null, form
 // is meaningful: it only ever counts that tournament's own games, never
 // another edition's, because each tournament has its own division rows.
 export async function syncDivisionsAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
   const activityId = String(formData.get("activityId") ?? "");
   const tournamentId = String(formData.get("tournamentId") ?? "") || null;
   const names = Array.from(new Set(formData.getAll("divisionNames").map((n) => String(n).trim()).filter(Boolean)));

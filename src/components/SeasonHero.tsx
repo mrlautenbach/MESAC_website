@@ -59,7 +59,7 @@ export function SeasonHero({
             {hostSchoolName && (
               <div className="flex items-center gap-3 px-4 py-3">
                 {hostSchoolLogoUrl && (
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden border border-accent/30 bg-white/10">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-accent/30 bg-white p-1">
                     <Image
                       src={hostSchoolLogoUrl}
                       alt={hostSchoolName}

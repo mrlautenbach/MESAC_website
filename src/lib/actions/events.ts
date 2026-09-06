@@ -28,7 +28,7 @@ async function makeUniqueEventSlug(tournamentId: string, date: Date, schoolSlugs
 }
 
 export async function createEventAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
 
   const parsed = eventInputSchema.safeParse({
     tournamentId: formData.get("tournamentId"),
@@ -155,7 +155,7 @@ function parseScore(raw: string): number | null | { error: true } {
 // from this same import if G3 already has a result, or from a later one
 // when its score comes in.
 export async function importEventsAction(_prevState: ImportEventsResult | null, formData: FormData): Promise<ImportEventsResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
 
   const tournamentId = formData.get("tournamentId");
   if (typeof tournamentId !== "string" || !tournamentId) {

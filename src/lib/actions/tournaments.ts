@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/session";
+import { requireUser } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import { tournamentInputSchema } from "@/lib/validation";
 import type { ActionResult } from "@/lib/actions/auth";
@@ -13,7 +13,7 @@ import type { ActionResult } from "@/lib/actions/auth";
 // photos, documents) stays exactly as it was and remains browsable at its
 // own permanent URL, linked from the activity page's archive list.
 export async function createTournamentAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
 
   const parsed = tournamentInputSchema.safeParse({
     activityId: formData.get("activityId"),
@@ -80,7 +80,7 @@ export async function createTournamentAction(_prevState: ActionResult | null, fo
 }
 
 export async function updateTournamentAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
   const tournamentId = String(formData.get("tournamentId") ?? "");
   const existing = await prisma.tournament.findUnique({ where: { id: tournamentId }, include: { activity: true } });
   if (!existing) return { ok: false, error: "Tournament not found." };

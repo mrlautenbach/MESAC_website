@@ -7,7 +7,6 @@ import { EventForm } from "@/components/EventForm";
 export default async function NewEventPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/dashboard");
 
   const [tournaments, schools] = await Promise.all([
     prisma.tournament.findMany({

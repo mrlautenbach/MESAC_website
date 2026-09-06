@@ -19,7 +19,7 @@ const SCORING_LABELS: Record<string, string> = {
 export default async function TournamentsAdminPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/dashboard");
+  const isAdmin = user.role === "ADMIN";
 
   const [seasons, schools] = await Promise.all([
     prisma.season.findMany({
@@ -106,7 +106,7 @@ export default async function TournamentsAdminPage() {
                                 View public page →
                               </Link>
                             )}
-                            {current && (
+                            {current && isAdmin && (
                               <Link
                                 href={`/dashboard/admin/tournament-photos/${current.id}`}
                                 className="text-xs font-semibold text-primary hover:underline"
@@ -148,27 +148,29 @@ export default async function TournamentsAdminPage() {
                             </div>
                           )}
 
-                          <ActivityForm
-                            seasons={seasons.map((s) => ({ id: s.id, name: s.name }))}
-                            schools={schools}
-                            existing={{
-                              id: activity.id,
-                              name: activity.name,
-                              sport: activity.sport,
-                              scoringType: activity.scoringType,
-                              winPoints: activity.winPoints,
-                              drawPoints: activity.drawPoints,
-                              lossPoints: activity.lossPoints,
-                              seasonId: activity.seasonId,
-                              showWins: activity.showWins,
-                              showLosses: activity.showLosses,
-                              showPointsFor: activity.showPointsFor,
-                              showPointsAgainst: activity.showPointsAgainst,
-                              showPlayed: activity.showPlayed,
-                              usesSetScores: activity.usesSetScores,
-                              usesMeetResults: activity.usesMeetResults,
-                            }}
-                          />
+                          {isAdmin && (
+                            <ActivityForm
+                              seasons={seasons.map((s) => ({ id: s.id, name: s.name }))}
+                              schools={schools}
+                              existing={{
+                                id: activity.id,
+                                name: activity.name,
+                                sport: activity.sport,
+                                scoringType: activity.scoringType,
+                                winPoints: activity.winPoints,
+                                drawPoints: activity.drawPoints,
+                                lossPoints: activity.lossPoints,
+                                seasonId: activity.seasonId,
+                                showWins: activity.showWins,
+                                showLosses: activity.showLosses,
+                                showPointsFor: activity.showPointsFor,
+                                showPointsAgainst: activity.showPointsAgainst,
+                                showPlayed: activity.showPlayed,
+                                usesSetScores: activity.usesSetScores,
+                                usesMeetResults: activity.usesMeetResults,
+                              }}
+                            />
+                          )}
 
                           {current && (
                             <details>
@@ -190,21 +192,25 @@ export default async function TournamentsAdminPage() {
                             </div>
                           </details>
 
-                          <details>
-                            <summary className="cursor-pointer text-xs font-semibold text-muted">
-                              Custom schedule fields ({activity.fields.length})
-                            </summary>
-                            <div className="mt-3">
-                              <ActivityFieldsManager activityId={activity.id} fields={activity.fields} />
-                            </div>
-                          </details>
+                          {isAdmin && (
+                            <details>
+                              <summary className="cursor-pointer text-xs font-semibold text-muted">
+                                Custom schedule fields ({activity.fields.length})
+                              </summary>
+                              <div className="mt-3">
+                                <ActivityFieldsManager activityId={activity.id} fields={activity.fields} />
+                              </div>
+                            </details>
+                          )}
 
-                          <details>
-                            <summary className="cursor-pointer text-xs font-semibold text-danger">Delete activity</summary>
-                            <div className="mt-3">
-                              <DeleteActivityForm activityId={activity.id} activityName={activity.name} />
-                            </div>
-                          </details>
+                          {isAdmin && (
+                            <details>
+                              <summary className="cursor-pointer text-xs font-semibold text-danger">Delete activity</summary>
+                              <div className="mt-3">
+                                <DeleteActivityForm activityId={activity.id} activityName={activity.name} />
+                              </div>
+                            </details>
+                          )}
                         </div>
                       </details>
                     );
@@ -216,13 +222,15 @@ export default async function TournamentsAdminPage() {
         </div>
       </div>
 
-      <div>
-        <h2 className="mb-1 text-xl font-bold">Create an activity</h2>
-        <p className="mb-6 text-sm text-muted">
-          For a new sport or division not already listed above. Most years won&apos;t need this.
-        </p>
-        <ActivityForm seasons={seasons.map((s) => ({ id: s.id, name: s.name }))} schools={schools} />
-      </div>
+      {isAdmin && (
+        <div>
+          <h2 className="mb-1 text-xl font-bold">Create an activity</h2>
+          <p className="mb-6 text-sm text-muted">
+            For a new sport or division not already listed above. Most years won&apos;t need this.
+          </p>
+          <ActivityForm seasons={seasons.map((s) => ({ id: s.id, name: s.name }))} schools={schools} />
+        </div>
+      )}
     </div>
   );
 }

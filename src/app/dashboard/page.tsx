@@ -47,28 +47,30 @@ export default async function DashboardPage() {
             {user.role === "ADMIN" ? "League admin" : "School editor"}
           </p>
         </div>
-        {user.role === "ADMIN" && (
-          <div className="flex flex-wrap gap-2">
-            <Link href="/dashboard/admin/events/new" className="btn btn-primary">
-              + New event
-            </Link>
-            <Link href="/dashboard/admin/tournaments" className="btn btn-secondary">
-              Tournaments
-            </Link>
-            <Link href="/dashboard/admin/schools" className="btn btn-secondary">
-              Schools
-            </Link>
-            <Link href="/dashboard/admin/records" className="btn btn-secondary">
-              History
-            </Link>
-            <Link href="/dashboard/admin/users" className="btn btn-secondary">
-              Accounts
-            </Link>
-            <Link href="/dashboard/admin/audit-log" className="btn btn-secondary">
-              Audit log
-            </Link>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <Link href="/dashboard/admin/events/new" className="btn btn-primary">
+            + New event
+          </Link>
+          <Link href="/dashboard/admin/tournaments" className="btn btn-secondary">
+            Tournaments
+          </Link>
+          {user.role === "ADMIN" && (
+            <>
+              <Link href="/dashboard/admin/schools" className="btn btn-secondary">
+                Schools
+              </Link>
+              <Link href="/dashboard/admin/records" className="btn btn-secondary">
+                History
+              </Link>
+              <Link href="/dashboard/admin/users" className="btn btn-secondary">
+                Accounts
+              </Link>
+              <Link href="/dashboard/admin/audit-log" className="btn btn-secondary">
+                Audit log
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
       <section>

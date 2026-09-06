@@ -9,7 +9,6 @@ import { SeasonEditionForm } from "@/components/SeasonEditionForm";
 export default async function NewTournamentPage({ params }: { params: Promise<{ activity: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/dashboard");
 
   const { activity: activityId } = await params;
   const [activity, schools] = await Promise.all([
