@@ -40,9 +40,9 @@ export default async function SchoolsPage() {
             {rows.map((s) => (
               <li
                 key={s.id}
-                className="grid grid-cols-[64px_48px_1fr_auto] items-center border-b border-divider py-4 last:border-0"
+                className="grid grid-cols-[92px_48px_1fr_auto] items-center border-b border-divider py-4 last:border-0"
               >
-                <span className="text-[15px] font-extrabold text-primary-dark">{s.code ?? "—"}</span>
+                <span className="whitespace-nowrap text-[15px] font-extrabold text-primary-dark">{s.code ?? "—"}</span>
                 <span className="ml-1 flex items-center justify-center">
                   <SchoolBadge
                     logoUrl={s.logoUrl}

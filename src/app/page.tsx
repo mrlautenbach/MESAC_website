@@ -91,7 +91,7 @@ export default async function HomePage() {
         <div className="relative mx-auto grid max-w-6xl gap-10 sm:grid-cols-[1.35fr_1fr] sm:items-end">
           <div>
             <h6 className="text-background opacity-85">
-              Six schools · {tournamentCount} tournaments
+              6 schools · {tournamentCount} tournaments
             </h6>
             <div className="mt-4 text-6xl font-extrabold leading-[.9] tracking-[-.045em] text-accent sm:text-8xl">
               Play the
