@@ -84,7 +84,6 @@ model School {
   hostedTournaments Tournament[]
   records           Record[]
   hallOfFameEntries HallOfFameEntry[]
-  defaultHostForActivities Activity[] @relation("ActivityDefaultHost")
   teamPhotos               TeamPhoto[]
   meetResults              MeetResult[]
 }
@@ -141,12 +140,6 @@ model Activity {
   drawPoints  Int         @default(1)
   lossPoints  Int         @default(0)
   scoringType ScoringType @default(WIN_LOSS)
-  // Suggested host for this activity's first tournament only - a starting
-  // point pre-filled on the "create first tournament" form, not a
-  // recurring host. Hosting itself always lives on Tournament since it
-  // rotates every year.
-  defaultHostSchoolId String?
-  defaultHostSchool   School?     @relation("ActivityDefaultHost", fields: [defaultHostSchoolId], references: [id])
   // Per-column visibility toggles for the WIN_LOSS results table - Team
   // Name and rank are always shown, these five can be turned off per
   // activity from the dashboard.

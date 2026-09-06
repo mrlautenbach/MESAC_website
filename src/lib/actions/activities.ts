@@ -15,6 +15,11 @@ function slugify(s: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
+// An activity is meaningless on its own - it only becomes a real, visitable
+// page once it has a tournament edition. So creating one always creates its
+// first tournament (and that tournament's own divisions) in the same step,
+// instead of leaving a second "create first tournament" page as a required
+// follow-up.
 export async function createActivityAction(
   _prevState: ActionResult | null,
   formData: FormData
@@ -31,7 +36,11 @@ export async function createActivityAction(
     drawPoints: formData.get("drawPoints") || 1,
     lossPoints: formData.get("lossPoints") || 0,
     divisionNames: formData.getAll("divisionNames"),
-    defaultHostSchoolId: formData.get("defaultHostSchoolId") || null,
+    tournamentName: formData.get("tournamentName"),
+    tournamentSlug: formData.get("tournamentSlug"),
+    tournamentStartDate: formData.get("tournamentStartDate"),
+    tournamentEndDate: formData.get("tournamentEndDate"),
+    tournamentHostSchoolId: formData.get("tournamentHostSchoolId") || null,
     showWins: formData.get("showWins") === "on",
     showLosses: formData.get("showLosses") === "on",
     showPointsFor: formData.get("showPointsFor") === "on",
@@ -43,12 +52,18 @@ export async function createActivityAction(
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
+  if (parsed.data.tournamentEndDate < parsed.data.tournamentStartDate) {
+    return { ok: false, error: "Tournament end date must be after the start date." };
+  }
 
   const season = await prisma.season.findUnique({ where: { id: parsed.data.seasonId } });
   if (!season) return { ok: false, error: "Season not found." };
 
-  const existing = await prisma.activity.findUnique({ where: { slug: parsed.data.slug } });
-  if (existing) return { ok: false, error: "An activity with that URL slug already exists." };
+  const existingActivity = await prisma.activity.findUnique({ where: { slug: parsed.data.slug } });
+  if (existingActivity) return { ok: false, error: "An activity with that URL slug already exists." };
+
+  const existingTournament = await prisma.tournament.findUnique({ where: { slug: parsed.data.tournamentSlug } });
+  if (existingTournament) return { ok: false, error: "A tournament with that URL slug already exists." };
 
   const activity = await prisma.activity.create({
     data: {
@@ -60,7 +75,6 @@ export async function createActivityAction(
       winPoints: parsed.data.winPoints,
       drawPoints: parsed.data.drawPoints,
       lossPoints: parsed.data.lossPoints,
-      defaultHostSchoolId: parsed.data.defaultHostSchoolId || null,
       showWins: parsed.data.showWins,
       showLosses: parsed.data.showLosses,
       showPointsFor: parsed.data.showPointsFor,
@@ -68,11 +82,30 @@ export async function createActivityAction(
       showPlayed: parsed.data.showPlayed,
       usesSetScores: parsed.data.usesSetScores,
       usesMeetResults: parsed.data.usesMeetResults,
-      divisions: {
-        create: parsed.data.divisionNames.map((name) => ({ name, slug: slugify(name) })),
-      },
     },
   });
+
+  const tournament = await prisma.tournament.create({
+    data: {
+      activityId: activity.id,
+      name: parsed.data.tournamentName,
+      slug: parsed.data.tournamentSlug,
+      startDate: parsed.data.tournamentStartDate,
+      endDate: parsed.data.tournamentEndDate,
+      hostSchoolId: parsed.data.tournamentHostSchoolId || null,
+    },
+  });
+
+  if (parsed.data.divisionNames.length > 0) {
+    await prisma.division.createMany({
+      data: parsed.data.divisionNames.flatMap((name) => [
+        // The activity's stored default, for pre-filling its next edition...
+        { activityId: activity.id, tournamentId: null, name, slug: slugify(name) },
+        // ...and this first tournament's own independent copy.
+        { activityId: activity.id, tournamentId: tournament.id, name, slug: slugify(name) },
+      ]),
+    });
+  }
 
   await recordAudit({
     actorId: admin.id,
@@ -80,11 +113,18 @@ export async function createActivityAction(
     action: "ACTIVITY_CREATE",
     entityType: "Activity",
     entityId: activity.id,
-    summary: `${admin.name} created activity "${activity.name}" in ${season.name}`,
-    after: { name: activity.name, scoringType: activity.scoringType, divisions: parsed.data.divisionNames },
+    summary: `${admin.name} created activity "${activity.name}" and its first tournament ("${tournament.name}") in ${season.name}`,
+    after: {
+      name: activity.name,
+      scoringType: activity.scoringType,
+      divisions: parsed.data.divisionNames,
+      tournament: parsed.data.tournamentName,
+    },
   });
 
   revalidatePath("/dashboard/admin/tournaments");
+  revalidatePath("/tournaments");
+  revalidatePath("/schedule");
   revalidatePath("/");
   return { ok: true };
 }
@@ -98,30 +138,39 @@ export async function updateActivityAction(
   const existing = await prisma.activity.findUnique({ where: { id: activityId } });
   if (!existing) return { ok: false, error: "Activity not found." };
 
-  const parsed = activityInputSchema.omit({ slug: true, divisionNames: true }).safeParse({
-    seasonId: formData.get("seasonId") || existing.seasonId,
-    name: formData.get("name"),
-    sport: formData.get("sport"),
-    scoringType: formData.get("scoringType") || "WIN_LOSS",
-    winPoints: formData.get("winPoints") || 3,
-    drawPoints: formData.get("drawPoints") || 1,
-    lossPoints: formData.get("lossPoints") || 0,
-    defaultHostSchoolId: formData.get("defaultHostSchoolId") || null,
-    showWins: formData.get("showWins") === "on",
-    showLosses: formData.get("showLosses") === "on",
-    showPointsFor: formData.get("showPointsFor") === "on",
-    showPointsAgainst: formData.get("showPointsAgainst") === "on",
-    showPlayed: formData.get("showPlayed") === "on",
-    usesSetScores: formData.get("usesSetScores") === "on",
-    usesMeetResults: formData.get("usesMeetResults") === "on",
-  });
+  const parsed = activityInputSchema
+    .omit({
+      slug: true,
+      divisionNames: true,
+      tournamentName: true,
+      tournamentSlug: true,
+      tournamentStartDate: true,
+      tournamentEndDate: true,
+      tournamentHostSchoolId: true,
+    })
+    .safeParse({
+      seasonId: formData.get("seasonId") || existing.seasonId,
+      name: formData.get("name"),
+      sport: formData.get("sport"),
+      scoringType: formData.get("scoringType") || "WIN_LOSS",
+      winPoints: formData.get("winPoints") || 3,
+      drawPoints: formData.get("drawPoints") || 1,
+      lossPoints: formData.get("lossPoints") || 0,
+      showWins: formData.get("showWins") === "on",
+      showLosses: formData.get("showLosses") === "on",
+      showPointsFor: formData.get("showPointsFor") === "on",
+      showPointsAgainst: formData.get("showPointsAgainst") === "on",
+      showPlayed: formData.get("showPlayed") === "on",
+      usesSetScores: formData.get("usesSetScores") === "on",
+      usesMeetResults: formData.get("usesMeetResults") === "on",
+    });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
   await prisma.activity.update({
     where: { id: activityId },
-    data: { ...parsed.data, defaultHostSchoolId: parsed.data.defaultHostSchoolId || null },
+    data: parsed.data,
   });
 
   await recordAudit({

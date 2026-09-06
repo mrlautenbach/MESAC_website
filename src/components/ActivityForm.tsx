@@ -14,7 +14,6 @@ type ExistingActivity = {
   drawPoints: number;
   lossPoints: number;
   seasonId: string;
-  defaultHostSchoolId: string | null;
   showWins: boolean;
   showLosses: boolean;
   showPointsFor: boolean;
@@ -236,28 +235,61 @@ export function ActivityForm({
         </div>
       )}
 
-      <div>
-        <label htmlFor="defaultHostSchoolId" className="field-label">
-          Default host school (optional)
-        </label>
-        <select
-          id="defaultHostSchoolId"
-          name="defaultHostSchoolId"
-          defaultValue={existing?.defaultHostSchoolId ?? ""}
-          className="field-input"
-        >
-          <option value="">No default</option>
-          {schools.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-        <p className="mt-1 text-xs text-muted">
-          Pre-fills the host when this activity&apos;s first tournament is created. Hosting still rotates year to
-          year. Set on each tournament separately from then on.
-        </p>
-      </div>
+      {!existing && (
+        <div className="space-y-4 border-t border-divider pt-4">
+          <p className="field-label">First tournament</p>
+          <p className="-mt-2 text-xs text-muted">
+            An activity isn&apos;t a real page until it has an edition - this creates both together. Hosting rotates
+            every year, so it&apos;s set here per-tournament, not on the activity.
+          </p>
+          <div>
+            <label htmlFor="tournamentName" className="field-label">
+              Tournament name
+            </label>
+            <input id="tournamentName" name="tournamentName" required placeholder="Fall 2026" className="field-input" />
+          </div>
+          <div>
+            <label htmlFor="tournamentSlug" className="field-label">
+              Tournament URL slug
+            </label>
+            <input
+              id="tournamentSlug"
+              name="tournamentSlug"
+              required
+              placeholder="jv-volleyball-fall-2026"
+              pattern="[a-z0-9-]+"
+              className="field-input"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="tournamentStartDate" className="field-label">
+                Start date
+              </label>
+              <input id="tournamentStartDate" name="tournamentStartDate" type="date" required className="field-input" />
+            </div>
+            <div>
+              <label htmlFor="tournamentEndDate" className="field-label">
+                End date
+              </label>
+              <input id="tournamentEndDate" name="tournamentEndDate" type="date" required className="field-input" />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="tournamentHostSchoolId" className="field-label">
+              Host school (optional)
+            </label>
+            <select id="tournamentHostSchoolId" name="tournamentHostSchoolId" defaultValue="" className="field-input">
+              <option value="">No host set</option>
+              {schools.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {state && !state.ok && (
         <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">

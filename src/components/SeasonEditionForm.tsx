@@ -13,17 +13,15 @@ type ExistingSeason = {
 };
 
 export function SeasonEditionForm({
-  tournamentId: activityId,
+  activityId,
   schools,
   existing,
   isFirstEdition,
-  defaultHostSchoolId,
 }: {
-  tournamentId: string;
+  activityId: string;
   schools: { id: string; name: string }[];
   existing?: ExistingSeason;
   isFirstEdition?: boolean;
-  defaultHostSchoolId?: string | null;
 }) {
   const action = existing ? updateTournamentAction : createTournamentAction;
   const [state, formAction, pending] = useActionState(action, null);
@@ -82,7 +80,7 @@ export function SeasonEditionForm({
         <select
           id="hostSchoolId"
           name="hostSchoolId"
-          defaultValue={existing?.hostSchoolId ?? defaultHostSchoolId ?? ""}
+          defaultValue={existing?.hostSchoolId ?? ""}
           className="field-input"
         >
           <option value="">No host set</option>
@@ -92,9 +90,6 @@ export function SeasonEditionForm({
             </option>
           ))}
         </select>
-        {!existing && defaultHostSchoolId && (
-          <p className="mt-1 text-xs text-muted">Pre-filled from this activity&apos;s default host. Change if needed.</p>
-        )}
       </div>
 
       <div>

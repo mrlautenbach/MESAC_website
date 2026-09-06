@@ -96,7 +96,7 @@ export default async function TournamentsAdminPage() {
                               <span className="text-muted">No tournament created yet.</span>
                             )}
                             <Link
-                              href={`/dashboard/admin/tournaments/${activity.id}/seasons/new`}
+                              href={`/dashboard/admin/tournaments/${activity.id}/tournaments/new`}
                               className="btn btn-secondary px-3 py-1 text-xs"
                             >
                               {current ? "Start new tournament" : "Create first tournament"}
@@ -120,7 +120,7 @@ export default async function TournamentsAdminPage() {
                             <div>
                               <p className="mb-2 text-xs font-semibold text-muted">Edit current tournament&apos;s dates/host</p>
                               <SeasonEditionForm
-                                tournamentId={activity.id}
+                                activityId={activity.id}
                                 schools={schools}
                                 existing={{
                                   id: current.id,
@@ -160,7 +160,6 @@ export default async function TournamentsAdminPage() {
                               drawPoints: activity.drawPoints,
                               lossPoints: activity.lossPoints,
                               seasonId: activity.seasonId,
-                              defaultHostSchoolId: activity.defaultHostSchoolId,
                               showWins: activity.showWins,
                               showLosses: activity.showLosses,
                               showPointsFor: activity.showPointsFor,

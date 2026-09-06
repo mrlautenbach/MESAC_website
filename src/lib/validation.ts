@@ -64,7 +64,15 @@ export const activityInputSchema = z.object({
   // Girls JV, Boys Varsity, Overall); empty for an ungendered/single
   // activity (meets, festivals, baseball, softball).
   divisionNames: z.array(z.string().trim().min(1).max(40)).max(7).optional().default([]),
-  defaultHostSchoolId: z.string().cuid().optional().nullable(),
+  // An activity is meaningless without its first tournament edition, so
+  // creating one creates both together - these describe that first
+  // edition. Not present when editing an existing activity (its own
+  // tournaments are managed separately, on their own page).
+  tournamentName: z.string().trim().min(1).max(120),
+  tournamentSlug: slugSchema,
+  tournamentStartDate: z.coerce.date(),
+  tournamentEndDate: z.coerce.date(),
+  tournamentHostSchoolId: z.string().cuid().optional().nullable(),
   // Results table column toggles - pass an actual boolean (checkbox
   // presence, e.g. formData.get(...) === "on"), not the raw FormData
   // value: z.coerce.boolean() would treat the string "false" as true.
