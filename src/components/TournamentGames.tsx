@@ -559,7 +559,7 @@ async function LowScoreStandings({
   );
 }
 
-function StatusTag({ status }: { status: string }) {
+export function StatusTag({ status }: { status: string }) {
   const styles: Record<string, string> = {
     SCHEDULED: "tag-accent",
     COMPLETED: "tag-neutral",

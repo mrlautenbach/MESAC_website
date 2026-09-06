@@ -7,6 +7,7 @@ import { SchoolBadge } from "@/components/SchoolBadge";
 import { sideLabel } from "@/lib/eventDisplay";
 import { LiveIcon } from "@/components/icons/LiveIcon";
 import { divisionTagClass } from "@/lib/divisionTagClass";
+import { StatusTag } from "@/components/TournamentGames";
 
 export const dynamic = "force-dynamic";
 
@@ -25,10 +26,10 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
   const hasDivisions = tournament.activity.divisions.length > 0;
 
   const events = await prisma.event.findMany({
-    // Only still-upcoming games - a stream link left on a completed or
-    // cancelled event isn't "live" anymore, matching the same status gate
-    // schedule/results tables use for their own "Watch live" tag.
-    where: { tournamentId: tournament.id, streamUrl: { not: null }, status: "SCHEDULED" },
+    // Every event with a stream link, regardless of status - each row
+    // shows its own status tag so a completed or cancelled game reads as
+    // such instead of being hidden entirely.
+    where: { tournamentId: tournament.id, streamUrl: { not: null } },
     orderBy: { date: "asc" },
     include: {
       participants: { include: { school: true } },
@@ -83,7 +84,10 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
                       <span>
                         {format(event.date, "MMM d, yyyy")} · {format(event.date, "h:mm a")}
                       </span>
-                      {event.division && <span className={`tag ${divisionTagClass(event.division.name)}`}>{event.division.name}</span>}
+                      <span className="flex items-center gap-1.5">
+                        {event.division && <span className={`tag ${divisionTagClass(event.division.name)}`}>{event.division.name}</span>}
+                        <StatusTag status={event.status} />
+                      </span>
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-1 font-extrabold">
@@ -136,6 +140,7 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
                           <th>Home</th>
                           <th>Away</th>
                           <th>Time</th>
+                          <th>Status</th>
                           <th>Watch</th>
                         </tr>
                       </thead>
@@ -177,6 +182,9 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
                                 </span>
                               </td>
                               <td className="text-muted tabular-nums">{format(event.date, "h:mm a")}</td>
+                              <td>
+                                <StatusTag status={event.status} />
+                              </td>
                               <td>
                                 <a
                                   href={event.streamUrl!}
