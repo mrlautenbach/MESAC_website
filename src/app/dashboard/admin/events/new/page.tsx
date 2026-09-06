@@ -4,9 +4,14 @@ import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { EventForm } from "@/components/EventForm";
 
-export default async function NewEventPage() {
+export default async function NewEventPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tournament?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const { tournament: defaultTournamentId } = await searchParams;
 
   const [tournaments, schools] = await Promise.all([
     prisma.tournament.findMany({
@@ -35,11 +40,14 @@ export default async function NewEventPage() {
     <div className="mx-auto max-w-2xl px-4 py-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">New event</h1>
-        <Link href="/dashboard/admin/events/import" className="text-sm font-semibold text-primary hover:underline">
+        <Link
+          href={`/dashboard/admin/events/import${defaultTournamentId ? `?tournament=${defaultTournamentId}` : ""}`}
+          className="text-sm font-semibold text-primary hover:underline"
+        >
           Bulk import a whole schedule &rarr;
         </Link>
       </div>
-      <EventForm seasons={tournamentOptions} schools={schools} />
+      <EventForm seasons={tournamentOptions} schools={schools} defaultTournamentId={defaultTournamentId} />
     </div>
   );
 }

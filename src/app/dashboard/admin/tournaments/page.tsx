@@ -106,6 +106,22 @@ export default async function TournamentsAdminPage() {
                                 View public page →
                               </Link>
                             )}
+                            {current && (
+                              <Link
+                                href={`/dashboard/admin/events/import?tournament=${current.id}`}
+                                className="text-xs font-semibold text-primary hover:underline"
+                              >
+                                Upload/edit schedule (CSV) →
+                              </Link>
+                            )}
+                            {current && (
+                              <Link
+                                href={`/dashboard/admin/events/new?tournament=${current.id}`}
+                                className="text-xs font-semibold text-primary hover:underline"
+                              >
+                                + Add one game →
+                              </Link>
+                            )}
                             {current && isAdmin && (
                               <Link
                                 href={`/dashboard/admin/tournament-photos/${current.id}`}

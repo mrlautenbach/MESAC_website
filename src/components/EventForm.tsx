@@ -12,11 +12,14 @@ type SeasonOption = {
 type Props = {
   seasons: SeasonOption[];
   schools: { id: string; name: string }[];
+  defaultTournamentId?: string;
 };
 
-export function EventForm({ seasons, schools }: Props) {
+export function EventForm({ seasons, schools, defaultTournamentId }: Props) {
   const [state, formAction, pending] = useActionState(createEventAction, null);
-  const [tournamentId, setTournamentId] = useState(seasons[0]?.id ?? "");
+  const [tournamentId, setTournamentId] = useState(
+    (defaultTournamentId && seasons.some((s) => s.id === defaultTournamentId) ? defaultTournamentId : seasons[0]?.id) ?? ""
+  );
   const divisions = seasons.find((s) => s.id === tournamentId)?.divisions ?? [];
 
   if (state?.ok) {

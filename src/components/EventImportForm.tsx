@@ -13,6 +13,7 @@ type SeasonOption = {
 type Props = {
   seasons: SeasonOption[];
   schoolCodes: { code: string; name: string }[];
+  defaultTournamentId?: string;
 };
 
 function buildTemplate(season: SeasonOption | undefined, schoolCodes: Props["schoolCodes"]) {
@@ -27,9 +28,11 @@ function buildTemplate(season: SeasonOption | undefined, schoolCodes: Props["sch
   return `${header.join(",")}\n${row1.join(",")}\n${row2.join(",")}\n`;
 }
 
-export function EventImportForm({ seasons, schoolCodes }: Props) {
+export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: Props) {
   const [state, formAction, pending] = useActionState<ImportEventsResult | null, FormData>(importEventsAction, null);
-  const [tournamentId, setTournamentId] = useState(seasons[0]?.id ?? "");
+  const [tournamentId, setTournamentId] = useState(
+    (defaultTournamentId && seasons.some((s) => s.id === defaultTournamentId) ? defaultTournamentId : seasons[0]?.id) ?? ""
+  );
   const season = seasons.find((s) => s.id === tournamentId);
 
   const templateHref = useMemo(() => {
