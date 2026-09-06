@@ -91,7 +91,7 @@ export default async function HomePage() {
         <div className="relative mx-auto grid max-w-6xl gap-10 sm:grid-cols-[1.35fr_1fr] sm:items-end">
           <div>
             <h6 className="text-background opacity-85">
-              Six schools · {tournamentCount} tournaments · {currentTerm}
+              Six schools · {tournamentCount} tournaments
             </h6>
             <div className="mt-4 text-6xl font-extrabold leading-[.9] tracking-[-.045em] text-accent sm:text-8xl">
               Play the
@@ -111,8 +111,8 @@ export default async function HomePage() {
               <p className="mt-3 text-sm text-muted">Results will appear here once the season kicks off.</p>
             ) : (
               recentResults.map((event) => {
-                const home = event.participants[0];
-                const away = event.participants[1];
+                const home = event.participants.find((p) => p.isHome);
+                const away = event.participants.find((p) => !p.isHome);
                 const homeScore = event.results.find((r) => r.schoolId === home?.school.id)?.score;
                 const awayScore = event.results.find((r) => r.schoolId === away?.school.id)?.score;
                 return (
@@ -283,7 +283,7 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 type ResultEvent = {
   id: string;
-  participants: { school: { id: string; name: string; code: string | null } }[];
+  participants: { isHome: boolean; school: { id: string; name: string; code: string | null } }[];
   results: { schoolId: string; score: number | null; outcome: string | null }[];
   date: Date;
   tournament: { activity: { name: string }; hostSchool: { name: string } | null };

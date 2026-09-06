@@ -71,7 +71,10 @@ You'll need three free/low-cost accounts:
    developer can do this one-time step for you if needed):
    ```bash
    npm install
-   # Copy the DATABASE_URL from Vercel's Storage tab into a local .env file
+   # Copy DATABASE_URL and the non-pooling connection string (as
+   # Database_POSTGRES_URL_NON_POOLING) from Vercel's Storage tab into a
+   # local .env file - migrate deploy needs the direct connection to hold
+   # its migration lock, which a pooled DATABASE_URL can't reliably do.
    npx prisma migrate deploy
    ```
 8. **Create your admin account.** Still from your computer, with `.env`
@@ -298,7 +301,7 @@ of the database.
 
 ```bash
 npm install
-cp .env.example .env   # fill in a local DATABASE_URL, AUTH_SECRET, etc.
+cp .env.example .env   # fill in a local DATABASE_URL, Database_POSTGRES_URL_NON_POOLING, AUTH_SECRET, etc.
 npx prisma migrate dev
 npm run db:seed         # creates the first admin account from env vars
 npm run dev

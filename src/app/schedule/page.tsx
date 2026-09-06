@@ -6,6 +6,7 @@ import { SchoolColorDot } from "@/components/SchoolColorDot";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
 import { matchRosterForSeason } from "@/lib/matchRoster";
 import { LiveIcon } from "@/components/icons/LiveIcon";
+import { divisionTagClass } from "@/lib/divisionTagClass";
 
 export const dynamic = "force-dynamic";
 
@@ -133,11 +134,7 @@ export default async function SchedulePage() {
                                         <Link href={href} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 hover:text-primary">
                                           <span className="tabular-nums text-muted">{format(event.date, "MMM d, h:mm a")}</span>
                                           {event.division && (
-                                            <span
-                                              className={`tag ${event.division.name.toLowerCase() === "girls" ? "tag-girls" : event.division.name.toLowerCase() === "boys" ? "tag-boys" : "tag-neutral"}`}
-                                            >
-                                              {event.division.name}
-                                            </span>
+                                            <span className={`tag ${divisionTagClass(event.division.name)}`}>{event.division.name}</span>
                                           )}
                                           {isDual ? (
                                             <span className="inline-flex items-center gap-3">

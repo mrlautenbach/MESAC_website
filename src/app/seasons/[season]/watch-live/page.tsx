@@ -6,13 +6,9 @@ import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { sideLabel } from "@/lib/eventDisplay";
 import { LiveIcon } from "@/components/icons/LiveIcon";
+import { divisionTagClass } from "@/lib/divisionTagClass";
 
 export const dynamic = "force-dynamic";
-
-function divisionTagClass(name: string) {
-  const lower = name.toLowerCase();
-  return lower === "girls" ? "tag-girls" : lower === "boys" ? "tag-boys" : "tag-neutral";
-}
 
 // One combined list of every stream link for the whole tournament - both
 // divisions together, since a stream is watched the same way regardless of
@@ -29,7 +25,10 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
   const hasDivisions = tournament.activity.divisions.length > 0;
 
   const events = await prisma.event.findMany({
-    where: { tournamentId: tournament.id, streamUrl: { not: null } },
+    // Only still-upcoming games - a stream link left on a completed or
+    // cancelled event isn't "live" anymore, matching the same status gate
+    // schedule/results tables use for their own "Watch live" tag.
+    where: { tournamentId: tournament.id, streamUrl: { not: null }, status: "SCHEDULED" },
     orderBy: { date: "asc" },
     include: {
       participants: { include: { school: true } },
