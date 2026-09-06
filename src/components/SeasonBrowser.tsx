@@ -73,8 +73,8 @@ export function SeasonBrowser({ seasons }: { seasons: SeasonCard[] }) {
         <ul className="mt-4 flex flex-wrap gap-2">
           {season.activities.map((a) => (
             <li key={a.key}>
-              <Link href={a.href} className="tag tag-neutral gap-1">
-                <SportIcon sport={a.sport} size={14} />
+              <Link href={a.href} className="tag tag-neutral gap-1.5 text-sm font-extrabold">
+                <SportIcon sport={a.sport} size={18} />
                 {a.name}
               </Link>
             </li>

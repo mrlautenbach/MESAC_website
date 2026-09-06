@@ -53,7 +53,7 @@ export default async function TournamentsIndexPage() {
               <div className="space-y-3">
                 {Array.from(groups.entries()).map(([sport, group]) => (
                   <div key={sport} className="border-b border-divider py-2">
-                    <div className="grid grid-cols-1 items-center gap-x-6 gap-y-2 sm:grid-cols-[160px_1fr]">
+                    <div className="grid grid-cols-1 items-center gap-x-6 gap-y-2 sm:grid-cols-[190px_1fr]">
                       <h6 className="flex items-center gap-1.5 text-muted">
                         <SportIcon sport={sport} size={16} />
                         {sport}
