@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { ActivityForm } from "@/components/ActivityForm";
 import { SeasonEditionForm } from "@/components/SeasonEditionForm";
 import { ActivityFieldsManager } from "@/components/ActivityFieldsManager";
+import { DivisionsManager } from "@/components/DivisionsManager";
 import { EXPECTED_ROSTER } from "@/lib/expectedRoster";
 
 const SCORING_LABELS: Record<string, string> = {
@@ -163,6 +164,15 @@ export default async function TournamentsAdminPage() {
                               usesMeetResults: activity.usesMeetResults,
                             }}
                           />
+
+                          <details>
+                            <summary className="cursor-pointer text-xs font-semibold text-muted">
+                              Divisions ({activity.divisions.length})
+                            </summary>
+                            <div className="mt-3">
+                              <DivisionsManager activityId={activity.id} divisions={activity.divisions} />
+                            </div>
+                          </details>
 
                           <details>
                             <summary className="cursor-pointer text-xs font-semibold text-muted">

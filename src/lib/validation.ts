@@ -60,9 +60,10 @@ export const activityInputSchema = z.object({
   winPoints: z.coerce.number().int().min(0).max(100),
   drawPoints: z.coerce.number().int().min(0).max(100),
   lossPoints: z.coerce.number().int().min(0).max(100),
-  // Comma-separated in the form (e.g. "Girls,Boys"); empty for an
-  // ungendered/single activity (meets, festivals, baseball, softball).
-  divisionNames: z.array(z.string().trim().min(1).max(40)).max(4).optional().default([]),
+  // One entry per checked division checkbox in the form (e.g. Girls, Boys,
+  // Girls JV, Boys Varsity, Overall); empty for an ungendered/single
+  // activity (meets, festivals, baseball, softball).
+  divisionNames: z.array(z.string().trim().min(1).max(40)).max(7).optional().default([]),
   defaultHostSchoolId: z.string().cuid().optional().nullable(),
   // Results table column toggles - pass an actual boolean (checkbox
   // presence, e.g. formData.get(...) === "on"), not the raw FormData

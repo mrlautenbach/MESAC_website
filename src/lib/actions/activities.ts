@@ -166,5 +166,9 @@ export async function addDivisionAction(_prevState: ActionResult | null, formDat
   });
 
   revalidatePath(`/dashboard/admin/tournaments`);
+  revalidatePath(`/tournaments/${activity.slug}`);
+  revalidatePath("/tournaments");
+  revalidatePath("/schedule");
+  revalidatePath("/");
   return { ok: true };
 }

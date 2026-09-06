@@ -198,7 +198,7 @@ export function ActivityForm({
       {!existing && (
         <div>
           <p className="field-label">Divisions</p>
-          <div className="flex gap-4 text-sm">
+          <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
             <label className="flex items-center gap-2">
               <input type="checkbox" name="divisionNames" value="Girls" defaultChecked />
               Girls
@@ -207,10 +207,31 @@ export function ActivityForm({
               <input type="checkbox" name="divisionNames" value="Boys" defaultChecked />
               Boys
             </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="divisionNames" value="Girls JV" />
+              Girls JV
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="divisionNames" value="Boys JV" />
+              Boys JV
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="divisionNames" value="Girls Varsity" />
+              Girls Varsity
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="divisionNames" value="Boys Varsity" />
+              Boys Varsity
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="divisionNames" value="Overall" />
+              Overall
+            </label>
           </div>
           <p className="mt-1 text-xs text-muted">
-            Uncheck both for a single activity with no Girls/Boys split (meets, festivals, or a sport that&apos;s
-            already single-gender).
+            Pick any combination - e.g. just Girls/Boys, split further by JV and Varsity, or add Overall alongside
+            them. Uncheck all for a single activity with no split (meets, festivals, or a sport that&apos;s already
+            single-gender). More divisions can be added later from the activity&apos;s own page.
           </p>
         </div>
       )}
