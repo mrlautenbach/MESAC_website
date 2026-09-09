@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { createSchoolAction, updateSchoolAction } from "@/lib/actions/schools";
 
 const DEFAULT_THEME_COLOR = "#2a6a8a";
-const DEFAULT_THEME_COLOR_SECONDARY = "#e2bd7f";
+const DEFAULT_THEME_COLOR_SECONDARY = "#cbbd93";
 
 type ExistingSchool = {
   id: string;
@@ -143,7 +143,7 @@ export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
               name="themeColorSecondary"
               value={themeColorSecondary}
               onChange={(e) => setThemeColorSecondary(e.target.value)}
-              placeholder="#E2BD7F"
+              placeholder="#CBBD93"
               maxLength={7}
               className="field-input"
             />

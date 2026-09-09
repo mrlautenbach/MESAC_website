@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getCurrentUser } from "@/lib/session";
 import { logoutAction } from "@/lib/actions/auth";
 import { NavLinks } from "@/components/NavLinks";
@@ -8,10 +9,13 @@ export async function SiteHeader() {
 
   return (
     <header className="mnav bg-background">
-      <Link href="/" className="mr-auto flex items-baseline gap-2.5">
-        <span className="text-lg font-extrabold tracking-tight">MESAC</span>
-        <span className="hidden text-[10px] font-normal uppercase tracking-[0.14em] text-muted sm:inline">
-          Middle East South Asian Conference
+      <Link href="/" className="mr-auto flex shrink-0 items-center gap-2.5">
+        <Image src="/mesac-logo.png" alt="MESAC" width={36} height={36} className="h-9 w-9 object-contain" priority />
+        <span className="flex items-baseline gap-2.5">
+          <span className="text-lg font-extrabold tracking-tight">MESAC</span>
+          <span className="hidden text-[10px] font-normal uppercase tracking-[0.14em] text-muted sm:inline">
+            Middle East South Asian Conference
+          </span>
         </span>
       </Link>
       <nav className="flex items-center gap-5">

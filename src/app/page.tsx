@@ -41,7 +41,7 @@ export default async function HomePage() {
     prisma.event.findMany({
       where: { status: "COMPLETED" },
       orderBy: { date: "desc" },
-      take: 4,
+      take: 5,
       include: {
         participants: { include: { school: true } },
         results: true,
@@ -126,8 +126,8 @@ export default async function HomePage() {
                 const homeScore = event.results.find((r) => r.schoolId === home?.school.id)?.score;
                 const awayScore = event.results.find((r) => r.schoolId === away?.school.id)?.score;
                 return (
-                  <div key={event.id} className="flex items-baseline justify-between gap-3 border-b border-divider py-2.5 last:border-0">
-                    <span className="text-[13px]">
+                  <div key={event.id} className="flex items-baseline justify-between gap-3 border-b border-divider py-1.5 last:border-0">
+                    <span className="text-[13px] leading-tight">
                       <b>{home?.school.code || home?.school.name}</b> v {away?.school.code || away?.school.name}
                       <br />
                       <span className="text-[11.5px] text-muted">{event.tournament.activity.name}</span>

@@ -7,17 +7,17 @@
    full spec this implements.
    ══════════════════════════════════════════════════════════════════════ */
 :root {
-  --background: #f4e7ce; /* ground */
+  --background: #ebe5d4; /* ground */
   --foreground: #0c3446; /* ink */
   --card: #ffffff; /* dashboard/form surfaces - kept white for input legibility */
-  --surface: #ead6b2; /* marketing-page surface bands */
+  --surface: #dbd4be; /* marketing-page surface bands */
   --border: color-mix(in srgb, #0c3446 18%, transparent); /* soft, for form inputs */
   --divider: color-mix(in srgb, #0c3446 40%, transparent); /* strong 2px/1px section rules */
   --primary: #2a6a8a; /* accent */
   --primary-dark: #215a77; /* accent hover/pressed */
   --primary-deep: #0b2e42; /* accent-800, text on sand */
   --primary-tint: #e4eef3; /* accent-100 */
-  --accent: #e2bd7f; /* sand */
+  --accent: #cbbd93; /* sand */
   --muted: color-mix(in srgb, #0c3446 55%, transparent);
   --danger: #b3261e;
   --success: #1f7a4d;
