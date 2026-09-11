@@ -13,7 +13,11 @@ export default async function TournamentSchedulePage({ params }: { params: Promi
     include: { activity: true, divisions: true, hostSchool: true },
   });
   if (!tournament) notFound();
-  if (tournament.divisions.length > 0) notFound();
+  // Non-meet activities with divisions have no combined page - each division
+  // gets its own schedule. Meet-style activities (Swimming, Track & Field)
+  // use this page as the "Overall" view across every division instead.
+  const hasDivisions = tournament.divisions.length > 0;
+  if (hasDivisions && !tournament.activity.usesMeetResults) notFound();
 
   return (
     <div>
@@ -22,6 +26,7 @@ export default async function TournamentSchedulePage({ params }: { params: Promi
         activitySport={tournament.activity.sport}
         activitySlug={tournament.activity.slug}
         tournamentName={tournament.name}
+        divisionName={hasDivisions ? "Overall" : undefined}
         startDate={tournament.startDate}
         endDate={tournament.endDate}
         hostSchoolName={tournament.hostSchool?.name}

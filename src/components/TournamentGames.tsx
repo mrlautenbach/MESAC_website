@@ -5,6 +5,7 @@ import { computeStandings, computeLowScoreTeamStandings, computeIndividualStandi
 import { sideLabel } from "@/lib/eventDisplay";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { LiveIcon } from "@/components/icons/LiveIcon";
+import { divisionTagClass } from "@/lib/divisionTagClass";
 
 type Activity = {
   id: string;
@@ -116,6 +117,7 @@ async function EventsTable({
         homeSourceEvent: { select: { externalId: true } },
         awaySourceEvent: { select: { externalId: true } },
         fieldValues: true,
+        division: true,
       },
     }),
     prisma.activityField.findMany({ where: { activityId }, orderBy: { order: "asc" } }),
@@ -123,6 +125,10 @@ async function EventsTable({
 
   const eventHref = (eventSlug: string) => `/seasons/${tournamentSlug}/events/${eventSlug}`;
   const showWatch = statusFilter === null;
+  // Only meaningful when this list spans every division at once (the
+  // Overall page for a meet-style activity) - a single-division page never
+  // mixes divisions, so the tag would be redundant there.
+  const showDivisionTag = !divisionId;
 
   if (events.length === 0) return <p className="text-muted">{emptyMessage}</p>;
 
@@ -161,7 +167,12 @@ async function EventsTable({
                   {format(event.date, "MMM d, yyyy")} · {format(event.date, "h:mm a")}
                   {scoringType !== "NONE" && event.externalId ? ` · ${event.externalId}` : ""}
                 </Link>
-                {showWatch && <StatusTag status={event.status} />}
+                <span className="flex items-center gap-2">
+                  {showDivisionTag && event.division && (
+                    <span className={`tag ${divisionTagClass(event.division.name)}`}>{event.division.name}</span>
+                  )}
+                  {showWatch && <StatusTag status={event.status} />}
+                </span>
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
@@ -246,6 +257,7 @@ async function EventsTable({
                       </th>
                     )}
                     {usesSetScores && <th>Sets</th>}
+                    {showDivisionTag && <th>Division</th>}
                     <th>Time</th>
                     <th>Court</th>
                     {customFields.map((f) => (
@@ -310,6 +322,15 @@ async function EventsTable({
                             {event.sets.length > 0
                               ? event.sets.map((s) => `${s.homeScore}-${s.awayScore}`).join(", ")
                               : "—"}
+                          </td>
+                        )}
+                        {showDivisionTag && (
+                          <td>
+                            {event.division ? (
+                              <span className={`tag ${divisionTagClass(event.division.name)}`}>{event.division.name}</span>
+                            ) : (
+                              "—"
+                            )}
                           </td>
                         )}
                         <td className="text-muted tabular-nums">{format(event.date, "h:mm a")}</td>

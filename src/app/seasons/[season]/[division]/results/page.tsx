@@ -37,7 +37,12 @@ export default async function DivisionResultsPage({
       />
 
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <TournamentSubNav tournamentSlug={tournament.slug} divisionSlug={division.slug} active="results" />
+        <TournamentSubNav
+          tournamentSlug={tournament.slug}
+          divisionSlug={division.slug}
+          active="results"
+          showWatchAndPhotos={!tournament.activity.usesMeetResults}
+        />
         <TournamentResults
           tournamentId={tournament.id}
           tournamentSlug={tournament.slug}
