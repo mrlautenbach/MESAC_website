@@ -60,11 +60,11 @@ export async function TournamentResults({ tournamentId, tournamentSlug, division
         <LowScoreStandings tournamentId={tournamentId} divisionId={divisionId} colorBySchoolId={colorBySchoolId} />
       )}
       {activity.scoringType === "NONE" && (
-        <p className="text-sm text-muted">This activity doesn&apos;t use a results table. Check each game below.</p>
+        <p className="text-sm text-muted">This activity doesn&apos;t use a results table. Check each event below.</p>
       )}
 
       <section>
-        <h4 className="mb-3">Completed games</h4>
+        <h4 className="mb-3">{activity.scoringType === "NONE" ? "Completed events" : "Completed games"}</h4>
         <EventsTable
           tournamentId={tournamentId}
           tournamentSlug={tournamentSlug}
@@ -73,7 +73,7 @@ export async function TournamentResults({ tournamentId, tournamentSlug, division
           scoringType={activity.scoringType}
           usesSetScores={activity.usesSetScores}
           statusFilter="COMPLETED"
-          emptyMessage="No games have been completed yet."
+          emptyMessage={activity.scoringType === "NONE" ? "No events have been completed yet." : "No games have been completed yet."}
         />
       </section>
     </div>
@@ -108,7 +108,7 @@ async function EventsTable({
   const [events, customFields] = await Promise.all([
     prisma.event.findMany({
       where,
-      orderBy: { date: "asc" },
+      orderBy: [{ order: { sort: "asc", nulls: "last" } }, { date: "asc" }],
       include: {
         participants: { include: { school: true } },
         results: true,

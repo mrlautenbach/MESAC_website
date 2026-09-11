@@ -65,6 +65,8 @@ export async function importMeetResultsAction(
     athleteName: string;
     schoolId: string;
     mark: string;
+    seedMark: string | null;
+    prelimMark: string | null;
     points: number | null;
     recordNotation: string | null;
     rowOrder: number;
@@ -95,6 +97,8 @@ export async function importMeetResultsAction(
       athleteName: record.name,
       schoolId: school.id,
       mark: record.mark,
+      seedMark: record.seed ?? "",
+      prelimMark: record.prelim_time ?? "",
       points: record.points ?? "",
       recordNotation: record.record ?? "",
     });
@@ -110,6 +114,8 @@ export async function importMeetResultsAction(
       athleteName: parsed.data.athleteName,
       schoolId: parsed.data.schoolId,
       mark: parsed.data.mark,
+      seedMark: parsed.data.seedMark || null,
+      prelimMark: parsed.data.prelimMark || null,
       points: parsed.data.points,
       recordNotation: parsed.data.recordNotation || null,
       rowOrder: i,

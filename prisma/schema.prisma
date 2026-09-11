@@ -300,6 +300,11 @@ model Event {
   // re-uploaded CSV update this same game instead of duplicating it, and is
   // what playoff rows reference to say "winner of this game".
   externalId   String?
+  // Optional explicit display-order override for schedule/results listings,
+  // set via the schedule CSV's "order" column - falls back to date order
+  // (the default) when unset. Mainly for meet-style activities where
+  // multiple same-day sessions need a specific reading order.
+  order        Int?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -321,6 +326,7 @@ model Event {
   individualResults IndividualResult[]
   sets              EventSet[]
   meetResults       MeetResult[]
+  programEntries    MeetProgramEntry[]
   photos            Photo[]
   documents         Document[]
   fieldValues       EventFieldValue[]
@@ -371,6 +377,11 @@ model MeetResult {
   schoolId       String
   school         School           @relation(fields: [schoolId], references: [id])
   mark           String
+  // Context mark shown alongside the main one - seed time on a PRELIM row,
+  // that swimmer's prelim time on a FINAL row. Both optional and unrelated
+  // to round validation, so a CSV without them still imports fine.
+  seedMark       String?
+  prelimMark     String?
   points         Float?
   // Free text so admins can use whatever notation their meet uses (e.g.
   // "MR" for meet record, "SR" for school record) - not a fixed enum.
@@ -383,6 +394,24 @@ model MeetResult {
 
   @@index([eventId])
   @@index([eventId, eventName])
+}
+
+// The meet's program, set up ahead of results: which named events exist in
+// which session, in what order, and for which round(s). Uploaded as its own
+// tournament-wide CSV (one file covering every session), separate from the
+// per-session MeetResult CSVs - lets a not-yet-run event still show up on
+// the public page instead of only appearing once its results are in.
+model MeetProgramEntry {
+  id          String          @id @default(cuid())
+  eventId     String
+  event       Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventNumber Int
+  eventName   String
+  round       MeetResultRound @default(FINAL)
+  createdAt   DateTime        @default(now())
+
+  @@unique([eventId, eventName, round])
+  @@index([eventId])
 }
 
 // An admin-entered value for one of the activity's custom schedule fields

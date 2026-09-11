@@ -122,6 +122,14 @@ export default async function TournamentsAdminPage() {
                                 + Add one game →
                               </Link>
                             )}
+                            {current && isAdmin && activity.usesMeetResults && (
+                              <Link
+                                href={`/dashboard/admin/meet-program?tournament=${current.id}`}
+                                className="text-xs font-semibold text-primary hover:underline"
+                              >
+                                Set up meet program →
+                              </Link>
+                            )}
                             {current && isAdmin && (
                               <Link
                                 href={`/dashboard/admin/tournament-photos/${current.id}`}

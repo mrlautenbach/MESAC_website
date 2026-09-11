@@ -102,11 +102,20 @@ export const meetResultRowSchema = z.object({
   athleteName: z.string().trim().min(1).max(120),
   schoolId: z.string().cuid(),
   mark: z.string().trim().min(1).max(40),
+  seedMark: z.string().trim().max(40).optional().or(z.literal("")),
+  prelimMark: z.string().trim().max(40).optional().or(z.literal("")),
   points: z
     .union([z.literal(""), z.coerce.number().min(0).max(9999)])
     .optional()
     .transform((v) => (v === "" || v === undefined ? null : v)),
   recordNotation: z.string().trim().max(20).optional().or(z.literal("")),
+});
+
+export const meetProgramRowSchema = z.object({
+  eventId: z.string().cuid(),
+  eventNumber: z.coerce.number().int().min(1).max(9999),
+  eventName: z.string().trim().min(1).max(120),
+  round: z.enum(["PRELIM", "FINAL"]),
 });
 
 export const setScoreEntrySchema = z.object({

@@ -44,7 +44,7 @@ export default async function SchedulePage() {
 
   const upcoming = await prisma.event.findMany({
     where: { tournamentId: { in: currentTournamentIds }, date: { gte: today }, status: { not: "CANCELLED" } },
-    orderBy: { date: "asc" },
+    orderBy: [{ order: { sort: "asc", nulls: "last" } }, { date: "asc" }],
     include: {
       participants: { include: { school: true } },
       division: true,
@@ -127,7 +127,9 @@ export default async function SchedulePage() {
                               {!current ? (
                                 <p className="text-xs text-muted">No tournament scheduled yet.</p>
                               ) : events.length === 0 ? (
-                                <p className="text-xs text-muted">No upcoming games.</p>
+                                <p className="text-xs text-muted">
+                                  {a.scoringType === "NONE" ? "No upcoming events." : "No upcoming games."}
+                                </p>
                               ) : (
                                 <ul className="space-y-1.5">
                                   {events.slice(0, PREVIEW_COUNT).map((event) => {

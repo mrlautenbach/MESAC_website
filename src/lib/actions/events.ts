@@ -118,6 +118,7 @@ type PlannedRow = {
   location: string | null;
   status: "SCHEDULED" | "COMPLETED" | "CANCELLED";
   streamUrl: string | null;
+  order: number | null;
   home: SideSpec;
   away: SideSpec;
   homeScore: number | null;
@@ -186,7 +187,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     return {
       ok: false,
       error:
-        "The header row needs at least: date, home, away (plus optional game_id, gender, home_score, away_score, time, court, status, streaming_link, and any custom fields for this activity).",
+        "The header row needs at least: date, home, away (plus optional game_id, gender, home_score, away_score, time, court, status, streaming_link, order, and any custom fields for this activity).",
     };
   }
   const col = (name: string) => header.indexOf(name);
@@ -285,6 +286,17 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       fail(`Stream link "${streamUrlRaw}" must start with http:// or https://.`);
     }
 
+    // Overrides the default date-based sort on schedule/results listings -
+    // mainly useful for meet-style activities where several same-day
+    // sessions need a specific reading order. Blank keeps the date sort.
+    const orderRaw = get("order");
+    let order: number | null = null;
+    if (orderRaw) {
+      const n = Number(orderRaw);
+      if (!Number.isInteger(n)) fail(`order "${orderRaw}" must be a whole number.`);
+      else order = n;
+    }
+
     const homeScoreRaw = get("home_score");
     const awayScoreRaw = get("away_score");
     let homeScore: number | null = null;
@@ -321,6 +333,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       location: get("court") || null,
       status: statusRaw as PlannedRow["status"],
       streamUrl: streamUrlRaw || null,
+      order,
       home: home!,
       away: away!,
       homeScore,
@@ -407,6 +420,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
               location: row.location,
               status: row.status,
               streamUrl: row.streamUrl,
+              order: row.order,
               ...(homeSource ? { homeSourceEventId: homeSource.eventId, homeSourceOutcome: homeSource.outcome } : {}),
               ...(awaySource ? { awaySourceEventId: awaySource.eventId, awaySourceOutcome: awaySource.outcome } : {}),
             },
@@ -441,6 +455,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
               location: row.location,
               status: row.status,
               streamUrl: row.streamUrl,
+              order: row.order,
               externalId: row.gameId,
               homeSourceEventId: homeSource?.eventId ?? null,
               homeSourceOutcome: homeSource?.outcome ?? null,

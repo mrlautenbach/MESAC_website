@@ -90,8 +90,9 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: P
             </>
           )}
           <code>home_score</code>, <code>away_score</code>, <code>time</code> (HH:MM, defaults to 09:00),{" "}
-          <code>court</code>, <code>status</code> (SCHEDULED/COMPLETED/CANCELLED), and <code>streaming_link</code>{" "}
-          (link to watch live).
+          <code>court</code>, <code>status</code> (SCHEDULED/COMPLETED/CANCELLED), <code>streaming_link</code>{" "}
+          (link to watch live), and <code>order</code> (a whole number to override date-based sorting on the
+          schedule/results pages - useful when same-day sessions need a specific reading order).
           {season && season.fields.length > 0 && (
             <>
               {" "}
