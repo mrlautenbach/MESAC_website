@@ -39,7 +39,9 @@ export default async function HomePage() {
     // wrong or unset for a while, which would otherwise make this look
     // empty even with real completed games on the schedule.
     prisma.event.findMany({
-      where: { status: "COMPLETED" },
+      // A meet-style session (no home/away pair) doesn't fit this score
+      // ticker - it has its own results display, not a two-team score.
+      where: { status: "COMPLETED", participants: { some: {} } },
       orderBy: { date: "desc" },
       take: 5,
       include: {

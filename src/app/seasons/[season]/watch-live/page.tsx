@@ -78,6 +78,7 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
               {events.map((event) => {
                 const home = event.participants.find((p) => p.isHome);
                 const away = event.participants.find((p) => !p.isHome);
+                const hasMatchup = Boolean(home || away);
                 return (
                   <div key={event.id} className="card p-3 text-sm">
                     <div className="mb-2 flex items-center justify-between gap-2 text-xs text-muted">
@@ -89,28 +90,32 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
                         <StatusTag status={event.status} />
                       </span>
                     </div>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-1 font-extrabold">
-                        <SchoolBadge
-                          size={36}
-                          logoUrl={home?.school.logoUrl}
-                          name={home?.school.name ?? "TBD"}
-                          color={home?.school.themeColor}
-                          secondaryColor={home?.school.themeColorSecondary}
-                        />
-                        {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
+                    {hasMatchup ? (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1 font-extrabold">
+                          <SchoolBadge
+                            size={36}
+                            logoUrl={home?.school.logoUrl}
+                            name={home?.school.name ?? "TBD"}
+                            color={home?.school.themeColor}
+                            secondaryColor={home?.school.themeColorSecondary}
+                          />
+                          {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
+                        </div>
+                        <div className="flex items-center gap-1 font-extrabold">
+                          <SchoolBadge
+                            size={36}
+                            logoUrl={away?.school.logoUrl}
+                            name={away?.school.name ?? "TBD"}
+                            color={away?.school.themeColor}
+                            secondaryColor={away?.school.themeColorSecondary}
+                          />
+                          {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 font-extrabold">
-                        <SchoolBadge
-                          size={36}
-                          logoUrl={away?.school.logoUrl}
-                          name={away?.school.name ?? "TBD"}
-                          color={away?.school.themeColor}
-                          secondaryColor={away?.school.themeColorSecondary}
-                        />
-                        {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
-                      </div>
-                    </div>
+                    ) : (
+                      <p className="font-extrabold">{event.title ?? "Untitled session"}</p>
+                    )}
                     <a
                       href={event.streamUrl!}
                       target="_blank"
@@ -148,6 +153,7 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
                         {group.events.map((event) => {
                           const home = event.participants.find((p) => p.isHome);
                           const away = event.participants.find((p) => !p.isHome);
+                          const hasMatchup = Boolean(home || away);
                           return (
                             <tr key={event.id}>
                               {hasDivisions && (
@@ -157,30 +163,38 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
                                   )}
                                 </td>
                               )}
-                              <td className="font-extrabold">
-                                <span className="inline-flex items-center gap-1">
-                                  <SchoolBadge
-                                    size={36}
-                                    logoUrl={home?.school.logoUrl}
-                                    name={home?.school.name ?? "TBD"}
-                                    color={home?.school.themeColor}
-                                    secondaryColor={home?.school.themeColorSecondary}
-                                  />
-                                  {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
-                                </span>
-                              </td>
-                              <td className="font-extrabold">
-                                <span className="inline-flex items-center gap-1">
-                                  <SchoolBadge
-                                    size={36}
-                                    logoUrl={away?.school.logoUrl}
-                                    name={away?.school.name ?? "TBD"}
-                                    color={away?.school.themeColor}
-                                    secondaryColor={away?.school.themeColorSecondary}
-                                  />
-                                  {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
-                                </span>
-                              </td>
+                              {hasMatchup ? (
+                                <>
+                                  <td className="font-extrabold">
+                                    <span className="inline-flex items-center gap-1">
+                                      <SchoolBadge
+                                        size={36}
+                                        logoUrl={home?.school.logoUrl}
+                                        name={home?.school.name ?? "TBD"}
+                                        color={home?.school.themeColor}
+                                        secondaryColor={home?.school.themeColorSecondary}
+                                      />
+                                      {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
+                                    </span>
+                                  </td>
+                                  <td className="font-extrabold">
+                                    <span className="inline-flex items-center gap-1">
+                                      <SchoolBadge
+                                        size={36}
+                                        logoUrl={away?.school.logoUrl}
+                                        name={away?.school.name ?? "TBD"}
+                                        color={away?.school.themeColor}
+                                        secondaryColor={away?.school.themeColorSecondary}
+                                      />
+                                      {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
+                                    </span>
+                                  </td>
+                                </>
+                              ) : (
+                                <td className="font-extrabold" colSpan={2}>
+                                  {event.title ?? "Untitled session"}
+                                </td>
+                              )}
                               <td className="text-muted tabular-nums">{format(event.date, "h:mm a")}</td>
                               <td>
                                 <StatusTag status={event.status} />

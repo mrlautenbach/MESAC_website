@@ -1,9 +1,21 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { createActivityAction, updateActivityAction } from "@/lib/actions/activities";
 
 type ScoringType = "WIN_LOSS" | "LOW_SCORE" | "NONE";
+
+const MEET_SCHEDULE_TEMPLATE =
+  "event_number,gender,title,date,time,status,streaming_link,court,order\n" +
+  "1,Girls,Day 1 Prelims,2026-09-12,09:00,SCHEDULED,,Aquatics Center,\n" +
+  "2,Girls,Day 1 Finals,2026-09-12,18:00,SCHEDULED,,Aquatics Center,\n";
+const MEET_RESULTS_TEMPLATE =
+  "event_name,round,place,name,school,mark,seed,prelim_time,points,record\n" +
+  "100m Freestyle,final,1,Jane Doe,ASD,58.21,,59.02,9,MR\n";
+const MEET_PROGRAM_TEMPLATE =
+  "session,event_number,event_name,round\n" +
+  "Day 1 Prelims,1,200m Medley Relay,prelim\n" +
+  "Day 1 Finals,1,200m Medley Relay,final\n";
 
 type ExistingActivity = {
   id: string;
@@ -35,6 +47,21 @@ export function ActivityForm({
   const action = existing ? updateActivityAction : createActivityAction;
   const [state, formAction, pending] = useActionState(action, null);
   const [scoringType, setScoringType] = useState<ScoringType>(existing?.scoringType ?? "WIN_LOSS");
+  const [usesMeetResults, setUsesMeetResults] = useState(existing?.usesMeetResults ?? false);
+
+  const fileSlug = (existing?.name || "activity").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  const scheduleTemplateHref = useMemo(
+    () => `data:text/csv;charset=utf-8,${encodeURIComponent(MEET_SCHEDULE_TEMPLATE)}`,
+    []
+  );
+  const resultsTemplateHref = useMemo(
+    () => `data:text/csv;charset=utf-8,${encodeURIComponent(MEET_RESULTS_TEMPLATE)}`,
+    []
+  );
+  const programTemplateHref = useMemo(
+    () => `data:text/csv;charset=utf-8,${encodeURIComponent(MEET_PROGRAM_TEMPLATE)}`,
+    []
+  );
 
   return (
     <form action={formAction} className="max-w-lg space-y-4">
@@ -100,7 +127,12 @@ export function ActivityForm({
       {scoringType === "NONE" && (
         <div>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="usesMeetResults" defaultChecked={existing?.usesMeetResults ?? false} />
+            <input
+              type="checkbox"
+              name="usesMeetResults"
+              checked={usesMeetResults}
+              onChange={(e) => setUsesMeetResults(e.target.checked)}
+            />
             Uses meet-style results (e.g. swimming, track &amp; field)
           </label>
           <p className="mt-1 text-xs text-muted">
@@ -108,6 +140,19 @@ export function ActivityForm({
             record notation), split by preliminary vs. final round - in addition to, not instead of, the results
             document above.
           </p>
+          {usesMeetResults && (
+            <div className="mt-2 flex flex-wrap gap-3">
+              <a href={scheduleTemplateHref} download={`${fileSlug}-meet-schedule-template.csv`} className="btn btn-secondary">
+                Download blank schedule CSV template
+              </a>
+              <a href={resultsTemplateHref} download={`${fileSlug}-meet-results-template.csv`} className="btn btn-secondary">
+                Download blank results CSV template
+              </a>
+              <a href={programTemplateHref} download={`${fileSlug}-meet-program-template.csv`} className="btn btn-secondary">
+                Download blank program CSV template
+              </a>
+            </div>
+          )}
         </div>
       )}
 

@@ -35,6 +35,7 @@ export default async function ImportEventsPage({
     label: `${t.activity.name} · ${t.name}${t.isCurrent ? "" : " (archived)"}`,
     divisions: t.divisions.map((d) => ({ id: d.id, name: d.name })),
     fields: t.activity.fields.map((f) => ({ id: f.id, key: f.key, label: f.label })),
+    usesMeetResults: t.activity.usesMeetResults,
   }));
 
   return (

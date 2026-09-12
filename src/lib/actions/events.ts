@@ -119,8 +119,11 @@ type PlannedRow = {
   status: "SCHEDULED" | "COMPLETED" | "CANCELLED";
   streamUrl: string | null;
   order: number | null;
-  home: SideSpec;
-  away: SideSpec;
+  // Null for both means this session has no matchup to track - meet-style
+  // activities (usesMeetResults) don't require a home/away pair; every
+  // other activity still requires both.
+  home: SideSpec | null;
+  away: SideSpec | null;
   homeScore: number | null;
   awayScore: number | null;
   fieldValues: { fieldId: string; value: string }[];
@@ -177,17 +180,23 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
   });
   if (!tournament) return { ok: false, error: "Tournament not found." };
   const scoringType = tournament.activity.scoringType;
+  // Meet-style sessions (Swimming, Track & Field) aren't a matchup between
+  // two schools, so home/away aren't required - every other activity still
+  // needs both.
+  const isMeet = tournament.activity.usesMeetResults;
 
   const rows = parseCsv(text);
   if (rows.length < 2) {
     return { ok: false, error: "The file needs a header row plus at least one game row." };
   }
   const header = rows[0].map((h) => h.trim().toLowerCase());
-  if (REQUIRED_HEADERS.some((h) => !header.includes(h))) {
+  const requiredHeaders = isMeet ? ["date"] : REQUIRED_HEADERS;
+  if (requiredHeaders.some((h) => !header.includes(h))) {
     return {
       ok: false,
-      error:
-        "The header row needs at least: date, home, away (plus optional game_id, gender, home_score, away_score, time, court, status, streaming_link, order, and any custom fields for this activity).",
+      error: isMeet
+        ? "The header row needs at least: date (plus optional event_number, title, gender, time, court, status, streaming_link, order, and any custom fields for this activity)."
+        : "The header row needs at least: date, home, away (plus optional game_id, gender, home_score, away_score, time, court, status, streaming_link, order, and any custom fields for this activity).",
     };
   }
   const col = (name: string) => header.indexOf(name);
@@ -224,9 +233,11 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       rowFailed = true;
     };
 
-    const gameId = get("game_id") || null;
+    // Meet-style CSVs use the more meaningful "event_number" header for the
+    // same column; every other activity keeps the historical "game_id" name.
+    const gameId = (isMeet ? get("event_number") || get("game_id") : get("game_id")) || null;
     if (gameId && fileGameIdRows.has(gameId)) {
-      fail(`game_id "${gameId}" is used more than once in this file (already used in row ${fileGameIdRows.get(gameId)}).`);
+      fail(`${isMeet ? "event_number" : "game_id"} "${gameId}" is used more than once in this file (already used in row ${fileGameIdRows.get(gameId)}).`);
     }
 
     const dateRaw = get("date");
@@ -255,14 +266,16 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     const awayRaw = get("away");
     let home: SideSpec | null = null;
     let away: SideSpec | null = null;
-    if (!homeRaw) fail("Missing home.");
-    else {
+    if (!homeRaw) {
+      if (!isMeet) fail("Missing home.");
+    } else {
       const parsed = parseSide(homeRaw, schoolByKey);
       if ("error" in parsed) fail(parsed.error);
       else home = parsed;
     }
-    if (!awayRaw) fail("Missing away.");
-    else {
+    if (!awayRaw) {
+      if (!isMeet) fail("Missing away.");
+    } else {
       const parsed = parseSide(awayRaw, schoolByKey);
       if ("error" in parsed) fail(parsed.error);
       else away = parsed;
@@ -334,8 +347,8 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       status: statusRaw as PlannedRow["status"],
       streamUrl: streamUrlRaw || null,
       order,
-      home: home!,
-      away: away!,
+      home,
+      away,
       homeScore,
       awayScore,
       fieldValues,
@@ -353,6 +366,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
 
   type ResolvedSide =
     | { participantAction: "none" }
+    | { participantAction: "clear" }
     | { participantAction: "create" | "replace"; schoolId: string }
     | { participantAction: "pending"; sourceEventId: string; outcome: "WINNER" | "LOSER" };
 
@@ -363,7 +377,10 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       const createdIds: string[] = [];
       const updatedIds: string[] = [];
 
-      function resolveSide(spec: SideSpec, existingParticipant: { schoolId: string } | null): ResolvedSide {
+      function resolveSide(spec: SideSpec | null, existingParticipant: { schoolId: string } | null): ResolvedSide {
+        // Blank cell on a meet-style import - no matchup for this side.
+        // Drops a stale participant from an earlier upload; otherwise a no-op.
+        if (!spec) return existingParticipant ? { participantAction: "clear" } : { participantAction: "none" };
         if (spec.kind === "school") {
           if (!existingParticipant) return { participantAction: "create", schoolId: spec.schoolId };
           if (existingParticipant.schoolId === spec.schoolId) return { participantAction: "none" };
@@ -375,6 +392,13 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
 
       async function applyParticipant(eventId: string, isHome: boolean, resolved: ResolvedSide, existingParticipant: { schoolId: string } | null) {
         if (resolved.participantAction === "none" || resolved.participantAction === "pending") return;
+        if (resolved.participantAction === "clear") {
+          if (existingParticipant) {
+            await tx.result.deleteMany({ where: { eventId, schoolId: existingParticipant.schoolId } });
+            await tx.eventParticipant.deleteMany({ where: { eventId, isHome } });
+          }
+          return;
+        }
         if (resolved.participantAction === "replace" && existingParticipant) {
           await tx.result.deleteMany({ where: { eventId, schoolId: existingParticipant.schoolId } });
           await tx.eventParticipant.deleteMany({ where: { eventId, isHome } });
@@ -388,14 +412,16 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       }
 
       function currentSchoolId(resolved: ResolvedSide, existingParticipant: { schoolId: string } | null): string | null {
-        if (resolved.participantAction === "pending") return null;
+        if (resolved.participantAction === "pending" || resolved.participantAction === "clear") return null;
         if (resolved.participantAction === "none") return existingParticipant?.schoolId ?? null;
         return resolved.schoolId;
       }
 
       function sourceFieldsFor(resolved: ResolvedSide) {
         if (resolved.participantAction === "pending") return { eventId: resolved.sourceEventId, outcome: resolved.outcome };
-        if (resolved.participantAction === "create" || resolved.participantAction === "replace") return { eventId: null, outcome: null };
+        if (resolved.participantAction === "create" || resolved.participantAction === "replace" || resolved.participantAction === "clear") {
+          return { eventId: null, outcome: null };
+        }
         return undefined; // "none" - leave whatever was already stored
       }
 

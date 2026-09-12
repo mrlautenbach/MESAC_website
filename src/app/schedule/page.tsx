@@ -135,6 +135,7 @@ export default async function SchedulePage() {
                                   {events.slice(0, PREVIEW_COUNT).map((event) => {
                                     const home = event.participants.find((p) => p.isHome) ?? null;
                                     const away = event.participants.find((p) => !p.isHome) ?? null;
+                                    const hasMatchup = event.participants.length > 0;
                                     const isDual = event.participants.length <= 2;
                                     const href = event.division
                                       ? `/seasons/${current.slug}/${event.division.slug}/schedule`
@@ -146,7 +147,9 @@ export default async function SchedulePage() {
                                           {event.division && (
                                             <span className={`tag ${divisionTagClass(event.division.name)}`}>{event.division.name}</span>
                                           )}
-                                          {isDual ? (
+                                          {!hasMatchup ? (
+                                            <span>{event.title ?? "Untitled session"}</span>
+                                          ) : isDual ? (
                                             <span className="inline-flex items-center gap-3">
                                               <span className="inline-flex items-center gap-1">
                                                 <SchoolColorDot color={home?.school.themeColor} secondaryColor={home?.school.themeColorSecondary} />

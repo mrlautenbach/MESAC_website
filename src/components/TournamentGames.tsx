@@ -125,12 +125,13 @@ async function EventsTable({
 
   const eventHref = (eventSlug: string) => `/seasons/${tournamentSlug}/events/${eventSlug}`;
   const showWatch = statusFilter === null;
-  // Only meaningful when this list spans every division at once (the
-  // Overall page for a meet-style activity) - a single-division page never
-  // mixes divisions, so the tag would be redundant there.
-  const showDivisionTag = !divisionId;
 
   if (events.length === 0) return <p className="text-muted">{emptyMessage}</p>;
+
+  // Only meaningful when this list actually spans more than one division at
+  // once (the Overall page for a meet-style activity) - a tournament with no
+  // divisions, or a single-division page, would just show an empty column.
+  const showDivisionTag = !divisionId && events.some((e) => e.divisionId);
 
   // Grouped by calendar day - each group gets a date banner instead of a
   // per-row Date column, freeing up width for a bigger school badge.
@@ -156,6 +157,7 @@ async function EventsTable({
         {events.map((event) => {
           const home = event.participants.find((p) => p.isHome);
           const away = event.participants.find((p) => !p.isHome);
+          const hasMatchup = Boolean(home || away);
           const homeResult = home && event.results.find((r) => r.schoolId === home.schoolId);
           const awayResult = away && event.results.find((r) => r.schoolId === away.schoolId);
           const valueByFieldId = new Map(event.fieldValues.map((v) => [v.fieldId, v.value]));
@@ -174,34 +176,40 @@ async function EventsTable({
                   {showWatch && <StatusTag status={event.status} />}
                 </span>
               </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 font-extrabold hover:text-primary">
-                    <SchoolBadge
-                      size={36}
-                      logoUrl={home?.school.logoUrl}
-                      name={home?.school.name ?? "TBD"}
-                      color={home?.school.themeColor}
-                      secondaryColor={home?.school.themeColorSecondary}
-                    />
-                    {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
-                  </Link>
-                  {scoringType !== "NONE" && <span className="tabular-nums font-extrabold">{homeResult?.score ?? "—"}</span>}
+              {hasMatchup ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 font-extrabold hover:text-primary">
+                      <SchoolBadge
+                        size={36}
+                        logoUrl={home?.school.logoUrl}
+                        name={home?.school.name ?? "TBD"}
+                        color={home?.school.themeColor}
+                        secondaryColor={home?.school.themeColorSecondary}
+                      />
+                      {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
+                    </Link>
+                    {scoringType !== "NONE" && <span className="tabular-nums font-extrabold">{homeResult?.score ?? "—"}</span>}
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 font-extrabold hover:text-primary">
+                      <SchoolBadge
+                        size={36}
+                        logoUrl={away?.school.logoUrl}
+                        name={away?.school.name ?? "TBD"}
+                        color={away?.school.themeColor}
+                        secondaryColor={away?.school.themeColorSecondary}
+                      />
+                      {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
+                    </Link>
+                    {scoringType !== "NONE" && <span className="tabular-nums font-extrabold">{awayResult?.score ?? "—"}</span>}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 font-extrabold hover:text-primary">
-                    <SchoolBadge
-                      size={36}
-                      logoUrl={away?.school.logoUrl}
-                      name={away?.school.name ?? "TBD"}
-                      color={away?.school.themeColor}
-                      secondaryColor={away?.school.themeColorSecondary}
-                    />
-                    {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
-                  </Link>
-                  {scoringType !== "NONE" && <span className="tabular-nums font-extrabold">{awayResult?.score ?? "—"}</span>}
-                </div>
-              </div>
+              ) : (
+                <Link href={eventHref(event.slug)} className="font-extrabold hover:text-primary">
+                  {event.title ?? "Untitled session"}
+                </Link>
+              )}
               {usesSetScores && (
                 <p className="mt-2 text-xs text-muted">
                   Sets: {event.sets.length > 0 ? event.sets.map((s) => `${s.homeScore}-${s.awayScore}`).join(", ") : "—"}
@@ -275,6 +283,7 @@ async function EventsTable({
                   {group.events.map((event) => {
                     const home = event.participants.find((p) => p.isHome);
                     const away = event.participants.find((p) => !p.isHome);
+                    const hasMatchup = Boolean(home || away);
                     const homeResult = home && event.results.find((r) => r.schoolId === home.schoolId);
                     const awayResult = away && event.results.find((r) => r.schoolId === away.schoolId);
                     const valueByFieldId = new Map(event.fieldValues.map((v) => [v.fieldId, v.value]));
@@ -287,35 +296,45 @@ async function EventsTable({
                             </Link>
                           </td>
                         )}
-                        <td className="font-extrabold">
-                          <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 hover:text-primary">
-                            <SchoolBadge
-                              size={36}
-                              logoUrl={home?.school.logoUrl}
-                              name={home?.school.name ?? "TBD"}
-                              color={home?.school.themeColor}
-                              secondaryColor={home?.school.themeColorSecondary}
-                            />
-                            {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
-                          </Link>
-                        </td>
-                        {scoringType !== "NONE" && (
-                          <td className="text-center tabular-nums">{homeResult?.score ?? "—"}</td>
-                        )}
-                        <td className="font-extrabold">
-                          <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 hover:text-primary">
-                            <SchoolBadge
-                              size={36}
-                              logoUrl={away?.school.logoUrl}
-                              name={away?.school.name ?? "TBD"}
-                              color={away?.school.themeColor}
-                              secondaryColor={away?.school.themeColorSecondary}
-                            />
-                            {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
-                          </Link>
-                        </td>
-                        {scoringType !== "NONE" && (
-                          <td className="text-center tabular-nums">{awayResult?.score ?? "—"}</td>
+                        {hasMatchup ? (
+                          <>
+                            <td className="font-extrabold">
+                              <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 hover:text-primary">
+                                <SchoolBadge
+                                  size={36}
+                                  logoUrl={home?.school.logoUrl}
+                                  name={home?.school.name ?? "TBD"}
+                                  color={home?.school.themeColor}
+                                  secondaryColor={home?.school.themeColorSecondary}
+                                />
+                                {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
+                              </Link>
+                            </td>
+                            {scoringType !== "NONE" && (
+                              <td className="text-center tabular-nums">{homeResult?.score ?? "—"}</td>
+                            )}
+                            <td className="font-extrabold">
+                              <Link href={eventHref(event.slug)} className="inline-flex items-center gap-1 hover:text-primary">
+                                <SchoolBadge
+                                  size={36}
+                                  logoUrl={away?.school.logoUrl}
+                                  name={away?.school.name ?? "TBD"}
+                                  color={away?.school.themeColor}
+                                  secondaryColor={away?.school.themeColorSecondary}
+                                />
+                                {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
+                              </Link>
+                            </td>
+                            {scoringType !== "NONE" && (
+                              <td className="text-center tabular-nums">{awayResult?.score ?? "—"}</td>
+                            )}
+                          </>
+                        ) : (
+                          <td className="font-extrabold" colSpan={2}>
+                            <Link href={eventHref(event.slug)} className="hover:text-primary">
+                              {event.title ?? "Untitled session"}
+                            </Link>
+                          </td>
                         )}
                         {usesSetScores && (
                           <td className="whitespace-nowrap text-sm text-muted">

@@ -109,6 +109,7 @@ type EventRowProps = {
     date: Date;
     location: string | null;
     status: string;
+    title: string | null;
     tournament: { name: string; slug: string; activity: { name: string } };
     division: { name: string } | null;
     participants: { isHome: boolean; school: { name: string } }[];
@@ -121,7 +122,9 @@ type EventRowProps = {
 
 function EventRow({ event }: EventRowProps) {
   const matchup =
-    event.participants.length <= 2
+    event.participants.length === 0
+      ? event.title ?? "Untitled session"
+      : event.participants.length <= 2
       ? `${sideLabel(event.participants.find((p) => p.isHome), event.homeSourceOutcome, event.homeSourceEvent?.externalId)} vs ${sideLabel(
           event.participants.find((p) => !p.isHome),
           event.awaySourceOutcome,
