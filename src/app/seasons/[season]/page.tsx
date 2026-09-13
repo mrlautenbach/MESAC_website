@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { sideLabel } from "@/lib/eventDisplay";
+import { loadRoster } from "@/lib/tournamentRoster";
+import { SchoolBadge } from "@/components/SchoolBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +37,8 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
   if (!tournament) notFound();
 
   const now = new Date();
-  const [nextEvent, lastEvent] = await Promise.all([
+  const [roster, nextEvent, lastEvent] = await Promise.all([
+    loadRoster(tournament.id),
     prisma.event.findFirst({
       where: { tournamentId: tournament.id, status: { not: "COMPLETED" }, date: { gte: now } },
       orderBy: [{ order: { sort: "asc", nulls: "last" } }, { date: "asc" }],
@@ -90,6 +93,28 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
                 <p className="mt-3.5 text-sm text-muted">Results will appear here once play starts.</p>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {roster.length > 0 && (
+        <div className="border-b-2 border-divider bg-surface px-6 py-6 sm:px-10">
+          <div className="mx-auto max-w-5xl">
+            <h6 className="text-primary-dark">Competing</h6>
+            <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-3">
+              {roster.map((school) => (
+                <li key={school.id} className="flex items-center gap-2 text-sm font-semibold">
+                  <SchoolBadge
+                    logoUrl={school.logoUrl}
+                    name={school.name}
+                    color={school.themeColor}
+                    secondaryColor={school.themeColorSecondary}
+                    size={28}
+                  />
+                  {school.name}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}

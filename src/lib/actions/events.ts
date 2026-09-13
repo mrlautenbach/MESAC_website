@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { ensureInRoster } from "@/lib/tournamentRoster";
 import { requireAdmin, requireUser } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import {
@@ -79,6 +80,10 @@ export async function createEventAction(_prevState: ActionResult | null, formDat
       results: { create: schools.map((s) => ({ schoolId: s.id })) },
     },
   });
+
+  // Putting a school in a game is the clearest statement that it's taking
+  // part, so it wins over a roster that was ticked before the fixture existed.
+  await ensureInRoster(prisma, tournament.id, schools.map((s) => s.id));
 
   await recordAudit({
     actorId: admin.id,
@@ -543,6 +548,15 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
         }
       }
 
+      // Same rule as a hand-created game: anyone named in the file is taking
+      // part, so the roster follows the schedule rather than blocking it.
+      const importedSchoolIds = planned.flatMap((row) =>
+        [row.home, row.away]
+          .filter((side): side is Extract<typeof side, { kind: "school" }> => side?.kind === "school")
+          .map((side) => side.schoolId)
+      );
+      await ensureInRoster(tx, tournament.id, importedSchoolIds);
+
       return { createdIds, updatedIds, removedIds };
     },
     { timeout: 60_000 }
@@ -699,6 +713,8 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
               : { awaySourceEventId: null, awaySourceOutcome: null },
           }),
         ]);
+
+        if (side.target) await ensureInRoster(prisma, event.tournamentId, [side.target]);
 
         await recordAudit({
           actorId: user.id,

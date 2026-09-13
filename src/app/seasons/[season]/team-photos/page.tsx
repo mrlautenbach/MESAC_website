@@ -3,6 +3,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SchoolBadge } from "@/components/SchoolBadge";
+import { loadRoster } from "@/lib/tournamentRoster";
 
 export const dynamic = "force-dynamic";
 
@@ -17,22 +18,14 @@ export default async function TeamPhotosPage({ params }: { params: Promise<{ sea
   });
   if (!tournament) notFound();
 
-  // League members get a slot on every tournament by default (the per-slot
-  // "Fielding a team" toggle below narrows it). A guest school isn't part of
-  // the league, so it only earns a slot on the tournaments it actually plays
-  // in - otherwise every guest would appear on every activity's photo board.
-  const [members, guests, teamPhotos] = await Promise.all([
-    prisma.school.findMany({ where: { isLeagueMember: true }, orderBy: { name: "asc" } }),
-    prisma.school.findMany({
-      where: {
-        isLeagueMember: false,
-        participants: { some: { event: { tournamentId: tournament.id } } },
-      },
-      orderBy: { name: "asc" },
-    }),
+  // Who's in this tournament at all. The per-slot "Fielding a team" toggle
+  // below is the finer cut on top of this - the roster decides whether a
+  // school appears on this board, that decides whether it fields a Girls or
+  // Boys team.
+  const [schools, teamPhotos] = await Promise.all([
+    loadRoster(tournament.id),
     prisma.teamPhoto.findMany({ where: { tournamentId: tournament.id } }),
   ]);
-  const schools = [...members, ...guests].sort((a, b) => a.name.localeCompare(b.name));
 
   const slotByKey = new Map(teamPhotos.map((p) => [`${p.schoolId}:${p.divisionId ?? "none"}`, p]));
   const isEnabled = (schoolId: string, divisionId: string | null) =>

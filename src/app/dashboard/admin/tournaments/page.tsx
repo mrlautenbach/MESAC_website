@@ -7,8 +7,10 @@ import { ActivityForm } from "@/components/ActivityForm";
 import { SeasonEditionForm } from "@/components/SeasonEditionForm";
 import { ActivityFieldsManager } from "@/components/ActivityFieldsManager";
 import { DivisionsManager } from "@/components/DivisionsManager";
+import { TournamentSchoolsManager } from "@/components/TournamentSchoolsManager";
 import { DeleteActivityForm } from "@/components/DeleteActivityForm";
 import { EXPECTED_ROSTER } from "@/lib/expectedRoster";
+import { isParticipating } from "@/lib/tournamentRoster";
 
 const SCORING_LABELS: Record<string, string> = {
   WIN_LOSS: "win/loss results",
@@ -21,7 +23,7 @@ export default async function TournamentsAdminPage() {
   if (!user) redirect("/login");
   const isAdmin = user.role === "ADMIN";
 
-  const [seasons, schools] = await Promise.all([
+  const [seasons, schools, rosterRows] = await Promise.all([
     prisma.season.findMany({
       orderBy: { order: "asc" },
       include: {
@@ -41,7 +43,16 @@ export default async function TournamentsAdminPage() {
       },
     }),
     prisma.school.findMany({ orderBy: { name: "asc" } }),
+    prisma.tournamentSchool.findMany({ select: { tournamentId: true, schoolId: true, participating: true } }),
   ]);
+  // One query for every tournament's overrides, resolved per tournament below,
+  // rather than a roster query inside the activity loop.
+  const overridesByTournament = new Map<string, Map<string, boolean>>();
+  for (const row of rosterRows) {
+    const map = overridesByTournament.get(row.tournamentId) ?? new Map<string, boolean>();
+    map.set(row.schoolId, row.participating);
+    overridesByTournament.set(row.tournamentId, map);
+  }
   const activityCount = seasons.reduce((n, s) => n + s.activities.length, 0);
 
   return (
@@ -195,6 +206,27 @@ export default async function TournamentsAdminPage() {
                               }}
                             />
                           )}
+
+                          {current && (() => {
+                            const overrides = overridesByTournament.get(current.id) ?? new Map<string, boolean>();
+                            const options = schools.map((school) => ({
+                              id: school.id,
+                              name: school.name,
+                              isLeagueMember: school.isLeagueMember,
+                              participating: isParticipating(school, overrides),
+                            }));
+                            const inCount = options.filter((o) => o.participating).length;
+                            return (
+                              <details>
+                                <summary className="cursor-pointer text-xs font-semibold text-muted">
+                                  Participating schools ({inCount} of {options.length})
+                                </summary>
+                                <div className="mt-3">
+                                  <TournamentSchoolsManager tournamentId={current.id} schools={options} />
+                                </div>
+                              </details>
+                            );
+                          })()}
 
                           {current && (
                             <details>

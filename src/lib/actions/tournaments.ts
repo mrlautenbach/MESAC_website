@@ -116,3 +116,57 @@ export async function updateTournamentAction(_prevState: ActionResult | null, fo
   revalidatePath(`/tournaments/${existing.activity.slug}`);
   return { ok: true };
 }
+
+// The participation roster for one tournament. The form posts every school in
+// the system, with the participating ones checked, so this writes an explicit
+// row per school rather than diffing - after a save the roster is fully
+// pinned down and no longer shifts if a school's league membership changes
+// later.
+export async function syncTournamentSchoolsAction(
+  _prevState: ActionResult | null,
+  formData: FormData
+): Promise<ActionResult> {
+  const admin = await requireUser();
+  const tournamentId = String(formData.get("tournamentId") ?? "");
+  const offered = formData.getAll("schoolIds").map((v) => String(v));
+  const checked = new Set(formData.getAll("participatingSchoolIds").map((v) => String(v)));
+
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    include: { activity: { select: { slug: true } } },
+  });
+  if (!tournament) return { ok: false, error: "Tournament not found." };
+
+  // Guard against a stale form naming a school that has since been deleted.
+  const known = await prisma.school.findMany({
+    where: { id: { in: offered } },
+    select: { id: true, name: true },
+  });
+  if (known.length === 0) return { ok: false, error: "No schools to save." };
+
+  await prisma.$transaction(
+    known.map((school) =>
+      prisma.tournamentSchool.upsert({
+        where: { tournamentId_schoolId: { tournamentId, schoolId: school.id } },
+        create: { tournamentId, schoolId: school.id, participating: checked.has(school.id) },
+        update: { participating: checked.has(school.id) },
+      })
+    )
+  );
+
+  await recordAudit({
+    actorId: admin.id,
+    actorLabel: admin.name,
+    action: "TOURNAMENT_SCHOOLS_UPDATE",
+    entityType: "Tournament",
+    entityId: tournamentId,
+    summary: `${admin.name} set the participating schools for "${tournament.name}"`,
+    after: { participating: known.filter((s) => checked.has(s.id)).map((s) => s.name) },
+  });
+
+  revalidatePath(`/seasons/${tournament.slug}`);
+  revalidatePath(`/seasons/${tournament.slug}/team-photos`);
+  revalidatePath(`/tournaments/${tournament.activity.slug}`);
+  revalidatePath("/dashboard/admin/tournaments");
+  return { ok: true };
+}

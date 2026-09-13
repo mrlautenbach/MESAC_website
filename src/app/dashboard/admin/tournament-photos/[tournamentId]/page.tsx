@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { TeamPhotoSlot } from "@/components/TeamPhotoSlot";
 import { TeamPhotoGenderToggle } from "@/components/TeamPhotoGenderToggle";
+import { loadRoster } from "@/lib/tournamentRoster";
 
 export default async function TournamentPhotosAdminPage({
   params,
@@ -21,8 +22,11 @@ export default async function TournamentPhotosAdminPage({
   });
   if (!tournament) notFound();
 
+  // The tournament's roster, not every school in the system - a school that
+  // isn't taking part has no photo slot to manage. Change who's taking part
+  // under "Participating schools" on the tournaments page.
   const [schools, teamPhotos] = await Promise.all([
-    prisma.school.findMany({ orderBy: { name: "asc" } }),
+    loadRoster(tournamentId),
     prisma.teamPhoto.findMany({ where: { tournamentId } }),
   ]);
 
