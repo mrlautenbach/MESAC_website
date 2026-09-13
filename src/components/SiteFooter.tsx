@@ -33,7 +33,7 @@ export async function SiteFooter() {
       <div className="lattice-panel absolute inset-0 text-accent opacity-[.1]" />
       <h2 className="sr-only">Site footer</h2>
 
-      <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-12 sm:grid-cols-[1.2fr_0.8fr_1.5fr] sm:px-10">
+      <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-12 sm:grid-cols-[1fr_0.6fr_2.8fr] sm:px-10">
         <div>
           <Link href="/" className="flex items-center gap-2.5">
             <Image src="/mesac-logo.png" alt="" width={36} height={36} className="h-9 w-9 object-contain" />
