@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateTournament } from "@/lib/revalidate";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
@@ -73,9 +74,8 @@ export async function createTournamentAction(_prevState: ActionResult | null, fo
     after: parsed.data,
   });
 
-  revalidatePath(`/tournaments/${activity.slug}`);
+  revalidateTournament({ slug: tournament.slug, activitySlug: activity.slug });
   revalidatePath("/dashboard/admin/tournaments");
-  revalidatePath("/");
   return { ok: true };
 }
 
@@ -112,8 +112,7 @@ export async function updateTournamentAction(_prevState: ActionResult | null, fo
     after: parsed.data,
   });
 
-  revalidatePath(`/seasons/${existing.slug}`);
-  revalidatePath(`/tournaments/${existing.activity.slug}`);
+  revalidateTournament({ slug: existing.slug, activitySlug: existing.activity.slug });
   return { ok: true };
 }
 
@@ -164,9 +163,8 @@ export async function syncTournamentSchoolsAction(
     after: { participating: known.filter((s) => checked.has(s.id)).map((s) => s.name) },
   });
 
-  revalidatePath(`/seasons/${tournament.slug}`);
+  revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
   revalidatePath(`/seasons/${tournament.slug}/team-photos`);
-  revalidatePath(`/tournaments/${tournament.activity.slug}`);
   revalidatePath("/dashboard/admin/tournaments");
   return { ok: true };
 }

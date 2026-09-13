@@ -33,6 +33,7 @@ export async function createRecordAction(_prevState: ActionResult | null, formDa
   });
 
   revalidatePath("/records");
+  revalidatePath("/records/[year]", "page");
   revalidatePath("/dashboard/admin/records");
   return { ok: true };
 }
@@ -55,6 +56,7 @@ export async function deleteRecordAction(recordId: string): Promise<ActionResult
   });
 
   revalidatePath("/records");
+  revalidatePath("/records/[year]", "page");
   revalidatePath("/dashboard/admin/records");
   return { ok: true };
 }
@@ -102,6 +104,7 @@ export async function createHallOfFameAction(
   });
 
   revalidatePath("/records");
+  revalidatePath("/records/[year]", "page");
   revalidatePath("/dashboard/admin/records");
   return { ok: true };
 }
@@ -124,6 +127,7 @@ export async function deleteHallOfFameAction(entryId: string): Promise<ActionRes
   });
 
   revalidatePath("/records");
+  revalidatePath("/records/[year]", "page");
   revalidatePath("/dashboard/admin/records");
   return { ok: true };
 }
@@ -154,6 +158,7 @@ export async function updateSchoolYearResultsAction(
   });
 
   revalidatePath("/records");
+  revalidatePath("/records/[year]", "page");
   revalidatePath("/dashboard/admin/records");
   return { ok: true };
 }

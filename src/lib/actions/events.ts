@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateTournament } from "@/lib/revalidate";
 import { prisma } from "@/lib/prisma";
 import { ensureInRoster } from "@/lib/tournamentRoster";
 import { requireAdmin, requireUser } from "@/lib/session";
@@ -97,8 +98,7 @@ export async function createEventAction(_prevState: ActionResult | null, formDat
     after: { date: event.date, location: event.location, schoolIds: parsed.data.schoolIds },
   });
 
-  revalidatePath(`/seasons/${tournament.slug}`);
-  revalidatePath(`/tournaments/${tournament.activity.slug}`);
+  revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
   revalidatePath("/dashboard");
   return { ok: true };
 }
@@ -573,9 +573,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     after: { tournamentId: tournament.id, created: createdIds.length, updated: updatedIds.length, removed: removedIds.length },
   });
 
-  revalidatePath(`/seasons/${tournament.slug}`);
-  revalidatePath(`/tournaments/${tournament.activity.slug}`);
-  revalidatePath("/schedule");
+  revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
   revalidatePath("/dashboard");
   return { ok: true, created: createdIds.length, updated: updatedIds.length, removed: removedIds.length };
 }
@@ -874,13 +872,8 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
     });
   }
 
-  revalidatePath(`/seasons/${event.tournament.slug}`);
+  revalidateTournament({ slug: event.tournament.slug, activitySlug: event.tournament.activity.slug });
   revalidatePath(`/seasons/${event.tournament.slug}/events/${event.slug}`);
-  if (event.division) {
-    revalidatePath(`/seasons/${event.tournament.slug}/${event.division.slug}/schedule`);
-    revalidatePath(`/seasons/${event.tournament.slug}/${event.division.slug}/results`);
-  }
-  revalidatePath(`/tournaments/${event.tournament.activity.slug}`);
   revalidatePath("/dashboard");
   return { ok: true };
 }

@@ -18,6 +18,17 @@ function hasSessionCookie(request: NextRequest): boolean {
   return SESSION_COOKIE_NAMES.some((name) => request.cookies.has(name));
 }
 
+// Deliberate tradeoff, recorded here so it doesn't get re-litigated: a
+// per-request nonce means every page must be dynamically rendered. Next
+// bakes the nonce into the script tags at render time, so a statically
+// cached page would serve a stale nonce against a fresh CSP header and every
+// script would be blocked. That rules out static optimization, ISR and PPR
+// site-wide - see node_modules/next/dist/docs/01-app/02-guides/
+// content-security-policy.md ("Static vs Dynamic Rendering with CSP").
+// We keep the nonce: this is a low-traffic league site with an admin panel,
+// so strict XSS defense is worth more than cached HTML. Going the other way
+// would mean adopting Next's experimental `sri` hashing, or weakening
+// script-src to 'unsafe-inline', neither of which is a good trade here.
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   // script-src is nonce-based and strict (the meaningful XSS defense).
