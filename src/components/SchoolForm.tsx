@@ -166,8 +166,8 @@ export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
         </>
       )}
 
-      {state && !state.ok && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{state.error}</p>}
-      {state?.ok && <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-success">Saved!</p>}
+      {state && !state.ok && <p className="bg-red-50 px-3 py-2 text-sm text-danger">{state.error}</p>}
+      {state?.ok && <p className="bg-green-50 px-3 py-2 text-sm text-success">Saved!</p>}
 
       <button type="submit" disabled={pending} className="btn btn-primary">
         {pending ? "Saving…" : existing ? "Save changes" : "Add school"}

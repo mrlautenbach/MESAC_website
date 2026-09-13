@@ -46,7 +46,7 @@ function LoginForm() {
         </div>
 
         {state && !state.ok && (
-          <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">
+          <p role="alert" className="bg-red-50 px-3 py-2 text-sm text-danger">
             {state.error}
           </p>
         )}

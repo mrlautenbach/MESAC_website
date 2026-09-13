@@ -54,7 +54,7 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: P
   if (state?.ok) {
     const noun = season?.usesMeetResults ? "session" : "game";
     return (
-      <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-success">
+      <div className="bg-green-50 px-4 py-3 text-sm text-success">
         Imported {state.created} new {noun}
         {state.created === 1 ? "" : "s"}
         {state.updated > 0 && `, updated ${state.updated} existing ${noun}${state.updated === 1 ? "" : "s"}`}
@@ -215,7 +215,7 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: P
       </label>
 
       {state && !state.ok && (
-        <div role="alert" className="space-y-2 rounded-md bg-red-50 px-4 py-3 text-sm text-danger">
+        <div role="alert" className="space-y-2 bg-red-50 px-4 py-3 text-sm text-danger">
           <p className="font-semibold">{state.error}</p>
           {state.rowErrors && state.rowErrors.length > 0 && (
             <ul className="list-inside list-disc space-y-1">

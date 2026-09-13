@@ -25,7 +25,7 @@ export default async function SchoolsAdminPage() {
             <details key={school.id} className="card p-4">
               <summary className="flex cursor-pointer items-center gap-3 font-semibold">
                 {school.logoUrl && (
-                  <Image src={school.logoUrl} alt="" width={32} height={32} className="rounded" />
+                  <Image src={school.logoUrl} alt="" width={32} height={32} className="" />
                 )}
                 {school.name}
               </summary>

@@ -16,7 +16,7 @@ export function SchoolColorDot({
     return (
       <span
         aria-hidden
-        className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-black/10 align-middle ${className}`}
+        className={`inline-block h-2.5 w-2.5 shrink-0 border border-black/10 align-middle ${className}`}
         style={{ backgroundColor: color }}
       />
     );
@@ -24,7 +24,7 @@ export function SchoolColorDot({
   return (
     <span
       aria-hidden
-      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-black/10 align-middle ${className}`}
+      className={`inline-block h-2.5 w-2.5 shrink-0 border border-black/10 align-middle ${className}`}
       style={{ background: `linear-gradient(135deg, ${color} 50%, ${secondaryColor} 50%)` }}
     />
   );

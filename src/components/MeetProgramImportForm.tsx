@@ -53,7 +53,7 @@ export function MeetProgramImportForm({ tournamentId }: { tournamentId: string }
         </div>
 
         {state && !state.ok && (
-          <div role="alert" className="space-y-2 rounded-md bg-red-50 px-4 py-3 text-sm text-danger">
+          <div role="alert" className="space-y-2 bg-red-50 px-4 py-3 text-sm text-danger">
             <p className="font-semibold">{state.error}</p>
             {state.rowErrors && state.rowErrors.length > 0 && (
               <ul className="list-inside list-disc space-y-1">
@@ -67,7 +67,7 @@ export function MeetProgramImportForm({ tournamentId }: { tournamentId: string }
           </div>
         )}
         {state?.ok && (
-          <p role="status" className="rounded-md bg-green-50 px-3 py-2 text-sm text-success">
+          <p role="status" className="bg-green-50 px-3 py-2 text-sm text-success">
             Imported {state.imported} program entr{state.imported === 1 ? "y" : "ies"} across {state.sessions}{" "}
             session{state.sessions === 1 ? "" : "s"}!
           </p>

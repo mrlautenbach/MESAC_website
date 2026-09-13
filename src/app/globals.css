@@ -25,6 +25,10 @@
   --girls-tint: #f6dde6;
   --boys: #2a5a8a;
   --boys-tint: #dee8f4;
+  /* A real monospace, for the two places it carries meaning: CSV paste boxes
+     (columns have to line up) and generated temp passwords (l vs 1 vs I).
+     System stack - no extra font download for admin-only surfaces. */
+  --font-mesac-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 @theme inline {
@@ -47,11 +51,32 @@
   --color-boys: var(--boys);
   --color-boys-tint: var(--boys-tint);
   --font-sans: var(--font-archivo);
-  --font-mono: var(--font-archivo);
+  --font-serif: var(--font-newsreader);
+  --font-mono: var(--font-mesac-mono);
 }
 
-* {
-  border-radius: 0 !important;
+/* Flat, architectural: nothing on this site is rounded. Kept in `base` (not
+   as a global `!important`) so the reset is the default rather than a law -
+   an element that genuinely needs a radius can still take a `rounded-*`
+   utility, and one that's written stops silently doing nothing. */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-radius: 0;
+  }
+}
+
+/* Leaflet ships its stylesheet unlayered, so layered rules can't reach it -
+   zero its pills and popups here, at higher specificity, to keep the map in
+   the same flat language as the rest of the site. */
+.leaflet-bar,
+.leaflet-bar a:first-child,
+.leaflet-bar a:last-child,
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip,
+.leaflet-control-attribution {
+  border-radius: 0;
 }
 
 body {
@@ -139,6 +164,25 @@ h6 {
   }
   .btn-danger:hover {
     opacity: 0.9;
+  }
+
+  .btn-accent {
+    background: var(--accent);
+    color: var(--primary-deep);
+  }
+  .btn-accent:hover {
+    background: color-mix(in srgb, var(--accent) 84%, var(--primary-deep));
+  }
+
+  /* Editorial voice for the one kind of text on this site that's actually
+     written rather than tabulated - game recaps. Newsreader against
+     Archivo's industrial grotesque, at a reading measure. */
+  .recap {
+    font-family: var(--font-newsreader), Georgia, serif;
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    max-width: 62ch;
+    text-wrap: pretty;
   }
 
   .btn-block {

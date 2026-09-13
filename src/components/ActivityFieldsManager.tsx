@@ -34,7 +34,7 @@ function FieldRow({ field }: { field: Field }) {
 
   return (
     <li className="flex flex-wrap items-center gap-2 border-b border-border pb-2 text-sm last:border-0">
-      <code className="rounded bg-surface px-1.5 py-0.5 text-xs text-muted">{field.key}</code>
+      <code className="bg-surface px-1.5 py-0.5 text-xs text-muted">{field.key}</code>
       <form action={formAction} className="flex items-center gap-2">
         <input type="hidden" name="fieldId" value={field.id} />
         <input name="label" defaultValue={field.label} className="field-input w-40 py-1 text-sm" />

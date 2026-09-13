@@ -23,7 +23,7 @@ export function EventForm({ seasons, schools, defaultTournamentId }: Props) {
   const divisions = seasons.find((s) => s.id === tournamentId)?.divisions ?? [];
 
   if (state?.ok) {
-    return <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-success">Event created!</p>;
+    return <p className="bg-green-50 px-3 py-2 text-sm text-success">Event created!</p>;
   }
 
   return (
@@ -110,7 +110,7 @@ export function EventForm({ seasons, schools, defaultTournamentId }: Props) {
       </div>
 
       {state && !state.ok && (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">
+        <p role="alert" className="bg-red-50 px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}

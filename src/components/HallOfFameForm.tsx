@@ -38,8 +38,8 @@ export function HallOfFameForm({ schools }: { schools: { id: string; name: strin
         <input name="photo" type="file" accept="image/*" className="field-input" />
       </div>
 
-      {state && !state.ok && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{state.error}</p>}
-      {state?.ok && <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-success">Added!</p>}
+      {state && !state.ok && <p className="bg-red-50 px-3 py-2 text-sm text-danger">{state.error}</p>}
+      {state?.ok && <p className="bg-green-50 px-3 py-2 text-sm text-success">Added!</p>}
 
       <button type="submit" disabled={pending} className="btn btn-primary">
         {pending ? "Saving…" : "Add to Hall of Fame"}

@@ -29,6 +29,7 @@ export function PhotoSlider({ photos }: { photos: SliderPhoto[] }) {
         src={photo.url}
         alt={photo.altText ?? ""}
         fill
+        sizes="100vw"
         className="object-cover grayscale contrast-[1.08]"
       />
       {photos.length > 1 && (
@@ -37,7 +38,7 @@ export function PhotoSlider({ photos }: { photos: SliderPhoto[] }) {
             type="button"
             aria-label="Previous photo"
             onClick={() => setIndex((i) => (i - 1 + photos.length) % photos.length)}
-            className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-lg text-white hover:bg-black/60"
+            className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center bg-black/40 text-lg text-white hover:bg-black/60"
           >
             &lsaquo;
           </button>
@@ -45,7 +46,7 @@ export function PhotoSlider({ photos }: { photos: SliderPhoto[] }) {
             type="button"
             aria-label="Next photo"
             onClick={() => setIndex((i) => (i + 1) % photos.length)}
-            className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-lg text-white hover:bg-black/60"
+            className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center bg-black/40 text-lg text-white hover:bg-black/60"
           >
             &rsaquo;
           </button>
@@ -56,7 +57,7 @@ export function PhotoSlider({ photos }: { photos: SliderPhoto[] }) {
                 type="button"
                 aria-label={`Show photo ${i + 1}`}
                 onClick={() => setIndex(i)}
-                className={`h-1.5 w-1.5 rounded-full ${i === index ? "bg-white" : "bg-white/40"}`}
+                className={`h-1.5 w-1.5 ${i === index ? "bg-white" : "bg-white/40"}`}
               />
             ))}
           </div>

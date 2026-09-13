@@ -42,22 +42,29 @@ export default async function SchedulePage() {
 
   const currentTournamentIds = seasons.flatMap((s) => s.activities.flatMap((a) => a.tournaments.map((t) => t.id)));
 
-  const upcoming = await prisma.event.findMany({
-    where: { tournamentId: { in: currentTournamentIds }, date: { gte: today }, status: { not: "CANCELLED" } },
-    orderBy: [{ order: { sort: "asc", nulls: "last" } }, { date: "asc" }],
-    include: {
-      participants: { include: { school: true } },
-      division: true,
-      homeSourceEvent: { select: { externalId: true } },
-      awaySourceEvent: { select: { externalId: true } },
-    },
-  });
+  // One bounded query per tournament rather than one unbounded query over all
+  // of them: this page only ever shows PREVIEW_COUNT rows per activity, and a
+  // single global `take` would let one busy tournament's events crowd every
+  // other tournament out of the result set entirely.
+  const previews = await Promise.all(
+    currentTournamentIds.map((tournamentId) =>
+      prisma.event.findMany({
+        where: { tournamentId, date: { gte: today }, status: { not: "CANCELLED" } },
+        orderBy: [{ order: { sort: "asc", nulls: "last" } }, { date: "asc" }],
+        take: PREVIEW_COUNT,
+        include: {
+          participants: { include: { school: true } },
+          division: true,
+          homeSourceEvent: { select: { externalId: true } },
+          awaySourceEvent: { select: { externalId: true } },
+        },
+      })
+    )
+  );
 
-  const eventsByTournamentId = new Map<string, typeof upcoming>();
-  for (const event of upcoming) {
-    const list = eventsByTournamentId.get(event.tournamentId) ?? [];
-    list.push(event);
-    eventsByTournamentId.set(event.tournamentId, list);
+  const eventsByTournamentId = new Map<string, (typeof previews)[number]>();
+  for (const events of previews) {
+    if (events.length > 0) eventsByTournamentId.set(events[0].tournamentId, events);
   }
 
   return (

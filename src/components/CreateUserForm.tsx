@@ -44,7 +44,7 @@ export function CreateUserForm({ schools }: { schools: { id: string; name: strin
           </div>
         )}
 
-        {state && !state.ok && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">{state.error}</p>}
+        {state && !state.ok && <p className="bg-red-50 px-3 py-2 text-sm text-danger">{state.error}</p>}
 
         <button type="submit" disabled={pending} className="btn btn-primary">
           {pending ? "Creating…" : "Create account"}
@@ -52,10 +52,10 @@ export function CreateUserForm({ schools }: { schools: { id: string; name: strin
       </form>
 
       {state?.ok && state.tempPassword && (
-        <div className="max-w-md rounded-md bg-green-50 px-3 py-3 text-sm text-success">
+        <div className="max-w-md bg-green-50 px-3 py-3 text-sm text-success">
           <p className="font-semibold">Account created.</p>
           <p className="mt-1">
-            Temporary password: <code className="rounded bg-white px-2 py-1 font-mono text-foreground">{state.tempPassword}</code>
+            Temporary password: <code className="bg-white px-2 py-1 font-mono text-foreground">{state.tempPassword}</code>
           </p>
           <p className="mt-1 text-xs">
             Share this with the school directly (phone or in person, not email if possible). They&apos;ll be asked to set

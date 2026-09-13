@@ -63,7 +63,7 @@ export function PhotoUploader({ eventId }: { eventId: string }) {
           setDragActive(false);
           addFiles(e.dataTransfer.files);
         }}
-        className={`rounded-lg border-2 border-dashed p-6 text-center ${
+        className={`border-2 border-dashed p-6 text-center ${
           dragActive ? "border-primary bg-primary/5" : "border-border"
         }`}
       >
@@ -94,7 +94,7 @@ export function PhotoUploader({ eventId }: { eventId: string }) {
                   type="button"
                   onClick={() => removeAt(i)}
                   aria-label="Remove photo"
-                  className="absolute right-1 top-1 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white"
+                  className="absolute right-1 top-1 bg-black/60 px-2 py-0.5 text-xs text-white"
                 >
                   ✕
                 </button>
@@ -104,14 +104,14 @@ export function PhotoUploader({ eventId }: { eventId: string }) {
                 name="captions"
                 placeholder="Caption (optional), e.g. &quot;Varsity team after the win&quot;"
                 maxLength={300}
-                className="field-input rounded-none border-0 border-t border-border text-sm"
+                className="field-input border-0 border-t border-border text-sm"
               />
               <input
                 type="text"
                 name="altTexts"
                 placeholder="Photo description for accessibility (optional)"
                 maxLength={300}
-                className="field-input rounded-none border-0 border-t border-border text-xs"
+                className="field-input border-0 border-t border-border text-xs"
               />
             </div>
           ))}
@@ -119,12 +119,12 @@ export function PhotoUploader({ eventId }: { eventId: string }) {
       )}
 
       {result && !result.ok && (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">
+        <p role="alert" className="bg-red-50 px-3 py-2 text-sm text-danger">
           {result.error}
         </p>
       )}
       {result?.ok && (
-        <p role="status" className="rounded-md bg-green-50 px-3 py-2 text-sm text-success">
+        <p role="status" className="bg-green-50 px-3 py-2 text-sm text-success">
           Photos uploaded!
         </p>
       )}

@@ -30,7 +30,7 @@ export function SchoolBadge({
         width={size}
         height={size}
         style={{ width: size, height: size }}
-        className={`shrink-0 rounded-full border border-black/10 object-contain align-middle ${className}`}
+        className={`shrink-0 border border-black/10 object-contain align-middle ${className}`}
       />
     );
   }

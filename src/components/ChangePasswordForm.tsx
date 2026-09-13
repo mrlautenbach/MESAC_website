@@ -8,7 +8,7 @@ export function ChangePasswordForm() {
 
   if (state?.ok) {
     return (
-      <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-success">
+      <p className="bg-green-50 px-3 py-2 text-sm text-success">
         Password updated. Please <a href="/login" className="underline">log in again</a> with your new password.
       </p>
     );
@@ -45,7 +45,7 @@ export function ChangePasswordForm() {
         <p className="mt-1 text-xs text-muted">At least 10 characters.</p>
       </div>
       {state && !state.ok && (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">
+        <p role="alert" className="bg-red-50 px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}

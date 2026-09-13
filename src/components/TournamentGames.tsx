@@ -400,7 +400,7 @@ async function WinLossStandings({
   activity: Activity;
   colorBySchoolId: Map<string, { color: string | null; secondaryColor: string | null; logoUrl: string | null }>;
 }) {
-  const standings = await computeStandings(tournamentId, divisionId);
+  const standings = await computeStandings(tournamentId, activity, divisionId);
   return (
     <section>
       <h4 className="mb-3">Standings</h4>

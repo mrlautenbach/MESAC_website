@@ -105,14 +105,20 @@ export default async function TeamPhotosPage({ params }: { params: Promise<{ sea
                         <figure key={school.id} className="border border-divider">
                           <div className="relative flex h-[160px] items-center justify-center bg-foreground/5">
                             {photoUrl ? (
-                              <Image src={photoUrl} alt={school.name} fill className="object-cover" />
+                              <Image
+                                src={photoUrl}
+                                alt={school.name}
+                                fill
+                                sizes="(max-width: 640px) 50vw, 33vw"
+                                className="object-cover"
+                              />
                             ) : (
                               <span className="px-4 text-center text-[11px] tracking-[0.1em] text-muted">
                                 PHOTO COMING SOON
                               </span>
                             )}
                             {school.logoUrl && (
-                              <div className="absolute left-2 top-2 rounded-full bg-background/90 p-1 shadow">
+                              <div className="absolute left-2 top-2 bg-background/90 p-1 shadow">
                                 <SchoolBadge logoUrl={school.logoUrl} name={school.name} size={28} />
                               </div>
                             )}

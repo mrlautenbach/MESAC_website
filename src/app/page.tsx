@@ -13,10 +13,22 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const now = new Date();
 
-  const [tournamentCount, schools, currentTournaments, seasons] = await Promise.all([
+  // One wave, not two - nothing in the second half depended on the first, so
+  // splitting them only doubled the round-trip latency of the busiest page.
+  const [
+    tournamentCount,
+    schools,
+    currentTournaments,
+    seasons,
+    recentResults,
+    upcomingTournaments,
+    featuredPhotos,
+    recentPhotos,
+    recentRecap,
+  ] = await Promise.all([
     prisma.tournament.count(),
     prisma.school.findMany(),
-    prisma.tournament.findMany({ where: { isCurrent: true }, include: { activity: true } }),
+    prisma.tournament.findMany({ where: { isCurrent: true }, select: { name: true } }),
     prisma.season.findMany({
       orderBy: { order: "asc" },
       include: {
@@ -28,12 +40,6 @@ export default async function HomePage() {
         },
       },
     }),
-  ]);
-  const countries = new Set(schools.map((s) => s.city?.split(",").pop()?.trim()).filter(Boolean)).size;
-  const currentTerm = currentTournaments[0]?.name ?? "this term";
-  const shuffledSchools = dailyShuffle(schools);
-
-  const [recentResults, upcomingTournaments, featuredPhotos, recentPhotos, recentRecap] = await Promise.all([
     // Site-wide, not scoped to isCurrent tournaments - isCurrent only picks
     // which edition an activity page defaults to, and can legitimately be
     // wrong or unset for a while, which would otherwise make this look
@@ -67,6 +73,10 @@ export default async function HomePage() {
       include: { tournament: { include: { activity: true } } },
     }),
   ]);
+
+  const countries = new Set(schools.map((s) => s.city?.split(",").pop()?.trim()).filter(Boolean)).size;
+  const currentTerm = currentTournaments[0]?.name ?? "this term";
+  const shuffledSchools = dailyShuffle(schools);
 
   // Just the activities that actually exist - no "coming soon" placeholders
   // for a planned-but-not-yet-created sport, since the roster-matching
@@ -112,7 +122,7 @@ export default async function HomePage() {
             </div>
             <p className="mt-4 max-w-[46ch] text-base">MESAC is what our student-athletes plan their year around.</p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/tournaments" className="btn" style={{ background: "var(--accent)", color: "var(--primary-deep)" }}>
+              <Link href="/tournaments" className="btn btn-accent">
                 Season calendar
               </Link>
             </div>
@@ -249,7 +259,7 @@ export default async function HomePage() {
           {recentRecap ? (
             <>
               <h4 className="mb-1.5 mt-2.5">{recentRecap.tournament.activity.name}</h4>
-              <p className="text-sm text-muted">{recentRecap.recap}</p>
+              <p className="recap">{recentRecap.recap}</p>
             </>
           ) : (
             <p className="mt-2.5 text-sm text-muted">Recaps from recent games will show up here.</p>

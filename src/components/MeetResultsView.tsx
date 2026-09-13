@@ -37,7 +37,7 @@ export function MeetResultsView({ groups }: { groups: MeetResultGroup[] }) {
   return (
     <div className="space-y-6">
       {hasPrelim && hasFinal && (
-        <div className="inline-flex rounded-md border border-border">
+        <div className="inline-flex border border-border">
           <button
             type="button"
             onClick={() => setRound("prelim")}

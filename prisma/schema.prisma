@@ -334,6 +334,16 @@ model Event {
   @@unique([tournamentId, slug])
   @@unique([tournamentId, externalId])
   @@index([tournamentId])
+  // The sorts the public pages actually run: a tournament's schedule/results
+  // by date, the home page's completed-results ticker, and the dashboard's
+  // league-wide date ordering.
+  @@index([tournamentId, date])
+  @@index([status, date])
+  @@index([date])
+  // Playoff placeholder resolution looks events up by these on every
+  // imported row; without an index each lookup is a sequential scan.
+  @@index([homeSourceEventId])
+  @@index([awaySourceEventId])
 }
 
 // One row per set played in a volleyball-style (Activity.usesSetScores)
@@ -512,6 +522,7 @@ model Photo {
   featuredOnHome Boolean @default(false)
 
   @@index([eventId])
+  @@index([featuredOnHome, createdAt])
 }
 
 // A standing league record (e.g. swimming/track marks) - admin-entered,

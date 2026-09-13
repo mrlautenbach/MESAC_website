@@ -6,6 +6,26 @@ import { getCurrentUser } from "@/lib/session";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { sideLabel } from "@/lib/eventDisplay";
 
+const PAST_LIMIT = 20;
+
+// Exactly the fields EventRow renders - the previous `include`s pulled whole
+// School, Tournament, Activity and Division rows for a one-line summary.
+const EVENT_ROW = {
+  id: true,
+  slug: true,
+  date: true,
+  location: true,
+  status: true,
+  title: true,
+  homeSourceOutcome: true,
+  awaySourceOutcome: true,
+  homeSourceEvent: { select: { externalId: true } },
+  awaySourceEvent: { select: { externalId: true } },
+  division: { select: { name: true } },
+  tournament: { select: { name: true, slug: true, activity: { select: { name: true } } } },
+  participants: { select: { isHome: true, school: { select: { name: true } } } },
+} as const;
+
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -23,20 +43,23 @@ export default async function DashboardPage() {
   }
 
   const now = new Date();
-  const events = await prisma.event.findMany({
-    where: user.role === "ADMIN" ? {} : { participants: { some: { schoolId: user.schoolId ?? "" } } },
-    orderBy: { date: "asc" },
-    include: {
-      participants: { include: { school: true } },
-      tournament: { include: { activity: true } },
-      division: true,
-      homeSourceEvent: { select: { externalId: true } },
-      awaySourceEvent: { select: { externalId: true } },
-    },
-  });
-
-  const upcoming = events.filter((e) => e.date >= now);
-  const past = events.filter((e) => e.date < now).reverse();
+  const scope = user.role === "ADMIN" ? {} : { participants: { some: { schoolId: user.schoolId ?? "" } } };
+  // Split by date in the query rather than loading every event ever played
+  // and filtering in memory - for an admin the unscoped version grows with
+  // the whole league's history to render, at most, twenty past rows.
+  const [upcoming, past] = await Promise.all([
+    prisma.event.findMany({
+      where: { ...scope, date: { gte: now } },
+      orderBy: { date: "asc" },
+      select: EVENT_ROW,
+    }),
+    prisma.event.findMany({
+      where: { ...scope, date: { lt: now } },
+      orderBy: { date: "desc" },
+      take: PAST_LIMIT,
+      select: EVENT_ROW,
+    }),
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 space-y-8">
@@ -92,7 +115,7 @@ export default async function DashboardPage() {
           <p className="text-muted">No past events yet.</p>
         ) : (
           <ul className="space-y-2">
-            {past.slice(0, 20).map((event) => (
+            {past.map((event) => (
               <EventRow key={event.id} event={event} />
             ))}
           </ul>

@@ -218,12 +218,12 @@ export function EventEditForm({
       </div>
 
       {state && !state.ok && (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">
+        <p role="alert" className="bg-red-50 px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}
       {state?.ok && (
-        <p role="status" className="rounded-md bg-green-50 px-3 py-2 text-sm text-success">
+        <p role="status" className="bg-green-50 px-3 py-2 text-sm text-success">
           Saved!
         </p>
       )}

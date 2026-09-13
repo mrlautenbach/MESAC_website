@@ -54,7 +54,7 @@ export default async function TournamentsIndexPage() {
                 {Array.from(groups.entries()).map(([sport, group]) => (
                   <div key={sport} className="border-b border-divider py-2">
                     <div className="grid grid-cols-1 items-center gap-x-6 gap-y-2 sm:grid-cols-[250px_1fr]">
-                      <h6 className="flex items-center gap-1.5 text-primary-dark" style={{ fontSize: 18, lineHeight: "20px" }}>
+                      <h6 className="flex items-center gap-1.5 text-[18px] leading-5 text-primary-dark">
                         <SportIcon sport={sport} size={20} />
                         {sport}
                       </h6>

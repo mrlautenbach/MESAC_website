@@ -56,7 +56,7 @@ export function TeamPhotoSlot({
 
       {photoUrl && (
         <div className="relative h-24 w-full overflow-hidden border border-divider bg-foreground/5">
-          <Image src={photoUrl} alt={schoolName} fill className="object-cover" />
+          <Image src={photoUrl} alt={schoolName} fill sizes="(max-width: 640px) 100vw, 320px" className="object-cover" />
         </div>
       )}
 

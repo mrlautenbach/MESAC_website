@@ -32,7 +32,7 @@ export function SeasonEditionForm({
       {existing && <input type="hidden" name="tournamentId" value={existing.id} />}
 
       {!existing && !isFirstEdition && (
-        <p className="rounded-md bg-blue-50 px-3 py-2 text-sm text-primary">
+        <p className="bg-blue-50 px-3 py-2 text-sm text-primary">
           Starting a new tournament archives the current one. Its schedule, results, and photos stay exactly as
           they are, just no longer shown as the active tournament.
         </p>
@@ -104,11 +104,11 @@ export function SeasonEditionForm({
       </div>
 
       {state && !state.ok && (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-danger">
+        <p role="alert" className="bg-red-50 px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}
-      {state?.ok && <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-success">Saved!</p>}
+      {state?.ok && <p className="bg-green-50 px-3 py-2 text-sm text-success">Saved!</p>}
 
       <button type="submit" disabled={pending} className="btn btn-primary">
         {pending ? "Saving…" : existing ? "Save changes" : "Start this tournament"}

@@ -72,13 +72,13 @@ export function UserRow({ user }: Props) {
       )}
       {resetState && !resetState.ok && <p className="mt-2 text-sm text-danger">{resetState.error}</p>}
       {resetState?.ok && (
-        <div className="mt-2 rounded-md bg-green-50 px-3 py-2 text-sm text-success">
+        <div className="mt-2 bg-green-50 px-3 py-2 text-sm text-success">
           Password reset.
           {resetState.tempPassword && (
             <>
               {" "}
               New temporary password:{" "}
-              <code className="rounded bg-white px-2 py-1 font-mono text-foreground">{resetState.tempPassword}</code>
+              <code className="bg-white px-2 py-1 font-mono text-foreground">{resetState.tempPassword}</code>
             </>
           )}{" "}
           Share it with them directly. It won&apos;t be shown again.

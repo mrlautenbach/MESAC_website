@@ -29,14 +29,22 @@ const FORM_LETTER: Record<string, "W" | "L" | "D"> = { WIN: "W", LOSS: "L", DRAW
 // no cached/stored standings row to go stale) so they're accurate the moment
 // a result is saved, with no extra step for editors. `divisionId` narrows to
 // one Girls/Boys division within the tournament when the activity has them.
-export async function computeStandings(tournamentId: string, divisionId?: string | null): Promise<StandingsRow[]> {
-  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId }, include: { activity: true } });
-  if (!tournament) return [];
-
+export async function computeStandings(
+  tournamentId: string,
+  // The caller already holds the tournament's Activity - taking the three
+  // point values as an argument saves re-fetching the tournament and its
+  // activity on every results-page render just to read them.
+  scoring: { winPoints: number; drawPoints: number; lossPoints: number },
+  divisionId?: string | null
+): Promise<StandingsRow[]> {
   const events = await prisma.event.findMany({
     where: eventWhere(tournamentId, divisionId),
     orderBy: { date: "asc" },
-    include: { results: { include: { school: true } }, participants: true, sets: true },
+    select: {
+      results: { select: { schoolId: true, score: true, outcome: true, school: { select: { name: true, logoUrl: true } } } },
+      participants: { select: { schoolId: true, isHome: true } },
+      sets: { select: { homeScore: true, awayScore: true } },
+    },
   });
 
   const table = new Map<string, StandingsRow>();
@@ -84,13 +92,13 @@ export async function computeStandings(tournamentId: string, divisionId?: string
 
       if (result.outcome === "WIN") {
         row.wins += 1;
-        row.points += tournament.activity.winPoints;
+        row.points += scoring.winPoints;
       } else if (result.outcome === "DRAW") {
         row.draws += 1;
-        row.points += tournament.activity.drawPoints;
+        row.points += scoring.drawPoints;
       } else if (result.outcome === "LOSS") {
         row.losses += 1;
-        row.points += tournament.activity.lossPoints;
+        row.points += scoring.lossPoints;
       }
 
       const letter = FORM_LETTER[result.outcome as string];
