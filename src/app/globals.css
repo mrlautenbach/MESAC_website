@@ -278,12 +278,133 @@ h6 {
     background: color-mix(in srgb, var(--foreground) 4%, transparent);
   }
 
+  /* ── Event rows ──────────────────────────────────────────────────────
+     One markup for both breakpoints, instead of rendering every row twice
+     and hiding one with CSS. Below sm each row is a card: the school/score
+     cells fall into a 1fr|auto grid (school left, score right) and the
+     quieter fields collapse into one wrapping meta line. At sm+ the same
+     cells become a subgrid row of the shared track list, so every row
+     aligns under one header exactly as the old table did.
+
+     `.emeta` is the hinge: a real grid item on mobile (so its children can
+     sit on one wrapping line) and `display: contents` at sm+ (so those same
+     children become direct cells of the subgrid row). */
+  .erows {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  /* At sm+ the row grid can be wider than the viewport once an activity has
+     sets plus custom fields - the same case the old table handled with an
+     overflow wrapper. Below sm the rows are cards and must never scroll
+     sideways. */
+  .erows-scroll {
+    overflow-x: visible;
+  }
+  .erow,
+  .erow-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.35rem 0.75rem;
+  }
+  .erow {
+    border: 1px solid var(--border);
+    background: var(--card);
+    padding: 0.75rem;
+  }
+  .erow-head {
+    display: none;
+  }
+  .espan {
+    grid-column: 1 / -1;
+  }
+  .emeta {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.85rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .elabel {
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 0.625rem;
+    margin-right: 0.3rem;
+    opacity: 0.75;
+  }
+
+  @media (min-width: 640px) {
+    .erows-scroll {
+      overflow-x: auto;
+    }
+    .erows {
+      grid-template-columns: var(--erow-cols);
+      gap: 0;
+      min-width: min-content;
+    }
+    .erow,
+    .erow-head {
+      grid-column: 1 / -1;
+      grid-template-columns: subgrid;
+      gap: 0;
+      border: 0;
+      background: none;
+      padding: 0;
+    }
+    .erow-head {
+      display: grid;
+      border-bottom: 2px solid var(--divider);
+    }
+    .erow {
+      border-bottom: 1px solid var(--divider);
+    }
+    .erow:hover {
+      background: color-mix(in srgb, var(--foreground) 4%, transparent);
+    }
+    .erow > *,
+    .erow-head > *,
+    .emeta > * {
+      padding: 0.5rem;
+      font-size: 0.875rem;
+    }
+    .erow-head > * {
+      font-size: 0.6875rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+      text-align: left;
+    }
+    .espan {
+      grid-column: auto;
+    }
+    .emeta {
+      display: contents;
+    }
+    .elabel {
+      display: none;
+    }
+  }
+
   .mnav {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.875rem 2rem;
+    /* Wraps rather than overflowing: on a 375px phone the wordmark, three
+       nav links and the login button don't fit on one line, and without
+       this the whole page scrolled ~100px sideways. */
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding: 0.875rem 1rem;
     border-bottom: 2px solid var(--divider);
+  }
+  @media (min-width: 640px) {
+    .mnav {
+      padding: 0.875rem 2rem;
+    }
   }
   .mnav a {
     color: inherit;
