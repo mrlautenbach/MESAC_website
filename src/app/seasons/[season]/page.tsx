@@ -101,7 +101,7 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
         <div className="border-b-2 border-divider bg-surface px-6 py-6 sm:px-10">
           <div className="mx-auto max-w-5xl">
             <h6 className="text-primary-dark">Competing</h6>
-            <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-3">
+            <ul className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
               {roster.map((school) => (
                 <li key={school.id} className="flex items-center gap-2 text-sm font-semibold">
                   <SchoolBadge
@@ -125,7 +125,7 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
             {showOverall && (
               <section>
                 <h4 className="mb-3">Overall</h4>
-                <TournamentSubNav tournamentSlug={tournament.slug} />
+                <TournamentSubNav tournamentSlug={tournament.slug} liveResultsUrl={tournament.liveResultsUrl} />
               </section>
             )}
             {tournament.divisions.map((division) => (
@@ -135,12 +135,13 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
                   tournamentSlug={tournament.slug}
                   divisionSlug={division.slug}
                   showWatchAndPhotos={!showOverall}
+                  liveResultsUrl={tournament.liveResultsUrl}
                 />
               </section>
             ))}
           </div>
         ) : (
-          <TournamentSubNav tournamentSlug={tournament.slug} />
+          <TournamentSubNav tournamentSlug={tournament.slug} liveResultsUrl={tournament.liveResultsUrl} />
         )}
       </div>
     </div>

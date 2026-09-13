@@ -6,6 +6,7 @@ export function TournamentSubNav({
   divisionSlug,
   active,
   showWatchAndPhotos = true,
+  liveResultsUrl,
 }: {
   tournamentSlug: string;
   divisionSlug?: string | null;
@@ -15,6 +16,9 @@ export function TournamentSubNav({
   // Overall section alongside per-division ones, that page carries these
   // links so they don't repeat under every division.
   showWatchAndPhotos?: boolean;
+  // External live-timing feed for the whole tournament (e.g. a swim/track
+  // meet) - only set on some tournaments, so omitted entirely when absent.
+  liveResultsUrl?: string | null;
 }) {
   const base = divisionSlug ? `/seasons/${tournamentSlug}/${divisionSlug}` : `/seasons/${tournamentSlug}`;
   return (
@@ -37,6 +41,17 @@ export function TournamentSubNav({
           <Link href={`/seasons/${tournamentSlug}/team-photos`} className="btn btn-secondary">
             Team photos
           </Link>
+          {liveResultsUrl && (
+            <a
+              href={liveResultsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary inline-flex items-center gap-1"
+            >
+              <LiveIcon />
+              Live results
+            </a>
+          )}
         </>
       )}
     </div>

@@ -69,7 +69,7 @@ export async function SiteFooter() {
               on a white chip, the same treatment the host school gets in
               SeasonHero, since school marks are drawn for light grounds and
               would otherwise disappear into the navy. */}
-          <ul className="space-y-2 text-[13px] text-background/70">
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px] text-background/70">
             {schools.map((school) => (
               <li key={school.id} className="flex items-center gap-2.5">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden border border-accent/30 bg-white p-0.5">

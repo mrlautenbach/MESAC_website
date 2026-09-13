@@ -171,6 +171,13 @@ export const tournamentInputSchema = z.object({
   // Explicit admin toggle for the public "Archived" label - not derived
   // from isCurrent or from today's date vs. the tournament's dates.
   archived: z.boolean(),
+  liveResultsUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .refine((v) => v === "" || /^https?:\/\//i.test(v), "Live results link must start with http:// or https://")
+    .optional()
+    .or(z.literal("")),
 });
 
 export const streamUrlSchema = z

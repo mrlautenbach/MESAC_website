@@ -10,6 +10,7 @@ type ExistingSeason = {
   endDate: string; // yyyy-MM-dd
   hostSchoolId: string | null;
   archived: boolean;
+  liveResultsUrl: string | null;
 };
 
 export function SeasonEditionForm({
@@ -100,6 +101,24 @@ export function SeasonEditionForm({
         <p className="mt-1 text-xs text-muted">
           Shows an &quot;Archived&quot; tag on this tournament&apos;s public pages. Off by default: a tournament
           isn&apos;t archived just because a newer one exists.
+        </p>
+      </div>
+
+      <div>
+        <label htmlFor="liveResultsUrl" className="field-label">
+          Live results link (optional)
+        </label>
+        <input
+          id="liveResultsUrl"
+          name="liveResultsUrl"
+          type="url"
+          placeholder="https://results.example.com/meet-123"
+          defaultValue={existing?.liveResultsUrl ?? ""}
+          className="field-input"
+        />
+        <p className="mt-1 text-xs text-muted">
+          For meets with an external live-timing feed. Shows a &quot;Live results&quot; link on the tournament
+          page when set.
         </p>
       </div>
 

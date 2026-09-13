@@ -24,6 +24,7 @@ export async function createTournamentAction(_prevState: ActionResult | null, fo
     endDate: formData.get("endDate"),
     hostSchoolId: formData.get("hostSchoolId") || null,
     archived: formData.get("archived") === "on",
+    liveResultsUrl: formData.get("liveResultsUrl") ?? "",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -42,7 +43,7 @@ export async function createTournamentAction(_prevState: ActionResult | null, fo
   if (existingSlug) return { ok: false, error: "A tournament with that URL slug already exists." };
 
   const [tournament] = await prisma.$transaction([
-    prisma.tournament.create({ data: parsed.data }),
+    prisma.tournament.create({ data: { ...parsed.data, liveResultsUrl: parsed.data.liveResultsUrl || null } }),
     prisma.tournament.updateMany({
       where: { activityId: parsed.data.activityId, isCurrent: true },
       data: { isCurrent: false },
@@ -91,6 +92,7 @@ export async function updateTournamentAction(_prevState: ActionResult | null, fo
     endDate: formData.get("endDate"),
     hostSchoolId: formData.get("hostSchoolId") || null,
     archived: formData.get("archived") === "on",
+    liveResultsUrl: formData.get("liveResultsUrl") ?? "",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -99,7 +101,10 @@ export async function updateTournamentAction(_prevState: ActionResult | null, fo
     return { ok: false, error: "End date must be after the start date." };
   }
 
-  await prisma.tournament.update({ where: { id: tournamentId }, data: parsed.data });
+  await prisma.tournament.update({
+    where: { id: tournamentId },
+    data: { ...parsed.data, liveResultsUrl: parsed.data.liveResultsUrl || null },
+  });
 
   await recordAudit({
     actorId: admin.id,

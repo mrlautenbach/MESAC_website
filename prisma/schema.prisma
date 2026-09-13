@@ -240,6 +240,10 @@ model Tournament {
   endDate      DateTime
   hostSchoolId String?
   hostSchool   School?  @relation(fields: [hostSchoolId], references: [id])
+  // External live-timing/live-results feed (e.g. a swim/track meet's
+  // results platform) - shown as a link on the tournament page when set.
+  // Unrelated to Event.streamUrl, which is a per-event video stream.
+  liveResultsUrl String?
   isCurrent    Boolean  @default(true)
   // Explicit admin control over the "Archived" label shown on this
   // tournament's public pages - independent of isCurrent, which only
