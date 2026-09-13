@@ -50,6 +50,7 @@ export async function createSchoolAction(_prevState: ActionResult | null, formDa
     themeColor: formData.get("themeColor") || "",
     themeColorSecondary: formData.get("themeColorSecondary") || "",
     teamCount: formData.get("teamCount") || 0,
+    isLeagueMember: formData.get("isLeagueMember") === "on",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -84,6 +85,7 @@ export async function createSchoolAction(_prevState: ActionResult | null, formDa
       contactEmail: parsed.data.contactEmail || null,
       contactPhone: parsed.data.contactPhone || null,
       teamCount: parsed.data.teamCount,
+      isLeagueMember: parsed.data.isLeagueMember,
       ...geoFields(parsed.data),
     },
   });
@@ -99,7 +101,9 @@ export async function createSchoolAction(_prevState: ActionResult | null, formDa
   });
 
   revalidatePath("/dashboard/admin/schools");
-  revalidatePath("/schools");
+  // A school's name, logo or league membership shows up in the footer,
+  // which sits in the root layout on every page.
+  revalidatePath("/", "layout");
   return { ok: true };
 }
 
@@ -121,6 +125,7 @@ export async function updateSchoolAction(_prevState: ActionResult | null, formDa
     themeColor: formData.get("themeColor") || "",
     themeColorSecondary: formData.get("themeColorSecondary") || "",
     teamCount: formData.get("teamCount") || 0,
+    isLeagueMember: formData.get("isLeagueMember") === "on",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -148,6 +153,7 @@ export async function updateSchoolAction(_prevState: ActionResult | null, formDa
       contactEmail: parsed.data.contactEmail || null,
       contactPhone: parsed.data.contactPhone || null,
       teamCount: parsed.data.teamCount,
+      isLeagueMember: parsed.data.isLeagueMember,
       ...geoFields(parsed.data),
     },
   });
@@ -164,6 +170,8 @@ export async function updateSchoolAction(_prevState: ActionResult | null, formDa
   });
 
   revalidatePath("/dashboard/admin/schools");
-  revalidatePath("/schools");
+  // A school's name, logo or league membership shows up in the footer,
+  // which sits in the root layout on every page.
+  revalidatePath("/", "layout");
   return { ok: true };
 }

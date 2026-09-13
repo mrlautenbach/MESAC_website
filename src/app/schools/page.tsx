@@ -5,7 +5,12 @@ import { SchoolBadge } from "@/components/SchoolBadge";
 export const dynamic = "force-dynamic";
 
 export default async function SchoolsPage() {
-  const schools = await prisma.school.findMany({ orderBy: { name: "asc" } });
+  // The league directory, so guest schools are left out - they show up on the
+  // tournaments they actually play in, not here.
+  const schools = await prisma.school.findMany({
+    where: { isLeagueMember: true },
+    orderBy: { name: "asc" },
+  });
 
   const rows = schools.map((s) => ({
     id: s.id,

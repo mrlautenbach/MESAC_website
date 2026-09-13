@@ -70,6 +70,11 @@ model School {
   // primary; a school can't set secondary alone.
   themeColor          String?
   themeColorSecondary String?
+  // A guest school competes in a tournament without being presented as part
+  // of the league: it appears wherever it actually plays (a tournament's
+  // schedule, results and team photos) but is left out of the league-wide
+  // roster on the home page, in the footer, and in the schools directory.
+  isLeagueMember Boolean @default(true)
   // Admin-entered count shown on the public schools page - not derived from
   // actual event participation, since a school's roster for the year is
   // known well before any games are scheduled.

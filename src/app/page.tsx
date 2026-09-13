@@ -27,7 +27,9 @@ export default async function HomePage() {
     recentRecap,
   ] = await Promise.all([
     prisma.tournament.count(),
-    prisma.school.findMany(),
+    // League members only - a guest school plays in a tournament without
+    // being presented as part of the league.
+    prisma.school.findMany({ where: { isLeagueMember: true } }),
     prisma.tournament.findMany({ where: { isCurrent: true }, select: { name: true } }),
     prisma.season.findMany({
       orderBy: { order: "asc" },
@@ -113,7 +115,7 @@ export default async function HomePage() {
         <div className="relative mx-auto grid max-w-6xl gap-10 sm:grid-cols-[1.35fr_1fr] sm:items-end">
           <div>
             <h6 className="text-background opacity-85">
-              6 schools · {tournamentCount} tournaments
+              {schools.length} schools · {tournamentCount} tournaments
             </h6>
             <div className="mt-4 text-6xl font-extrabold leading-[.9] tracking-[-.045em] text-accent sm:text-8xl">
               Play the
@@ -224,7 +226,7 @@ export default async function HomePage() {
 
       {/* Stat row */}
       <div className="grid border-b-2 border-divider bg-surface sm:grid-cols-3">
-        <Stat value="6" label="Member schools" />
+        <Stat value={String(schools.length)} label="Member schools" />
         <Stat value={String(tournamentCount)} label="Tournaments this year" />
         <Stat value={String(countries)} label="Countries" />
       </div>
@@ -266,7 +268,7 @@ export default async function HomePage() {
           )}
         </div>
         <div className="p-7">
-          <h6 className="text-primary-dark">Six schools</h6>
+          <h6 className="text-primary-dark">Member schools</h6>
           <p className="mt-2.5 text-sm leading-[1.9] text-muted">
             {shuffledSchools.map((s) => s.name).join(" · ")}
           </p>

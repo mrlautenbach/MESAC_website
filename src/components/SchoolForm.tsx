@@ -19,6 +19,7 @@ type ExistingSchool = {
   themeColor: string | null;
   themeColorSecondary: string | null;
   teamCount: number;
+  isLeagueMember: boolean;
 };
 
 export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
@@ -99,6 +100,22 @@ export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
         Code, city, and coordinates are optional. They power the Schools Atlas map. Leave blank to omit a school
         from the map. Teams is the number shown on the public schools page.
       </p>
+      <div className="border border-border p-3">
+        <label className="flex items-start gap-2.5 text-sm font-semibold">
+          <input
+            type="checkbox"
+            name="isLeagueMember"
+            defaultChecked={existing?.isLeagueMember ?? true}
+            className="mt-0.5"
+          />
+          League member
+        </label>
+        <p className="mt-1.5 pl-6 text-xs text-muted">
+          Ticked, the school appears everywhere &mdash; the home page, the footer, and the schools directory.
+          Unticked, it&apos;s a guest: it can still be added to any tournament and shows up on that tournament&apos;s
+          schedule, results, and team photos, but it isn&apos;t listed as part of the league.
+        </p>
+      </div>
       <div>
         <label className="field-label">Logo (optional)</label>
         <input name="logo" type="file" accept="image/*" className="field-input" />

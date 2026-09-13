@@ -28,6 +28,7 @@ export default async function SchoolsAdminPage() {
                   <Image src={school.logoUrl} alt="" width={32} height={32} className="" />
                 )}
                 {school.name}
+                {!school.isLeagueMember && <span className="tag tag-neutral font-normal">Guest</span>}
               </summary>
               <div className="mt-4">
                 <SchoolForm
@@ -44,6 +45,7 @@ export default async function SchoolsAdminPage() {
                     themeColor: school.themeColor,
                     themeColorSecondary: school.themeColorSecondary,
                     teamCount: school.teamCount,
+                    isLeagueMember: school.isLeagueMember,
                   }}
                 />
               </div>

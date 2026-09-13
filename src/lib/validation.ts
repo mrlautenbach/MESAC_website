@@ -42,6 +42,10 @@ export const schoolInputSchema = z.object({
     .optional()
     .or(z.literal("")),
   teamCount: z.coerce.number().int().min(0).max(999),
+  // Unchecked checkboxes aren't submitted at all, so the caller passes the
+  // raw value and "on"/absent decides it - a guest school is the unticked
+  // case and shows up only where it actually competes.
+  isLeagueMember: z.coerce.boolean(),
 });
 
 export const scoringTypeSchema = z.enum(["WIN_LOSS", "LOW_SCORE", "NONE"]);
