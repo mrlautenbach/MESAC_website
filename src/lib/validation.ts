@@ -178,6 +178,7 @@ export const tournamentInputSchema = z.object({
     .refine((v) => v === "" || /^https?:\/\//i.test(v), "Live results link must start with http:// or https://")
     .optional()
     .or(z.literal("")),
+  liveResultsText: z.string().trim().max(5000).optional().or(z.literal("")),
 });
 
 export const streamUrlSchema = z

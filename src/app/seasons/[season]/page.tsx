@@ -1,9 +1,11 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
+import { LiveIcon } from "@/components/icons/LiveIcon";
 import { sideLabel } from "@/lib/eventDisplay";
 import { loadRoster } from "@/lib/tournamentRoster";
 import { SchoolBadge } from "@/components/SchoolBadge";
@@ -97,6 +99,8 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
         </div>
       )}
 
+      <LiveResultsBand tournament={tournament} />
+
       {roster.length > 0 && (
         <div className="border-b-2 border-divider bg-surface px-6 py-6 sm:px-10">
           <div className="mx-auto max-w-5xl">
@@ -125,7 +129,7 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
             {showOverall && (
               <section>
                 <h4 className="mb-3">Overall</h4>
-                <TournamentSubNav tournamentSlug={tournament.slug} liveResultsUrl={tournament.liveResultsUrl} />
+                <TournamentSubNav tournamentSlug={tournament.slug} />
               </section>
             )}
             {tournament.divisions.map((division) => (
@@ -135,13 +139,12 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
                   tournamentSlug={tournament.slug}
                   divisionSlug={division.slug}
                   showWatchAndPhotos={!showOverall}
-                  liveResultsUrl={tournament.liveResultsUrl}
                 />
               </section>
             ))}
           </div>
         ) : (
-          <TournamentSubNav tournamentSlug={tournament.slug} liveResultsUrl={tournament.liveResultsUrl} />
+          <TournamentSubNav tournamentSlug={tournament.slug} />
         )}
       </div>
     </div>
@@ -165,6 +168,46 @@ type HeadlineEvent = {
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return <h6 className="text-primary-dark">{children}</h6>;
+}
+
+type LiveResultsTournament = {
+  liveResultsUrl: string | null;
+  liveResultsText: string | null;
+  liveResultsPhotoUrl: string | null;
+};
+
+// A meet's live results aren't always a hosted website - often it's a photo
+// of a printed sheet, or a few pasted lines. Whichever the admin set, shown
+// in one place: a photo first (richest), then text, then the link.
+function LiveResultsBand({ tournament }: { tournament: LiveResultsTournament }) {
+  const { liveResultsUrl, liveResultsText, liveResultsPhotoUrl } = tournament;
+  if (!liveResultsUrl && !liveResultsText && !liveResultsPhotoUrl) return null;
+
+  return (
+    <div className="border-b-2 border-divider bg-surface px-6 py-6 sm:px-10">
+      <div className="mx-auto max-w-5xl">
+        <Eyebrow>
+          <span className="inline-flex items-center gap-1.5">
+            <LiveIcon />
+            Live results
+          </span>
+        </Eyebrow>
+        {liveResultsPhotoUrl ? (
+          <a href={liveResultsPhotoUrl} target="_blank" rel="noopener noreferrer" className="mt-3 block">
+            <div className="relative h-[28rem] max-w-md border border-divider bg-background">
+              <Image src={liveResultsPhotoUrl} alt="Live results" fill sizes="448px" className="object-contain" />
+            </div>
+          </a>
+        ) : liveResultsText ? (
+          <p className="mt-3 max-w-2xl whitespace-pre-wrap text-sm leading-relaxed">{liveResultsText}</p>
+        ) : (
+          <a href={liveResultsUrl!} target="_blank" rel="noopener noreferrer" className="btn btn-primary mt-3 inline-block">
+            Open live results ↗
+          </a>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // A meet session has no home/away pair, so it's named by its title; a team

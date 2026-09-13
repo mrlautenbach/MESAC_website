@@ -25,6 +25,7 @@ export async function createTournamentAction(_prevState: ActionResult | null, fo
     hostSchoolId: formData.get("hostSchoolId") || null,
     archived: formData.get("archived") === "on",
     liveResultsUrl: formData.get("liveResultsUrl") ?? "",
+    liveResultsText: formData.get("liveResultsText") ?? "",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -43,7 +44,13 @@ export async function createTournamentAction(_prevState: ActionResult | null, fo
   if (existingSlug) return { ok: false, error: "A tournament with that URL slug already exists." };
 
   const [tournament] = await prisma.$transaction([
-    prisma.tournament.create({ data: { ...parsed.data, liveResultsUrl: parsed.data.liveResultsUrl || null } }),
+    prisma.tournament.create({
+      data: {
+        ...parsed.data,
+        liveResultsUrl: parsed.data.liveResultsUrl || null,
+        liveResultsText: parsed.data.liveResultsText || null,
+      },
+    }),
     prisma.tournament.updateMany({
       where: { activityId: parsed.data.activityId, isCurrent: true },
       data: { isCurrent: false },
@@ -93,6 +100,7 @@ export async function updateTournamentAction(_prevState: ActionResult | null, fo
     hostSchoolId: formData.get("hostSchoolId") || null,
     archived: formData.get("archived") === "on",
     liveResultsUrl: formData.get("liveResultsUrl") ?? "",
+    liveResultsText: formData.get("liveResultsText") ?? "",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -103,7 +111,11 @@ export async function updateTournamentAction(_prevState: ActionResult | null, fo
 
   await prisma.tournament.update({
     where: { id: tournamentId },
-    data: { ...parsed.data, liveResultsUrl: parsed.data.liveResultsUrl || null },
+    data: {
+      ...parsed.data,
+      liveResultsUrl: parsed.data.liveResultsUrl || null,
+      liveResultsText: parsed.data.liveResultsText || null,
+    },
   });
 
   await recordAudit({

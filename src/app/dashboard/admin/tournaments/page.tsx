@@ -8,6 +8,7 @@ import { SeasonEditionForm } from "@/components/SeasonEditionForm";
 import { ActivityFieldsManager } from "@/components/ActivityFieldsManager";
 import { DivisionsManager } from "@/components/DivisionsManager";
 import { TournamentSchoolsManager } from "@/components/TournamentSchoolsManager";
+import { LiveResultsPhotoManager } from "@/components/LiveResultsPhotoManager";
 import { DeleteActivityForm } from "@/components/DeleteActivityForm";
 import { EXPECTED_ROSTER } from "@/lib/expectedRoster";
 import { isParticipating } from "@/lib/tournamentRoster";
@@ -165,8 +166,15 @@ export default async function TournamentsAdminPage() {
                                   hostSchoolId: current.hostSchoolId,
                                   archived: current.archived,
                                   liveResultsUrl: current.liveResultsUrl,
+                                  liveResultsText: current.liveResultsText,
                                 }}
                               />
+                              <div className="mt-3">
+                                <LiveResultsPhotoManager
+                                  tournamentId={current.id}
+                                  photoUrl={current.liveResultsPhotoUrl}
+                                />
+                              </div>
                             </div>
                           )}
 

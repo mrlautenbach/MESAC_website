@@ -11,6 +11,7 @@ type ExistingSeason = {
   hostSchoolId: string | null;
   archived: boolean;
   liveResultsUrl: string | null;
+  liveResultsText: string | null;
 };
 
 export function SeasonEditionForm({
@@ -104,22 +105,40 @@ export function SeasonEditionForm({
         </p>
       </div>
 
-      <div>
-        <label htmlFor="liveResultsUrl" className="field-label">
-          Live results link (optional)
-        </label>
-        <input
-          id="liveResultsUrl"
-          name="liveResultsUrl"
-          type="url"
-          placeholder="https://results.example.com/meet-123"
-          defaultValue={existing?.liveResultsUrl ?? ""}
-          className="field-input"
-        />
+      <div className="border-t border-divider pt-4">
+        <p className="field-label">Live results (optional)</p>
         <p className="mt-1 text-xs text-muted">
-          For meets with an external live-timing feed. Shows a &quot;Live results&quot; link on the tournament
-          page when set.
+          Shown on the tournament page. A meet doesn&apos;t always have a hosted results site - it might just be a
+          photo of a printed sheet, or a few lines of text. Fill in whichever applies; when more than one is set,
+          a photo is shown first, then text, then the link. Upload a photo from the tournament&apos;s own page in
+          the admin list.
         </p>
+        <div className="mt-2">
+          <label htmlFor="liveResultsUrl" className="field-label">
+            Link
+          </label>
+          <input
+            id="liveResultsUrl"
+            name="liveResultsUrl"
+            type="url"
+            placeholder="https://results.example.com/meet-123"
+            defaultValue={existing?.liveResultsUrl ?? ""}
+            className="field-input"
+          />
+        </div>
+        <div className="mt-3">
+          <label htmlFor="liveResultsText" className="field-label">
+            Text
+          </label>
+          <textarea
+            id="liveResultsText"
+            name="liveResultsText"
+            rows={3}
+            placeholder="Girls 200 Free Relay: 1. ICS, 2. ABA, 3. AES..."
+            defaultValue={existing?.liveResultsText ?? ""}
+            className="field-input"
+          />
+        </div>
       </div>
 
       {state && !state.ok && (
