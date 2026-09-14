@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { divisionTagClass } from "@/lib/divisionTagClass";
+import { GENDER_LABEL, GENDER_TAG_CLASS } from "@/lib/gender";
 
 type MeetResultRow = {
   id: string;
@@ -28,9 +29,6 @@ type MeetResultGroup = {
   prelim: MeetResultRow[];
   final: MeetResultRow[];
 };
-
-const GENDER_LABEL: Record<"GIRLS" | "BOYS", string> = { GIRLS: "Girls", BOYS: "Boys" };
-const GENDER_TAG_CLASS: Record<"GIRLS" | "BOYS", string> = { GIRLS: "tag-girls", BOYS: "tag-boys" };
 
 export function MeetResultsView({ groups }: { groups: MeetResultGroup[] }) {
   const hasPrelim = groups.some((g) => g.prelim.length > 0 || g.plannedRounds.prelim);
