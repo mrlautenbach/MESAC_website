@@ -84,7 +84,7 @@ async function MeetSchedule({
     prisma.event.findMany({
       where: { tournamentId, programEntries: { none: {} } },
       orderBy: { date: "asc" },
-      select: { id: true, slug: true, title: true, date: true, location: true, status: true },
+      select: { id: true, slug: true, title: true, date: true, location: true, status: true, gender: true, division: true },
     }),
     divisionId ? prisma.division.findUnique({ where: { id: divisionId }, select: { slug: true } }) : null,
   ]);
@@ -109,8 +109,11 @@ async function MeetSchedule({
       sessionSlug: s.slug,
       eventName: null,
       round: null,
-      division: null,
-      gender: null,
+      // No program uploaded yet for this session, but it may still carry its
+      // own division/gender (set on the schedule itself) - show those rather
+      // than blanking them out until a program exists.
+      division: s.division,
+      gender: s.gender,
       location: s.location,
       status: s.status,
     })),

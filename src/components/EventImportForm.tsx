@@ -18,17 +18,22 @@ type Props = {
 };
 
 function buildTemplate(season: SeasonOption | undefined, schoolCodes: Props["schoolCodes"]) {
-  const genderCol = (season?.divisions.length ?? 0) > 0 ? ["gender"] : [];
+  const hasDivisions = (season?.divisions.length ?? 0) > 0;
+  const genderCol = hasDivisions ? ["gender"] : [];
   const customCols = season?.fields.map((f) => f.key) ?? [];
-  const genderSample = (season?.divisions.length ?? 0) > 0 ? [season!.divisions[0].name] : [];
+  const genderSample = hasDivisions ? [season!.divisions[0].name] : [];
   const customSample = customCols.map(() => "");
 
   if (season?.usesMeetResults) {
     // A meet session isn't a matchup between two schools, so there's no
     // home/away/score here - just the session itself (see importEventsAction).
-    const header = ["event_number", ...genderCol, "title", "date", "time", "status", "streaming_link", "court", "order", ...customCols];
-    const row1 = ["1", ...genderSample, "Day 1 Prelims", "2026-09-12", "09:00", "SCHEDULED", "", "Aquatics Center", "", ...customSample];
-    const row2 = ["2", ...genderSample, "Day 1 Finals", "2026-09-12", "18:00", "SCHEDULED", "", "Aquatics Center", "", ...customSample];
+    // Division and gender are independent columns here (unlike team sports,
+    // where "gender" doubles as the combined division name).
+    const divisionCol = hasDivisions ? ["division"] : [];
+    const divisionSample = hasDivisions ? [season!.divisions[0].name] : [];
+    const header = ["event_number", ...divisionCol, "gender", "title", "date", "time", "status", "streaming_link", "court", "order", ...customCols];
+    const row1 = ["1", ...divisionSample, "Girls", "Day 1 Prelims", "2026-09-12", "09:00", "SCHEDULED", "", "Aquatics Center", "", ...customSample];
+    const row2 = ["2", ...divisionSample, "Girls", "Day 1 Finals", "2026-09-12", "18:00", "SCHEDULED", "", "Aquatics Center", "", ...customSample];
     return `${header.join(",")}\n${row1.join(",")}\n${row2.join(",")}\n`;
   }
 
@@ -100,10 +105,12 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: P
             program CSV matches by),{" "}
             {season && season.divisions.length > 0 && (
               <>
-                <code>gender</code> ({season.divisions.map((d) => d.name).join(" or ")}; required for this
+                <code>division</code> ({season.divisions.map((d) => d.name).join(" or ")}; required for this
                 tournament),{" "}
               </>
             )}
+            <code>gender</code> (Girls or Boys - independent of division; leave blank if this session covers
+            both),{" "}
             <code>time</code> (HH:MM, defaults to 09:00), <code>status</code>{" "}
             (SCHEDULED/COMPLETED/CANCELLED), <code>streaming_link</code> (link to watch live), <code>court</code>,
             and <code>order</code> (a whole number to override date-based sorting on the schedule/results pages -

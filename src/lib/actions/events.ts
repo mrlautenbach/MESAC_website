@@ -119,6 +119,7 @@ type PlannedRow = {
   gameId: string | null;
   date: Date;
   divisionId: string | null;
+  gender: "GIRLS" | "BOYS" | null;
   title: string | null;
   location: string | null;
   status: "SCHEDULED" | "COMPLETED" | "CANCELLED";
@@ -200,7 +201,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     return {
       ok: false,
       error: isMeet
-        ? "The header row needs at least: date (plus optional event_number, title, gender, time, court, status, streaming_link, order, and any custom fields for this activity)."
+        ? "The header row needs at least: date (plus optional event_number, title, division, gender, time, court, status, streaming_link, order, and any custom fields for this activity)."
         : "The header row needs at least: date, home, away (plus optional game_id, gender, home_score, away_score, time, court, status, streaming_link, order, and any custom fields for this activity).",
     };
   }
@@ -258,13 +259,36 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     }
 
     let divisionId: string | null = null;
-    const genderRaw = get("gender");
-    if (genderRaw) {
-      const division = divisionByName.get(genderRaw.toLowerCase());
-      if (!division) fail(`Unknown gender "${genderRaw}".`);
-      else divisionId = division.id;
-    } else if (requiresDivision) {
-      fail("This tournament has divisions. Set the gender column.");
+    let gender: "GIRLS" | "BOYS" | null = null;
+    if (isMeet) {
+      // Meet-style activities keep division (skill level, e.g. "Varsity") and
+      // gender (Girls/Boys) as two independent columns, same as the meet
+      // program CSV - a session doesn't need a combined division like "Girls
+      // Varsity" to exist just to record who it's for.
+      const divisionRaw = get("division");
+      if (divisionRaw) {
+        const division = divisionByName.get(divisionRaw.toLowerCase());
+        if (!division) fail(`Unknown division "${divisionRaw}".`);
+        else divisionId = division.id;
+      } else if (requiresDivision) {
+        fail("This tournament has divisions. Set the division column.");
+      }
+
+      const genderRaw = get("gender");
+      if (genderRaw) {
+        if (genderRaw.toLowerCase() === "girls") gender = "GIRLS";
+        else if (genderRaw.toLowerCase() === "boys") gender = "BOYS";
+        else fail(`Invalid gender "${genderRaw}" (use Girls or Boys).`);
+      }
+    } else {
+      const genderRaw = get("gender");
+      if (genderRaw) {
+        const division = divisionByName.get(genderRaw.toLowerCase());
+        if (!division) fail(`Unknown gender "${genderRaw}".`);
+        else divisionId = division.id;
+      } else if (requiresDivision) {
+        fail("This tournament has divisions. Set the gender column.");
+      }
     }
 
     const homeRaw = get("home");
@@ -347,6 +371,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       gameId,
       date,
       divisionId,
+      gender,
       title: get("title") || null,
       location: get("court") || null,
       status: statusRaw as PlannedRow["status"],
@@ -446,6 +471,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
             where: { id: existing.id },
             data: {
               divisionId: row.divisionId,
+              gender: row.gender,
               title: row.title,
               date: row.date,
               location: row.location,
@@ -480,6 +506,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
             data: {
               tournamentId: tournament.id,
               divisionId: row.divisionId,
+              gender: row.gender,
               slug,
               title: row.title,
               date: row.date,

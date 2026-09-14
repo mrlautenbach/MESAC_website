@@ -326,6 +326,11 @@ model Event {
   tournament   Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   divisionId   String?
   division     Division?   @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  // Independent of divisionId - a meet-style session (Swimming, Track &
+  // Field) can be Girls- or Boys-only without needing a combined division
+  // like "Girls Varsity" to exist. Unused by team sports, which still fold
+  // gender into the division name itself (see importEventsAction).
+  gender       Gender?
   slug         String
   title        String?
   date         DateTime

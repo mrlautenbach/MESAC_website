@@ -6,9 +6,9 @@ import { createActivityAction, updateActivityAction } from "@/lib/actions/activi
 type ScoringType = "WIN_LOSS" | "LOW_SCORE" | "NONE";
 
 const MEET_SCHEDULE_TEMPLATE =
-  "event_number,gender,title,date,time,status,streaming_link,court,order\n" +
-  "1,Girls,Day 1 Prelims,2026-09-12,09:00,SCHEDULED,,Aquatics Center,\n" +
-  "2,Girls,Day 1 Finals,2026-09-12,18:00,SCHEDULED,,Aquatics Center,\n";
+  "event_number,division,gender,title,date,time,status,streaming_link,court,order\n" +
+  "1,Varsity,Girls,Day 1 Prelims,2026-09-12,09:00,SCHEDULED,,Aquatics Center,\n" +
+  "2,Varsity,Girls,Day 1 Finals,2026-09-12,18:00,SCHEDULED,,Aquatics Center,\n";
 const MEET_RESULTS_TEMPLATE =
   "event_name,round,place,name,school,mark,seed,prelim_time,points,record\n" +
   "100m Freestyle,final,1,Jane Doe,ASD,58.21,,59.02,9,MR\n";

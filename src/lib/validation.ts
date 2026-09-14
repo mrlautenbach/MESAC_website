@@ -141,6 +141,8 @@ export const setScoreEntrySchema = z.object({
 // columns - a custom ActivityField can't reuse one of these keys.
 export const RESERVED_FIELD_KEYS = new Set([
   "game_id",
+  "event_number",
+  "division",
   "gender",
   "home",
   "home_score",
