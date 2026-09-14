@@ -269,7 +269,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       const divisionRaw = get("division");
       if (divisionRaw) {
         const division = divisionByName.get(normalizeDivisionName(divisionRaw));
-        if (!division) fail(`Unknown division "${divisionRaw}".`);
+        if (!division) fail(`Unknown division "${divisionRaw}" (set up this tournament's divisions first).`);
         else divisionId = division.id;
       } else if (requiresDivision) {
         fail("This tournament has divisions. Set the division column.");
