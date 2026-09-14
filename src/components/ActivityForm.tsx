@@ -243,47 +243,78 @@ export function ActivityForm({
         <div>
           <p className="field-label">Divisions</p>
           <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="divisionNames" value="Girls" defaultChecked />
-              Girls
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="divisionNames" value="Boys" defaultChecked />
-              Boys
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="divisionNames" value="Girls JV" />
-              Girls JV
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="divisionNames" value="Boys JV" />
-              Boys JV
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="divisionNames" value="Girls Varsity" />
-              Girls Varsity
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="divisionNames" value="Boys Varsity" />
-              Boys Varsity
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="divisionNames" value="JV" />
-              JV
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="divisionNames" value="Varsity" />
-              Varsity
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="divisionNames" value="Overall" />
-              Overall
-            </label>
+            {usesMeetResults ? (
+              <>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="divisionNames" value="Junior Varsity" />
+                  Junior Varsity
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="divisionNames" value="Varsity" />
+                  Varsity
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="divisionNames" value="Overall" />
+                  Overall
+                </label>
+              </>
+            ) : (
+              <>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="divisionNames" value="Girls" defaultChecked />
+                  Girls
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="divisionNames" value="Boys" defaultChecked />
+                  Boys
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="divisionNames" value="Girls JV" />
+                  Girls JV
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="divisionNames" value="Boys JV" />
+                  Boys JV
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="divisionNames" value="Girls Varsity" />
+                  Girls Varsity
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="divisionNames" value="Boys Varsity" />
+                  Boys Varsity
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="divisionNames" value="JV" />
+                  JV
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="divisionNames" value="Varsity" />
+                  Varsity
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" name="divisionNames" value="Overall" />
+                  Overall
+                </label>
+              </>
+            )}
           </div>
           <p className="mt-1 text-xs text-muted">
-            Pick any combination - e.g. just Girls/Boys, split further by JV and Varsity, or add Overall alongside
-            them. Uncheck all for a single activity with no split (meets, festivals, or a sport that&apos;s already
-            single-gender). More divisions can be added later from the activity&apos;s own page.
+            {usesMeetResults ? (
+              <>
+                Divisions here are skill level only - Girls/Boys is tracked separately via the Gender column on the
+                schedule and program CSVs, so a division shouldn&apos;t also name a gender. Pick any combination, or
+                leave unchecked for a single ungendered activity with no split. &quot;JV&quot; on a CSV always means
+                Junior Varsity, whichever spelling you pick here. More divisions can be added later from the
+                activity&apos;s own page.
+              </>
+            ) : (
+              <>
+                Pick any combination - e.g. just Girls/Boys, split further by JV and Varsity, or add Overall alongside
+                them. Uncheck all for a single activity with no split (meets, festivals, or a sport that&apos;s
+                already single-gender). More divisions can be added later from the activity&apos;s own page.
+              </>
+            )}
           </p>
         </div>
       )}

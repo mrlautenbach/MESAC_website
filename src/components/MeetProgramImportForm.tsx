@@ -18,8 +18,9 @@ export function MeetProgramImportForm({ tournamentId }: { tournamentId: string }
           schedule first), <code>event_number</code> (this race&apos;s identity - a prelim and a final row for the
           same race share the same number), <code>event_name</code> (e.g. &quot;100m Freestyle&quot;). Optional:{" "}
           <code>round</code> (&quot;prelim&quot; or &quot;final&quot;, defaults to final), <code>division</code> (must
-          match one of this tournament&apos;s divisions exactly, e.g. &quot;Varsity&quot; or &quot;Junior
-          Varsity&quot;), <code>gender</code> (&quot;girls&quot; or &quot;boys&quot;).
+          match one of this tournament&apos;s divisions - e.g. &quot;Varsity&quot; or &quot;Junior Varsity&quot;;
+          &quot;JV&quot; and &quot;Junior Varsity&quot; are treated as the same division either way), <code>gender</code>{" "}
+          (&quot;girls&quot; or &quot;boys&quot;).
         </p>
         <p className="text-muted">
           Division and gender are independent of each other and of the session&apos;s own division, if it has one -

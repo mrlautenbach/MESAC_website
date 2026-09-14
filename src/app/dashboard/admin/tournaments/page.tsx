@@ -243,7 +243,12 @@ export default async function TournamentsAdminPage() {
                                 This tournament&apos;s divisions ({current.divisions.length})
                               </summary>
                               <div className="mt-3">
-                                <DivisionsManager activityId={activity.id} tournamentId={current.id} divisions={current.divisions} />
+                                <DivisionsManager
+                                  activityId={activity.id}
+                                  tournamentId={current.id}
+                                  divisions={current.divisions}
+                                  usesMeetResults={activity.usesMeetResults}
+                                />
                               </div>
                             </details>
                           )}
@@ -253,7 +258,11 @@ export default async function TournamentsAdminPage() {
                               Default divisions for new tournaments ({activity.divisions.length})
                             </summary>
                             <div className="mt-3">
-                              <DivisionsManager activityId={activity.id} divisions={activity.divisions} />
+                              <DivisionsManager
+                                activityId={activity.id}
+                                divisions={activity.divisions}
+                                usesMeetResults={activity.usesMeetResults}
+                              />
                             </div>
                           </details>
 

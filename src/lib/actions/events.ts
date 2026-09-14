@@ -14,6 +14,7 @@ import {
   streamUrlSchema,
 } from "@/lib/validation";
 import { parseCsv } from "@/lib/csv";
+import { normalizeDivisionName } from "@/lib/divisionAlias";
 import { computeOutcomes, resolvePlayoffSlots, tryFillFromExistingSource } from "@/lib/playoffs";
 import type { ActionResult } from "@/lib/actions/auth";
 import { z } from "zod";
@@ -213,7 +214,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     schoolByKey.set(s.name.trim().toLowerCase(), s);
     if (s.code) schoolByKey.set(s.code.trim().toLowerCase(), s);
   }
-  const divisionByName = new Map(tournament.divisions.map((d) => [d.name.trim().toLowerCase(), d]));
+  const divisionByName = new Map(tournament.divisions.map((d) => [normalizeDivisionName(d.name), d]));
   const requiresDivision = tournament.divisions.length > 0;
   const activityFields = tournament.activity.fields;
 
@@ -267,7 +268,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       // Varsity" to exist just to record who it's for.
       const divisionRaw = get("division");
       if (divisionRaw) {
-        const division = divisionByName.get(divisionRaw.toLowerCase());
+        const division = divisionByName.get(normalizeDivisionName(divisionRaw));
         if (!division) fail(`Unknown division "${divisionRaw}".`);
         else divisionId = division.id;
       } else if (requiresDivision) {
@@ -283,7 +284,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     } else {
       const genderRaw = get("gender");
       if (genderRaw) {
-        const division = divisionByName.get(genderRaw.toLowerCase());
+        const division = divisionByName.get(normalizeDivisionName(genderRaw));
         if (!division) fail(`Unknown gender "${genderRaw}".`);
         else divisionId = division.id;
       } else if (requiresDivision) {

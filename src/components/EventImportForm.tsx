@@ -106,7 +106,8 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: P
             {season && season.divisions.length > 0 && (
               <>
                 <code>division</code> ({season.divisions.map((d) => d.name).join(" or ")}; required for this
-                tournament),{" "}
+                tournament - &quot;JV&quot; and &quot;Junior Varsity&quot; are treated as the same division either
+                way),{" "}
               </>
             )}
             <code>gender</code> (Girls or Boys - independent of division; leave blank if this session covers

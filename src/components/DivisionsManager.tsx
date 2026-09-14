@@ -3,18 +3,25 @@
 import { useActionState } from "react";
 import { syncDivisionsAction } from "@/lib/actions/activities";
 
-const PRESETS = ["Girls", "Boys", "Girls JV", "Boys JV", "Girls Varsity", "Boys Varsity", "JV", "Varsity", "Overall"];
+const TEAM_PRESETS = ["Girls", "Boys", "Girls JV", "Boys JV", "Girls Varsity", "Boys Varsity", "JV", "Varsity", "Overall"];
+// Meet-style activities (Swimming, Track & Field) track Girls/Boys as their
+// own independent Gender column, not as part of the division name - so a
+// division here is skill level only.
+const MEET_PRESETS = ["Junior Varsity", "Varsity", "Overall"];
 
 export function DivisionsManager({
   activityId,
   tournamentId,
   divisions,
+  usesMeetResults,
 }: {
   activityId: string;
   tournamentId?: string;
   divisions: { id: string; name: string }[];
+  usesMeetResults: boolean;
 }) {
   const [state, formAction, pending] = useActionState(syncDivisionsAction, null);
+  const PRESETS = usesMeetResults ? MEET_PRESETS : TEAM_PRESETS;
   const existingNames = divisions.map((d) => d.name);
   const existingByLower = new Set(existingNames.map((n) => n.toLowerCase()));
   // Any division that was created under a name outside the standard

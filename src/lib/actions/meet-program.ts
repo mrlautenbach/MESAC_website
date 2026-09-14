@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import { meetProgramRowSchema } from "@/lib/validation";
 import { parseCsv, csvRowsToObjects } from "@/lib/csv";
+import { normalizeDivisionName } from "@/lib/divisionAlias";
 import type { ActionResult } from "@/lib/actions/auth";
 
 export type ImportMeetProgramResult =
@@ -57,7 +58,7 @@ export async function importMeetProgramAction(
   for (const s of sessions) {
     if (s.title) sessionByTitle.set(s.title.trim().toLowerCase(), s.id);
   }
-  const divisionByName = new Map(tournament.divisions.map((d) => [d.name.trim().toLowerCase(), d]));
+  const divisionByName = new Map(tournament.divisions.map((d) => [normalizeDivisionName(d.name), d]));
 
   const rowErrors: { row: number; message: string }[] = [];
   const seenPerEvent = new Map<string, Set<string>>();
@@ -94,7 +95,7 @@ export async function importMeetProgramAction(
     const divisionRaw = (record.division ?? "").trim();
     let divisionId: string | null = null;
     if (divisionRaw) {
-      const division = divisionByName.get(divisionRaw.toLowerCase());
+      const division = divisionByName.get(normalizeDivisionName(divisionRaw));
       if (!division) {
         rowErrors.push({ row: rowNum, message: `Unknown division "${divisionRaw}" (set up this tournament's divisions first).` });
         return;
