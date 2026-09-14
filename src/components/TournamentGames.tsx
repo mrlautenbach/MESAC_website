@@ -48,14 +48,17 @@ export async function TournamentSchedule({ tournamentId, tournamentSlug, divisio
   );
 }
 
-// A meet's schedule is really its program: one row per named event
+// A meet's schedule is really its program: one row per named event round
 // (MeetProgramEntry), not one row per session - a single session can hold
-// races for several divisions and genders, and each one may run as a
-// preliminary and a final. Sorted by session date, then event_number
-// numerically (an event_number is only ever reused across different
-// sessions, never within one), then division and gender as tie-breakers.
-// Sessions with no program uploaded yet still show up, as a plain row so
-// the date/time is still visible before the program's set up.
+// races for several divisions and genders, and a race's prelim/final can
+// even land in two different sessions. Each round owns its own
+// scheduledTime/location/status/liveStreamUrl (see the combined
+// schedule+program CSV, meet-schedule.ts) - the session it's linked to is
+// just where it's grouped for display/admin purposes. Sorted by that
+// round's own scheduled time, then event_number numerically, then division
+// and gender as tie-breakers. A session with no program rows at all (e.g.
+// left over from before the combined CSV, or created but not yet
+// populated) still shows up as a plain row so it isn't silently invisible.
 //
 // Every row for the whole tournament is fetched here regardless of which
 // page this is - division/gender filtering happens client-side in
@@ -74,17 +77,17 @@ async function MeetSchedule({
 }) {
   const [entries, unprogrammed, currentDivision] = await Promise.all([
     prisma.meetProgramEntry.findMany({
-      where: { event: { tournamentId } },
+      where: { tournamentId },
       include: {
-        event: { select: { slug: true, title: true, date: true, location: true, status: true } },
+        event: { select: { slug: true, title: true } },
         division: true,
       },
-      orderBy: [{ event: { date: "asc" } }, { eventNumber: "asc" }, { division: { name: "asc" } }, { gender: "asc" }],
+      orderBy: [{ scheduledTime: "asc" }, { eventNumber: "asc" }, { division: { name: "asc" } }, { gender: "asc" }],
     }),
     prisma.event.findMany({
       where: { tournamentId, programEntries: { none: {} } },
       orderBy: { date: "asc" },
-      select: { id: true, slug: true, title: true, date: true, location: true, status: true, gender: true, division: true },
+      select: { id: true, slug: true, title: true, date: true, location: true, status: true, division: true },
     }),
     divisionId ? prisma.division.findUnique({ where: { id: divisionId }, select: { slug: true } }) : null,
   ]);
@@ -92,15 +95,16 @@ async function MeetSchedule({
   const rows: MeetScheduleRow[] = [
     ...entries.map((e) => ({
       key: e.id,
-      date: e.event.date,
+      date: e.scheduledTime,
       sessionTitle: e.event.title ?? "Untitled session",
       sessionSlug: e.event.slug,
       eventName: e.eventName,
       round: e.round,
       division: e.division,
       gender: e.gender,
-      location: e.event.location,
-      status: e.event.status,
+      location: e.location,
+      status: e.status,
+      liveStreamUrl: e.liveStreamUrl,
     })),
     ...unprogrammed.map((s) => ({
       key: s.id,
@@ -109,13 +113,15 @@ async function MeetSchedule({
       sessionSlug: s.slug,
       eventName: null,
       round: null,
-      // No program uploaded yet for this session, but it may still carry its
-      // own division/gender (set on the schedule itself) - show those rather
-      // than blanking them out until a program exists.
+      // No program rows for this session - it may still carry its own
+      // division (set directly on the session) - show that rather than
+      // blanking it out. There's no session-level gender any more (gender
+      // is always per named event/round now).
       division: s.division,
-      gender: s.gender,
+      gender: null,
       location: s.location,
       status: s.status,
+      liveStreamUrl: null,
     })),
   ].sort((a, b) => a.date.getTime() - b.date.getTime());
 

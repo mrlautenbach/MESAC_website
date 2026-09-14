@@ -8,7 +8,6 @@ type SeasonOption = {
   label: string;
   divisions: { id: string; name: string }[];
   fields: { id: string; key: string; label: string }[];
-  usesMeetResults: boolean;
 };
 
 type Props = {
@@ -20,22 +19,9 @@ type Props = {
 function buildTemplate(season: SeasonOption | undefined, schoolCodes: Props["schoolCodes"]) {
   const hasDivisions = (season?.divisions.length ?? 0) > 0;
   const genderCol = hasDivisions ? ["gender"] : [];
-  const customCols = season?.fields.map((f) => f.key) ?? [];
   const genderSample = hasDivisions ? [season!.divisions[0].name] : [];
+  const customCols = season?.fields.map((f) => f.key) ?? [];
   const customSample = customCols.map(() => "");
-
-  if (season?.usesMeetResults) {
-    // A meet session isn't a matchup between two schools, so there's no
-    // home/away/score here - just the session itself (see importEventsAction).
-    // Division and gender are independent columns here (unlike team sports,
-    // where "gender" doubles as the combined division name).
-    const divisionCol = hasDivisions ? ["division"] : [];
-    const divisionSample = hasDivisions ? [season!.divisions[0].name] : [];
-    const header = ["event_number", ...divisionCol, "gender", "title", "date", "time", "status", "streaming_link", "court", "order", ...customCols];
-    const row1 = ["1", ...divisionSample, "Girls", "Day 1 Prelims", "2026-09-12", "09:00", "SCHEDULED", "", "Aquatics Center", "", ...customSample];
-    const row2 = ["2", ...divisionSample, "Girls", "Day 1 Finals", "2026-09-12", "18:00", "SCHEDULED", "", "Aquatics Center", "", ...customSample];
-    return `${header.join(",")}\n${row1.join(",")}\n${row2.join(",")}\n`;
-  }
 
   const header = ["game_id", ...genderCol, "home", "home_score", "away", "away_score", "date", "time", "court", "streaming_link", "status", ...customCols];
   const sampleCodes = schoolCodes.slice(0, 2).map((s) => s.code || s.name);
@@ -44,6 +30,8 @@ function buildTemplate(season: SeasonOption | undefined, schoolCodes: Props["sch
   return `${header.join(",")}\n${row1.join(",")}\n${row2.join(",")}\n`;
 }
 
+// Meet-style activities (Swimming, Track & Field) set up their schedule via
+// the combined schedule+program CSV instead - see MeetScheduleImportForm.
 export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: Props) {
   const [state, formAction, pending] = useActionState<ImportEventsResult | null, FormData>(importEventsAction, null);
   const [tournamentId, setTournamentId] = useState(
@@ -57,13 +45,12 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: P
   }, [season, schoolCodes]);
 
   if (state?.ok) {
-    const noun = season?.usesMeetResults ? "session" : "game";
     return (
       <div className="bg-green-50 px-4 py-3 text-sm text-success">
-        Imported {state.created} new {noun}
+        Imported {state.created} new game
         {state.created === 1 ? "" : "s"}
-        {state.updated > 0 && `, updated ${state.updated} existing ${noun}${state.updated === 1 ? "" : "s"}`}
-        {state.removed > 0 && `, and removed ${state.removed} ${noun}${state.removed === 1 ? "" : "s"} no longer in the file`}. Refresh
+        {state.updated > 0 && `, updated ${state.updated} existing game${state.updated === 1 ? "" : "s"}`}
+        {state.removed > 0 && `, and removed ${state.removed} game${state.removed === 1 ? "" : "s"} no longer in the file`}. Refresh
         the schedule to see them, or{" "}
         <button type="button" className="underline" onClick={() => window.location.reload()}>
           import another file
@@ -97,79 +84,41 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: P
 
       <div className="card space-y-2 p-4 text-sm">
         <p className="font-semibold">CSV columns</p>
-        {season?.usesMeetResults ? (
-          <p className="text-muted">
-            Required: <code>date</code> (YYYY-MM-DD). Optional: <code>event_number</code> (a short id like
-            &quot;1&quot;; set this to update the same session on a later re-upload instead of duplicating it),{" "}
-            <code>title</code> (the session&apos;s name, e.g. &quot;Day 1 Prelims&quot; - this is what the meet
-            program CSV matches by),{" "}
-            {season && season.divisions.length > 0 && (
-              <>
-                <code>division</code> ({season.divisions.map((d) => d.name).join(" or ")}; required for this
-                tournament - &quot;JV&quot; and &quot;Junior Varsity&quot; are treated as the same division either
-                way),{" "}
-              </>
-            )}
-            <code>gender</code> (Girls or Boys - independent of division; leave blank if this session covers
-            both),{" "}
-            <code>time</code> (HH:MM, defaults to 09:00), <code>status</code>{" "}
-            (SCHEDULED/COMPLETED/CANCELLED), <code>streaming_link</code> (link to watch live), <code>court</code>,
-            and <code>order</code> (a whole number to override date-based sorting on the schedule/results pages -
-            useful when several sessions share a day).
-            {season && season.fields.length > 0 && (
-              <>
-                {" "}
-                Custom fields for this tournament: {season.fields.map((f) => <code key={f.id}>{f.key}</code>).reduce((a, b) => (
-                  <>
-                    {a}, {b}
-                  </>
-                ))}
-                .
-              </>
-            )}
-          </p>
-        ) : (
-          <p className="text-muted">
-            Required: <code>date</code> (YYYY-MM-DD), <code>home</code>, <code>away</code>. Optional:{" "}
-            <code>game_id</code> (a short id like &quot;G14&quot;; set this to update the same game on a later
-            re-upload instead of duplicating it),{" "}
-            {season && season.divisions.length > 0 && (
-              <>
-                <code>gender</code> ({season.divisions.map((d) => d.name).join(" or ")}; required for this
-                tournament),{" "}
-              </>
-            )}
-            <code>home_score</code>, <code>away_score</code>, <code>time</code> (HH:MM, defaults to 09:00),{" "}
-            <code>court</code>, <code>status</code> (SCHEDULED/COMPLETED/CANCELLED), <code>streaming_link</code>{" "}
-            (link to watch live), and <code>order</code> (a whole number to override date-based sorting on the
-            schedule/results pages - useful when same-day sessions need a specific reading order).
-            {season && season.fields.length > 0 && (
-              <>
-                {" "}
-                Custom fields for this tournament: {season.fields.map((f) => <code key={f.id}>{f.key}</code>).reduce((a, b) => (
-                  <>
-                    {a}, {b}
-                  </>
-                ))}
-                .
-              </>
-            )}
-          </p>
-        )}
-        {!season?.usesMeetResults && (
-          <p className="text-muted">
-            Match schools by their short code or exact name:{" "}
-            {schoolCodes.map((s) => s.code || s.name).join(", ")}.
-          </p>
-        )}
-        {!season?.usesMeetResults && (
-          <p className="text-muted">
-            For a playoff round, set <code>home</code> or <code>away</code> to <code>WINNER(G1)</code> or{" "}
-            <code>LOSER(G1)</code> instead of a school. Once game G1 is scored, that slot fills in automatically. A
-            game can only reference a <code>game_id</code> from an earlier row in the file, or one already on the
-            schedule.
-          </p>
-        )}
+        <p className="text-muted">
+          Required: <code>date</code> (YYYY-MM-DD), <code>home</code>, <code>away</code>. Optional:{" "}
+          <code>game_id</code> (a short id like &quot;G14&quot;; set this to update the same game on a later
+          re-upload instead of duplicating it),{" "}
+          {season && season.divisions.length > 0 && (
+            <>
+              <code>gender</code> ({season.divisions.map((d) => d.name).join(" or ")}; required for this
+              tournament),{" "}
+            </>
+          )}
+          <code>home_score</code>, <code>away_score</code>, <code>time</code> (HH:MM, defaults to 09:00),{" "}
+          <code>court</code>, <code>status</code> (SCHEDULED/COMPLETED/CANCELLED), <code>streaming_link</code>{" "}
+          (link to watch live), and <code>order</code> (a whole number to override date-based sorting on the
+          schedule/results pages - useful when same-day sessions need a specific reading order).
+          {season && season.fields.length > 0 && (
+            <>
+              {" "}
+              Custom fields for this tournament: {season.fields.map((f) => <code key={f.id}>{f.key}</code>).reduce((a, b) => (
+                <>
+                  {a}, {b}
+                </>
+              ))}
+              .
+            </>
+          )}
+        </p>
+        <p className="text-muted">
+          Match schools by their short code or exact name: {schoolCodes.map((s) => s.code || s.name).join(", ")}.
+        </p>
+        <p className="text-muted">
+          For a playoff round, set <code>home</code> or <code>away</code> to <code>WINNER(G1)</code> or{" "}
+          <code>LOSER(G1)</code> instead of a school. Once game G1 is scored, that slot fills in automatically. A
+          game can only reference a <code>game_id</code> from an earlier row in the file, or one already on the
+          schedule.
+        </p>
         <a href={templateHref} download={`${season?.label.replace(/[^a-z0-9]+/gi, "-") || "events"}-template.csv`} className="btn btn-secondary">
           Download CSV template
         </a>
@@ -191,34 +140,18 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: P
           name="csvText"
           rows={8}
           className="field-input font-mono text-xs"
-          placeholder={
-            season?.usesMeetResults
-              ? `event_number,title,date,time,court\n1,Day 1 Prelims,2026-09-12,09:00,Aquatics Center`
-              : `date,home,away,court\n2026-09-12,ASD,DAA,Main Gym`
-          }
+          placeholder={`date,home,away,court\n2026-09-12,ASD,DAA,Main Gym`}
         />
       </div>
 
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" name="replaceExisting" className="mt-0.5" />
         <span>
-          {season?.usesMeetResults ? (
-            <>
-              Replace existing schedule. After importing this file, remove any previously-imported session (matched
-              by <code>event_number</code>) that isn&apos;t in it. Use this when you&apos;ve edited a full schedule
-              file and want the site to match it exactly, including removals. Requires every row to have an{" "}
-              <code>event_number</code>; sessions without one are never removed. This permanently deletes the
-              removed sessions and anything attached to them (results, photos, documents).
-            </>
-          ) : (
-            <>
-              Replace existing schedule. After importing this file, remove any previously-imported game (matched by{" "}
-              <code>game_id</code>) that isn&apos;t in it. Use this when you&apos;ve edited a full schedule file and
-              want the site to match it exactly, including removals. Requires every row to have a{" "}
-              <code>game_id</code>; games without one are never removed. This permanently deletes the removed games
-              and anything attached to them (results, photos, documents).
-            </>
-          )}
+          Replace existing schedule. After importing this file, remove any previously-imported game (matched by{" "}
+          <code>game_id</code>) that isn&apos;t in it. Use this when you&apos;ve edited a full schedule file and
+          want the site to match it exactly, including removals. Requires every row to have a{" "}
+          <code>game_id</code>; games without one are never removed. This permanently deletes the removed games
+          and anything attached to them (results, photos, documents).
         </span>
       </label>
 
@@ -238,7 +171,7 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: P
       )}
 
       <button type="submit" disabled={pending} className="btn btn-primary">
-        {pending ? "Importing…" : season?.usesMeetResults ? "Import sessions" : "Import games"}
+        {pending ? "Importing…" : "Import games"}
       </button>
     </form>
   );

@@ -13,13 +13,17 @@ export default async function ImportEventsPage({
   if (!user) redirect("/login");
   const { tournament: defaultTournamentId } = await searchParams;
 
-  const [tournaments, schools] = await Promise.all([
+  const [allTournaments, schools] = await Promise.all([
     prisma.tournament.findMany({
       orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }],
       include: { activity: { include: { fields: { orderBy: { order: "asc" } } } }, divisions: true },
     }),
     prisma.school.findMany({ orderBy: { name: "asc" } }),
   ]);
+  // Meet-style activities (Swimming, Track & Field) set up their schedule
+  // through the combined schedule+program CSV instead - see
+  // /dashboard/admin/meet-schedule.
+  const tournaments = allTournaments.filter((t) => !t.activity.usesMeetResults);
 
   if (tournaments.length === 0) {
     return (
@@ -35,7 +39,6 @@ export default async function ImportEventsPage({
     label: `${t.activity.name} · ${t.name}${t.isCurrent ? "" : " (archived)"}`,
     divisions: t.divisions.map((d) => ({ id: d.id, name: d.name })),
     fields: t.activity.fields.map((f) => ({ id: f.id, key: f.key, label: f.label })),
-    usesMeetResults: t.activity.usesMeetResults,
   }));
 
   return (

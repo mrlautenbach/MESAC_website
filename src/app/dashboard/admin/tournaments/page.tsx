@@ -118,7 +118,7 @@ export default async function TournamentsAdminPage() {
                                 View public page →
                               </Link>
                             )}
-                            {current && (
+                            {current && !activity.usesMeetResults && (
                               <Link
                                 href={`/dashboard/admin/events/import?tournament=${current.id}`}
                                 className="text-xs font-semibold text-primary hover:underline"
@@ -126,7 +126,7 @@ export default async function TournamentsAdminPage() {
                                 Upload/edit schedule (CSV) →
                               </Link>
                             )}
-                            {current && (
+                            {current && !activity.usesMeetResults && (
                               <Link
                                 href={`/dashboard/admin/events/new?tournament=${current.id}`}
                                 className="text-xs font-semibold text-primary hover:underline"
@@ -136,10 +136,10 @@ export default async function TournamentsAdminPage() {
                             )}
                             {current && isAdmin && activity.usesMeetResults && (
                               <Link
-                                href={`/dashboard/admin/meet-program?tournament=${current.id}`}
+                                href={`/dashboard/admin/meet-schedule?tournament=${current.id}`}
                                 className="text-xs font-semibold text-primary hover:underline"
                               >
-                                Set up meet program →
+                                Upload meet schedule &amp; program →
                               </Link>
                             )}
                             {current && isAdmin && (

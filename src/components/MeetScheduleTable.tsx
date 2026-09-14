@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { StatusTag } from "@/components/StatusTag";
 import { divisionTagClass } from "@/lib/divisionTagClass";
 import { GENDER_LABEL, GENDER_TAG_CLASS } from "@/lib/gender";
+import { LiveIcon } from "@/components/icons/LiveIcon";
 
 export type MeetScheduleRow = {
   key: string;
@@ -18,6 +19,7 @@ export type MeetScheduleRow = {
   gender: "GIRLS" | "BOYS" | null;
   location: string | null;
   status: string;
+  liveStreamUrl: string | null;
 };
 
 // Every row for the whole tournament is fetched once, server-side; division
@@ -170,7 +172,20 @@ export function MeetScheduleTable({
                       )}
                       <td>{row.location ?? "—"}</td>
                       <td>
-                        <StatusTag status={row.status} />
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <StatusTag status={row.status} />
+                          {row.liveStreamUrl && row.status === "SCHEDULED" && (
+                            <a
+                              href={row.liveStreamUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="tag tag-accent shrink-0 gap-1"
+                            >
+                              <LiveIcon />
+                              Watch live
+                            </a>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

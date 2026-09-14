@@ -3,9 +3,9 @@ import { format } from "date-fns";
 import { redirect, notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { MeetProgramImportForm } from "@/components/MeetProgramImportForm";
+import { MeetScheduleImportForm } from "@/components/MeetScheduleImportForm";
 
-export default async function MeetProgramPage({
+export default async function MeetSchedulePage({
   searchParams,
 }: {
   searchParams: Promise<{ tournament?: string }>;
@@ -27,6 +27,7 @@ export default async function MeetProgramPage({
     where: { id: tournamentId },
     include: {
       activity: true,
+      divisions: true,
       events: { orderBy: { date: "asc" }, include: { _count: { select: { programEntries: true } } } },
     },
   });
@@ -46,23 +47,15 @@ export default async function MeetProgramPage({
         <Link href="/dashboard/admin/tournaments" className="text-sm font-semibold text-primary hover:underline">
           &larr; Activities
         </Link>
-        <h1 className="mt-1 text-2xl font-bold">Set up meet program</h1>
+        <h1 className="mt-1 text-2xl font-bold">Meet schedule &amp; program</h1>
         <p className="text-muted">
           {tournament.activity.name} · {tournament.name}
         </p>
       </div>
 
-      <section>
-        <h2 className="mb-3 text-lg font-bold">Sessions</h2>
-        {tournament.events.length === 0 ? (
-          <p className="text-sm text-muted">
-            No sessions yet - create one from{" "}
-            <Link href={`/dashboard/admin/events/new?tournament=${tournament.id}`} className="font-semibold text-primary hover:underline">
-              + Add one event
-            </Link>{" "}
-            first, giving it a title. The program CSV below matches rows to sessions by that title.
-          </p>
-        ) : (
+      {tournament.events.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-lg font-bold">Sessions</h2>
           <ul className="space-y-1.5 text-sm">
             {tournament.events.map((event) => (
               <li key={event.id} className="flex items-center justify-between gap-3 border-b border-border py-1.5 last:border-0">
@@ -71,17 +64,21 @@ export default async function MeetProgramPage({
                   <span className="text-muted">{format(event.date, "MMM d, yyyy")}</span>
                 </span>
                 <span className="text-xs text-muted">
-                  {event._count.programEntries} program {event._count.programEntries === 1 ? "entry" : "entries"}
+                  {event._count.programEntries} round{event._count.programEntries === 1 ? "" : "s"}
                 </span>
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
 
       <section>
-        <h2 className="mb-3 text-lg font-bold">Import program</h2>
-        <MeetProgramImportForm tournamentId={tournament.id} />
+        <h2 className="mb-3 text-lg font-bold">Import schedule &amp; program</h2>
+        <p className="-mt-1 mb-3 text-sm text-muted">
+          One CSV sets up sessions and named events together - a session is created automatically the first time a
+          row references it by name.
+        </p>
+        <MeetScheduleImportForm tournamentId={tournament.id} divisions={tournament.divisions} />
       </section>
     </div>
   );

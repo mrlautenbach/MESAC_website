@@ -5,17 +5,17 @@ import { createActivityAction, updateActivityAction } from "@/lib/actions/activi
 
 type ScoringType = "WIN_LOSS" | "LOW_SCORE" | "NONE";
 
+// One event_number appearing twice (in different sessions) is how a
+// prelim/final pair is expressed - see MeetScheduleImportForm for the full
+// column docs shown once the activity (and its divisions) actually exist.
 const MEET_SCHEDULE_TEMPLATE =
-  "event_number,division,gender,title,date,time,status,streaming_link,court,order\n" +
-  "1,Varsity,Girls,Day 1 Prelims,2026-09-12,09:00,SCHEDULED,,Aquatics Center,\n" +
-  "2,Varsity,Girls,Day 1 Finals,2026-09-12,18:00,SCHEDULED,,Aquatics Center,\n";
+  "date,session,event_number,round,event_name,gender,location,status,live_stream,time\n" +
+  "2026-09-12,Day 1 Prelims,1,prelim,100m Freestyle,Girls,Aquatics Center,SCHEDULED,,09:00\n" +
+  "2026-09-12,Day 1 Finals,1,final,100m Freestyle,Girls,Aquatics Center,SCHEDULED,https://example.com/live,18:00\n" +
+  "2026-09-12,Day 1 Finals,2,,200m Individual Medley,Girls,Aquatics Center,SCHEDULED,,18:20\n";
 const MEET_RESULTS_TEMPLATE =
   "event_name,round,place,name,school,mark,seed,prelim_time,points,record\n" +
   "100m Freestyle,final,1,Jane Doe,ASD,58.21,,59.02,9,MR\n";
-const MEET_PROGRAM_TEMPLATE =
-  "session,event_number,event_name,round,division,gender\n" +
-  "Day 1 Prelims,1,200m Medley Relay,prelim,Varsity,girls\n" +
-  "Day 1 Finals,1,200m Medley Relay,final,Varsity,girls\n";
 
 type ExistingActivity = {
   id: string;
@@ -56,10 +56,6 @@ export function ActivityForm({
   );
   const resultsTemplateHref = useMemo(
     () => `data:text/csv;charset=utf-8,${encodeURIComponent(MEET_RESULTS_TEMPLATE)}`,
-    []
-  );
-  const programTemplateHref = useMemo(
-    () => `data:text/csv;charset=utf-8,${encodeURIComponent(MEET_PROGRAM_TEMPLATE)}`,
     []
   );
 
@@ -136,20 +132,17 @@ export function ActivityForm({
             Uses meet-style results (e.g. swimming, track &amp; field)
           </label>
           <p className="mt-1 text-xs text-muted">
-            Adds a CSV import per event for individual placings (event name, place, name, school, time/mark, points,
-            record notation), split by preliminary vs. final round - in addition to, not instead of, the results
-            document above.
+            Adds one combined CSV to set up sessions and the named-event program together, plus a separate CSV per
+            session for individual placings (event name, place, name, school, time/mark, points, record notation) -
+            in addition to, not instead of, the results document above.
           </p>
           {usesMeetResults && (
             <div className="mt-2 flex flex-wrap gap-3">
               <a href={scheduleTemplateHref} download={`${fileSlug}-meet-schedule-template.csv`} className="btn btn-secondary">
-                Download blank schedule CSV template
+                Download blank schedule &amp; program CSV template
               </a>
               <a href={resultsTemplateHref} download={`${fileSlug}-meet-results-template.csv`} className="btn btn-secondary">
                 Download blank results CSV template
-              </a>
-              <a href={programTemplateHref} download={`${fileSlug}-meet-program-template.csv`} className="btn btn-secondary">
-                Download blank program CSV template
               </a>
             </div>
           )}

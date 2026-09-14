@@ -271,10 +271,11 @@ model Tournament {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  events     Event[]
-  teamPhotos TeamPhoto[]
-  divisions  Division[]
-  schools    TournamentSchool[]
+  events         Event[]
+  teamPhotos     TeamPhoto[]
+  divisions      Division[]
+  schools        TournamentSchool[]
+  programEntries MeetProgramEntry[]
 
   @@index([activityId])
 }
@@ -326,11 +327,6 @@ model Event {
   tournament   Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   divisionId   String?
   division     Division?   @relation(fields: [divisionId], references: [id], onDelete: SetNull)
-  // Independent of divisionId - a meet-style session (Swimming, Track &
-  // Field) can be Girls- or Boys-only without needing a combined division
-  // like "Girls Varsity" to exist. Unused by team sports, which still fold
-  // gender into the division name itself (see importEventsAction).
-  gender       Gender?
   slug         String
   title        String?
   date         DateTime
@@ -471,27 +467,44 @@ model MeetResult {
 // per-session MeetResult CSVs - lets a not-yet-run event still show up on
 // the public page instead of only appearing once its results are in.
 model MeetProgramEntry {
-  id          String          @id @default(cuid())
-  eventId     String
-  event       Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id            String          @id @default(cuid())
+  // Denormalized off of `event` so event_number/round can be unique across
+  // the whole meet rather than just within one session - a prelim and its
+  // final are two rows sharing an event_number, and they're commonly in two
+  // *different* sessions (e.g. a morning prelims session, an evening finals
+  // session), so eventId alone can't scope that uniqueness.
+  tournamentId  String
+  tournament    Tournament      @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  // The specific session (e.g. "Day 1 Prelims") this round happens in - a
+  // race's prelim and final rows can point at two different sessions.
+  eventId       String
+  event         Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
   // Skill level (e.g. "Varsity"/"Junior Varsity") and Girls/Boys gender for
   // this one named event - independent of each other, and independent of
   // the session's own Event.divisionId (a session can mix both).
-  divisionId  String?
-  division    Division?       @relation(fields: [divisionId], references: [id], onDelete: SetNull)
-  gender      Gender?
-  eventNumber Int
-  eventName   String
-  round       MeetResultRound @default(FINAL)
-  createdAt   DateTime        @default(now())
+  divisionId    String?
+  division      Division?       @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  gender        Gender?
+  eventNumber   Int
+  eventName     String
+  round         MeetResultRound @default(FINAL)
+  // This specific round's own schedule/display info - independent of its
+  // session's, since a session holds many rounds that don't all share one
+  // time/location/stream (see the combined schedule+program CSV).
+  scheduledTime DateTime
+  location      String?
+  liveStreamUrl String?
+  status        EventStatus     @default(SCHEDULED)
+  createdAt     DateTime        @default(now())
 
   // event_number, not event_name, is the authoritative identity of one race
-  // within a session - a prelim row and a final row for the same race share
-  // the same event_number so they display together, even if their names
-  // were typed slightly differently between two CSV uploads.
-  @@unique([eventId, eventNumber, round])
+  // - a prelim row and a final row for the same race share the same
+  // event_number (unique per tournament) so they display together, even if
+  // their names were typed slightly differently between two CSV uploads.
+  @@unique([tournamentId, eventNumber, round])
   @@index([eventId])
   @@index([divisionId])
+  @@index([tournamentId])
 }
 
 // An admin-entered value for one of the activity's custom schedule fields
