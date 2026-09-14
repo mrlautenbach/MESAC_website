@@ -1,12 +1,8 @@
-import Link from "next/link";
-import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { computeStandings, computeLowScoreTeamStandings, computeIndividualStandings } from "@/lib/standings";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { EventRows } from "@/components/EventRows";
-import { StatusTag } from "@/components/StatusTag";
-import { divisionTagClass } from "@/lib/divisionTagClass";
-import { GENDER_LABEL, GENDER_TAG_CLASS } from "@/lib/gender";
+import { MeetScheduleTable, type MeetScheduleRow } from "@/components/MeetScheduleTable";
 
 type Activity = {
   id: string;
@@ -32,12 +28,7 @@ export async function TournamentSchedule({ tournamentId, tournamentSlug, divisio
   if (activity.usesMeetResults) {
     return (
       <section>
-        <MeetSchedule
-          tournamentId={tournamentId}
-          tournamentSlug={tournamentSlug}
-          divisionId={divisionId}
-          emptyMessage="No events scheduled yet."
-        />
+        <MeetSchedule tournamentId={tournamentId} tournamentSlug={tournamentSlug} divisionId={divisionId} />
       </section>
     );
   }
@@ -63,50 +54,42 @@ export async function TournamentSchedule({ tournamentId, tournamentSlug, divisio
 // preliminary and a final. Sorted by session date, then event_number
 // numerically (an event_number is only ever reused across different
 // sessions, never within one), then division and gender as tie-breakers.
-// Sessions with no program uploaded yet still show up (Overall page only -
-// a division-scoped page has nothing to place them on), as a plain row so
+// Sessions with no program uploaded yet still show up, as a plain row so
 // the date/time is still visible before the program's set up.
+//
+// Every row for the whole tournament is fetched here regardless of which
+// page this is - division/gender filtering happens client-side in
+// MeetScheduleTable, so switching between them doesn't need a page
+// navigation the way moving between the separate Overall/Varsity/Junior
+// Varsity pages does. `divisionId` (this page's own division, if any) only
+// seeds which one the filter starts on.
 async function MeetSchedule({
   tournamentId,
   tournamentSlug,
   divisionId,
-  emptyMessage,
 }: {
   tournamentId: string;
   tournamentSlug: string;
   divisionId?: string | null;
-  emptyMessage: string;
 }) {
-  const entries = await prisma.meetProgramEntry.findMany({
-    where: { event: { tournamentId }, ...(divisionId ? { divisionId } : {}) },
-    include: {
-      event: { select: { slug: true, title: true, date: true, location: true, status: true } },
-      division: true,
-    },
-    orderBy: [{ event: { date: "asc" } }, { eventNumber: "asc" }, { division: { name: "asc" } }, { gender: "asc" }],
-  });
-  const unprogrammed = divisionId
-    ? []
-    : await prisma.event.findMany({
-        where: { tournamentId, programEntries: { none: {} } },
-        orderBy: { date: "asc" },
-        select: { id: true, slug: true, title: true, date: true, location: true, status: true },
-      });
+  const [entries, unprogrammed, currentDivision] = await Promise.all([
+    prisma.meetProgramEntry.findMany({
+      where: { event: { tournamentId } },
+      include: {
+        event: { select: { slug: true, title: true, date: true, location: true, status: true } },
+        division: true,
+      },
+      orderBy: [{ event: { date: "asc" } }, { eventNumber: "asc" }, { division: { name: "asc" } }, { gender: "asc" }],
+    }),
+    prisma.event.findMany({
+      where: { tournamentId, programEntries: { none: {} } },
+      orderBy: { date: "asc" },
+      select: { id: true, slug: true, title: true, date: true, location: true, status: true },
+    }),
+    divisionId ? prisma.division.findUnique({ where: { id: divisionId }, select: { slug: true } }) : null,
+  ]);
 
-  type Row = {
-    key: string;
-    date: Date;
-    sessionTitle: string;
-    sessionSlug: string;
-    eventName: string | null;
-    round: "PRELIM" | "FINAL" | null;
-    division: { name: string } | null;
-    gender: "GIRLS" | "BOYS" | null;
-    location: string | null;
-    status: string;
-  };
-
-  const rows: Row[] = [
+  const rows: MeetScheduleRow[] = [
     ...entries.map((e) => ({
       key: e.id,
       date: e.event.date,
@@ -133,91 +116,8 @@ async function MeetSchedule({
     })),
   ].sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  if (rows.length === 0) return <p className="text-muted">{emptyMessage}</p>;
-
-  // Each column only appears when at least one row actually has something to
-  // put in it - a tournament with a single division, or no program entries
-  // with a gender set, would otherwise show an empty column throughout.
-  const showDivisionCol = !divisionId && rows.some((r) => r.division);
-  const showGenderCol = rows.some((r) => r.gender);
-  const showRoundCol = rows.some((r) => r.round);
-
-  const dayGroups: { key: string; rows: Row[] }[] = [];
-  const indexByDay = new Map<string, number>();
-  for (const row of rows) {
-    const key = format(row.date, "yyyy-MM-dd");
-    if (!indexByDay.has(key)) {
-      indexByDay.set(key, dayGroups.length);
-      dayGroups.push({ key, rows: [] });
-    }
-    dayGroups[indexByDay.get(key)!].rows.push(row);
-  }
-
   return (
-    <div className="space-y-6">
-      {dayGroups.map((group) => (
-        <div key={group.key}>
-          <h5 className="mb-2 border-b-2 border-divider pb-1.5 text-sm font-bold text-primary-dark">
-            {format(group.rows[0].date, "EEEE, MMM d, yyyy")}
-          </h5>
-          <div className="overflow-x-auto">
-            <table className="mtable">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Session</th>
-                  <th>Event</th>
-                  {showRoundCol && <th>Round</th>}
-                  {showDivisionCol && <th>Division</th>}
-                  {showGenderCol && <th>Gender</th>}
-                  <th>Court</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {group.rows.map((row) => (
-                  <tr key={row.key}>
-                    <td className="whitespace-nowrap tabular-nums">{format(row.date, "h:mm a")}</td>
-                    <td>
-                      <Link
-                        href={`/seasons/${tournamentSlug}/events/${row.sessionSlug}`}
-                        className="font-semibold hover:text-primary"
-                      >
-                        {row.sessionTitle}
-                      </Link>
-                    </td>
-                    <td>{row.eventName ?? "—"}</td>
-                    {showRoundCol && <td>{row.round ? (row.round === "PRELIM" ? "Preliminary" : "Final") : "—"}</td>}
-                    {showDivisionCol && (
-                      <td>
-                        {row.division ? (
-                          <span className={`tag ${divisionTagClass(row.division.name)}`}>{row.division.name}</span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                    )}
-                    {showGenderCol && (
-                      <td>
-                        {row.gender ? (
-                          <span className={`tag ${GENDER_TAG_CLASS[row.gender]}`}>{GENDER_LABEL[row.gender]}</span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                    )}
-                    <td>{row.location ?? "—"}</td>
-                    <td>
-                      <StatusTag status={row.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ))}
-    </div>
+    <MeetScheduleTable rows={rows} tournamentSlug={tournamentSlug} initialDivisionSlug={currentDivision?.slug} />
   );
 }
 
