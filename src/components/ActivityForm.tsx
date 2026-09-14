@@ -13,9 +13,9 @@ const MEET_RESULTS_TEMPLATE =
   "event_name,round,place,name,school,mark,seed,prelim_time,points,record\n" +
   "100m Freestyle,final,1,Jane Doe,ASD,58.21,,59.02,9,MR\n";
 const MEET_PROGRAM_TEMPLATE =
-  "session,event_number,event_name,round\n" +
-  "Day 1 Prelims,1,200m Medley Relay,prelim\n" +
-  "Day 1 Finals,1,200m Medley Relay,final\n";
+  "session,event_number,event_name,round,division,gender\n" +
+  "Day 1 Prelims,1,200m Medley Relay,prelim,Varsity,girls\n" +
+  "Day 1 Finals,1,200m Medley Relay,final,Varsity,girls\n";
 
 type ExistingActivity = {
   id: string;
