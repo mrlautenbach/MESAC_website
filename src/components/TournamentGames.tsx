@@ -98,7 +98,14 @@ async function EventsTable({
 }) {
   const where = {
     tournamentId,
-    ...(divisionId ? { divisionId } : {}),
+    // A meet-style session can mix divisions (see MeetProgramEntry/MeetResult
+    // - one named event's division is independent of its whole session's
+    // Event.divisionId), so a session belongs to a division's page either
+    // because the whole session is assigned to it (team sports) or because
+    // at least one of its named events/results is (meets).
+    ...(divisionId
+      ? { OR: [{ divisionId }, { programEntries: { some: { divisionId } } }, { meetResults: { some: { divisionId } } }] }
+      : {}),
     ...(statusFilter ? { status: statusFilter } : {}),
   };
 

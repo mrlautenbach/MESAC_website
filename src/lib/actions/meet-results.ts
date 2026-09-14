@@ -27,7 +27,7 @@ export async function importMeetResultsAction(
   const eventId = String(formData.get("eventId") ?? "");
   const event = await prisma.event.findUnique({
     where: { id: eventId },
-    include: { tournament: { include: { activity: true } }, division: true },
+    include: { tournament: { include: { activity: true } }, division: true, programEntries: true },
   });
   if (!event) return { ok: false, error: "Event not found." };
   if (!event.tournament.activity.usesMeetResults) {
@@ -46,7 +46,7 @@ export async function importMeetResultsAction(
   if (REQUIRED_HEADERS.some((h) => !header.includes(h))) {
     return {
       ok: false,
-      error: "The header row needs at least: event_name, name, school, mark (plus optional round, place, points, record).",
+      error: "The header row needs at least: event_name, name, school, mark (plus optional round, event_number, place, points, record).",
     };
   }
 
@@ -70,6 +70,8 @@ export async function importMeetResultsAction(
     points: number | null;
     recordNotation: string | null;
     rowOrder: number;
+    divisionId: string | null;
+    gender: "GIRLS" | "BOYS" | null;
   }[] = [];
 
   records.forEach((record, i) => {
@@ -93,6 +95,7 @@ export async function importMeetResultsAction(
     const parsed = meetResultRowSchema.safeParse({
       eventName: record.event_name,
       round,
+      eventNumber: record.event_number ?? "",
       place: record.place ?? "",
       athleteName: record.name,
       schoolId: school.id,
@@ -107,6 +110,38 @@ export async function importMeetResultsAction(
       return;
     }
 
+    // Division/gender come from the matching program entry, not from this
+    // CSV - a session's program is the source of truth for how its named
+    // events are split. Most sessions only ever have one program entry per
+    // (event_name, round), so event_number is optional and only needed to
+    // pick between two entries that happen to share a name (e.g. the same
+    // race name run for two divisions or genders).
+    let divisionId: string | null = null;
+    let gender: "GIRLS" | "BOYS" | null = null;
+    if (event.programEntries.length > 0) {
+      const candidates =
+        parsed.data.eventNumber !== null
+          ? event.programEntries.filter((p) => p.eventNumber === parsed.data.eventNumber && p.round === round)
+          : event.programEntries.filter(
+              (p) => p.eventName.trim().toLowerCase() === parsed.data.eventName.trim().toLowerCase() && p.round === round
+            );
+      if (parsed.data.eventNumber !== null && candidates.length === 0) {
+        rowErrors.push({ row: rowNum, message: `No program entry for event_number ${parsed.data.eventNumber} (${round.toLowerCase()}).` });
+        return;
+      }
+      if (candidates.length > 1) {
+        rowErrors.push({
+          row: rowNum,
+          message: `Multiple program entries share event_name "${record.event_name}" for this round - add an event_number column to say which one.`,
+        });
+        return;
+      }
+      if (candidates.length === 1) {
+        divisionId = candidates[0].divisionId;
+        gender = candidates[0].gender;
+      }
+    }
+
     planned.push({
       eventName: parsed.data.eventName,
       round: parsed.data.round,
@@ -119,6 +154,8 @@ export async function importMeetResultsAction(
       points: parsed.data.points,
       recordNotation: parsed.data.recordNotation || null,
       rowOrder: i,
+      divisionId,
+      gender,
     });
   });
 

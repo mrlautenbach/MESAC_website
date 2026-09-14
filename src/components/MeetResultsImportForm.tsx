@@ -22,6 +22,11 @@ export function MeetResultsImportForm({ eventId, resultCount }: { eventId: strin
           <code>prelim_time</code> (that swimmer&apos;s prelim result, shown on final rows).
         </p>
         <p className="text-muted">
+          Division and gender aren&apos;t set here - they come from this session&apos;s program. Only add{" "}
+          <code>event_number</code> if the program has more than one entry sharing this event_name for this round
+          (e.g. the same race name run for two divisions or genders) - it says which one this row belongs to.
+        </p>
+        <p className="text-muted">
           Re-uploading replaces every result already imported for this event - there&apos;s no per-row editor, so fix
           a mistake by correcting the file and uploading it again.
         </p>

@@ -32,28 +32,44 @@ export default async function EventPage({
       homeSourceEvent: { select: { externalId: true } },
       awaySourceEvent: { select: { externalId: true } },
       meetResults: { include: { school: true }, orderBy: { rowOrder: "asc" } },
-      programEntries: { orderBy: { eventNumber: "asc" } },
+      programEntries: { orderBy: { eventNumber: "asc" }, include: { division: true } },
     },
   });
   if (!event) notFound();
 
-  // Group by event name, each split into preliminary/final rows sorted by
-  // place (unplaced - DQ/NT/etc - last). Order comes from the meet program
-  // (event_number, set up ahead of results) when one's been uploaded for
-  // this session; otherwise falls back to first-appearance order in the
-  // results CSV itself (rowOrder), same as before the program feature.
+  // Grouped by event_number, each split into preliminary/final rows sorted
+  // by place (unplaced - DQ/NT/etc - last). event_number, not event_name, is
+  // this race's identity - a prelim row and a final row sharing the same
+  // number pair up into one group even if their names were typed slightly
+  // differently between two CSV uploads. Order and division/gender come
+  // from the meet program (set up ahead of results) when one's been
+  // uploaded for this session; otherwise falls back to first-appearance
+  // order in the results CSV itself (rowOrder), same as before the program
+  // feature, with no division/gender (nothing to derive them from).
   const meetResultGroups = (() => {
     const byPlace = (a: (typeof event.meetResults)[number], b: (typeof event.meetResults)[number]) =>
       (a.place ?? Infinity) - (b.place ?? Infinity);
+    // Division/gender are part of this key too - two program entries can
+    // share an event_name+round (e.g. the same race name run for two
+    // genders), and each result row carries the division/gender copied from
+    // whichever program entry it matched at import time, so this is what
+    // keeps their results from bleeding into each other's group.
+    const resultKey = (eventName: string, round: "PRELIM" | "FINAL", divisionId: string | null, gender: string | null) =>
+      `${eventName.trim().toLowerCase()}::${round}::${divisionId ?? ""}::${gender ?? ""}`;
     const resultsByNameRound = new Map<string, (typeof event.meetResults)[number][]>();
     for (const r of event.meetResults) {
-      const key = `${r.eventName}::${r.round}`;
+      const key = resultKey(r.eventName, r.round, r.divisionId, r.gender);
       const list = resultsByNameRound.get(key) ?? [];
       list.push(r);
       resultsByNameRound.set(key, list);
     }
-    const rowsFor = (eventName: string, round: "PRELIM" | "FINAL") =>
-      (resultsByNameRound.get(`${eventName}::${round}`) ?? [])
+    const rowsFor = (
+      eventName: string,
+      round: "PRELIM" | "FINAL",
+      divisionId: string | null = null,
+      gender: string | null = null
+    ) =>
+      (resultsByNameRound.get(resultKey(eventName, round, divisionId, gender)) ?? [])
         .slice()
         .sort(byPlace)
         .map((r) => ({
@@ -69,21 +85,38 @@ export default async function EventPage({
         }));
 
     if (event.programEntries.length > 0) {
-      const order: string[] = [];
-      const plannedByName = new Map<string, { prelim: boolean; final: boolean }>();
+      const order: number[] = [];
+      const byNumber = new Map<
+        number,
+        { prelim?: (typeof event.programEntries)[number]; final?: (typeof event.programEntries)[number] }
+      >();
       for (const p of event.programEntries) {
-        if (!plannedByName.has(p.eventName)) {
-          order.push(p.eventName);
-          plannedByName.set(p.eventName, { prelim: false, final: false });
+        if (!byNumber.has(p.eventNumber)) {
+          order.push(p.eventNumber);
+          byNumber.set(p.eventNumber, {});
         }
-        plannedByName.get(p.eventName)![p.round === "PRELIM" ? "prelim" : "final"] = true;
+        byNumber.get(p.eventNumber)![p.round === "PRELIM" ? "prelim" : "final"] = p;
       }
-      return order.map((eventName) => ({
-        eventName,
-        plannedRounds: plannedByName.get(eventName)!,
-        prelim: rowsFor(eventName, "PRELIM"),
-        final: rowsFor(eventName, "FINAL"),
-      }));
+      return order.map((eventNumber) => {
+        const entries = byNumber.get(eventNumber)!;
+        // Prefer the final round's own name/division/gender when both
+        // rounds exist and happen to disagree - the final is the race that
+        // counts.
+        const primary = entries.final ?? entries.prelim!;
+        return {
+          key: `program-${eventNumber}`,
+          eventName: primary.eventName,
+          division: primary.division ? { name: primary.division.name, slug: primary.division.slug } : null,
+          gender: primary.gender,
+          plannedRounds: { prelim: !!entries.prelim, final: !!entries.final },
+          prelim: entries.prelim
+            ? rowsFor(entries.prelim.eventName, "PRELIM", entries.prelim.divisionId, entries.prelim.gender)
+            : [],
+          final: entries.final
+            ? rowsFor(entries.final.eventName, "FINAL", entries.final.divisionId, entries.final.gender)
+            : [],
+        };
+      });
     }
 
     // No program uploaded for this session - group by first-appearance order
@@ -99,7 +132,15 @@ export default async function EventPage({
     return order.map((eventName) => {
       const prelim = rowsFor(eventName, "PRELIM");
       const final = rowsFor(eventName, "FINAL");
-      return { eventName, plannedRounds: { prelim: prelim.length > 0, final: final.length > 0 }, prelim, final };
+      return {
+        key: `result-${eventName}`,
+        eventName,
+        division: null,
+        gender: null,
+        plannedRounds: { prelim: prelim.length > 0, final: final.length > 0 },
+        prelim,
+        final,
+      };
     });
   })();
 

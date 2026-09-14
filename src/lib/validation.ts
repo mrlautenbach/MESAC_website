@@ -96,6 +96,13 @@ export const activityInputSchema = z.object({
 export const meetResultRowSchema = z.object({
   eventName: z.string().trim().min(1).max(120),
   round: z.enum(["PRELIM", "FINAL"]),
+  // Only needed to disambiguate when this session's program has more than
+  // one entry sharing this eventName+round (e.g. the same race name run for
+  // two divisions or genders) - blank is fine everywhere else.
+  eventNumber: z
+    .union([z.literal(""), z.coerce.number().int().min(1).max(9999)])
+    .optional()
+    .transform((v) => (v === "" || v === undefined ? null : v)),
   // "" checked before the number coercion - z.coerce.number() reads "" as
   // 0 (Number("") === 0), which a min(0) bound would silently accept as a
   // real value instead of falling through to the blank case.
@@ -120,6 +127,8 @@ export const meetProgramRowSchema = z.object({
   eventNumber: z.coerce.number().int().min(1).max(9999),
   eventName: z.string().trim().min(1).max(120),
   round: z.enum(["PRELIM", "FINAL"]),
+  divisionId: z.string().cuid().nullable(),
+  gender: z.enum(["GIRLS", "BOYS"]).nullable(),
 });
 
 export const setScoreEntrySchema = z.object({

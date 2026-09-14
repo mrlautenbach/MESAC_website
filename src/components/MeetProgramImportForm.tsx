@@ -15,9 +15,16 @@ export function MeetProgramImportForm({ tournamentId }: { tournamentId: string }
         <p className="font-semibold">CSV columns</p>
         <p className="text-muted">
           Required: <code>session</code> (must match a session&apos;s title exactly - create the session from the
-          schedule first), <code>event_number</code> (its order in the program), <code>event_name</code> (e.g.
-          &quot;100m Freestyle&quot;). Optional: <code>round</code> (&quot;prelim&quot; or &quot;final&quot;, defaults
-          to final).
+          schedule first), <code>event_number</code> (this race&apos;s identity - a prelim and a final row for the
+          same race share the same number), <code>event_name</code> (e.g. &quot;100m Freestyle&quot;). Optional:{" "}
+          <code>round</code> (&quot;prelim&quot; or &quot;final&quot;, defaults to final), <code>division</code> (must
+          match one of this tournament&apos;s divisions exactly, e.g. &quot;Varsity&quot; or &quot;Junior
+          Varsity&quot;), <code>gender</code> (&quot;girls&quot; or &quot;boys&quot;).
+        </p>
+        <p className="text-muted">
+          Division and gender are independent of each other and of the session&apos;s own division, if it has one -
+          set either, both, or neither per row. They drive the Division/Gender filters on the session&apos;s results
+          and decide which division pages a result shows up on.
         </p>
         <p className="text-muted">
           This just sets up the program (event order) so upcoming events show up before they&apos;re run - upload
@@ -48,7 +55,7 @@ export function MeetProgramImportForm({ tournamentId }: { tournamentId: string }
             name="csvText"
             rows={6}
             className="field-input font-mono text-xs"
-            placeholder={`session,event_number,event_name,round\nDay 1 Prelims,1,200m Medley Relay,prelim\nDay 1 Finals,1,200m Medley Relay,final`}
+            placeholder={`session,event_number,event_name,round,division,gender\nDay 1 Prelims,1,200m Medley Relay,prelim,Varsity,girls\nDay 1 Finals,1,200m Medley Relay,final,Varsity,girls`}
           />
         </div>
 

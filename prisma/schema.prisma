@@ -218,8 +218,14 @@ model Division {
   slug         String
   createdAt    DateTime    @default(now())
 
-  events     Event[]
-  teamPhotos TeamPhoto[]
+  events         Event[]
+  teamPhotos     TeamPhoto[]
+  // A meet-style activity's Division is a skill level (e.g. "Varsity",
+  // "Junior Varsity"), assigned per named event rather than per whole
+  // session - see MeetProgramEntry/MeetResult. Gender (Girls/Boys) is a
+  // separate, independent axis on those same rows.
+  programEntries MeetProgramEntry[]
+  meetResults    MeetResult[]
 
   @@unique([activityId, tournamentId, slug])
 }
@@ -402,6 +408,14 @@ enum MeetResultRound {
   FINAL
 }
 
+// Independent of Division (which is a skill level - Varsity/JV - for
+// meet-style activities): a named event's Girls/Boys split. Nullable so an
+// ungendered meet event still imports fine without one.
+enum Gender {
+  GIRLS
+  BOYS
+}
+
 // One athlete's placing in one named event ("100m Freestyle", "Long
 // Jump") within a meet session (Event.usesMeetResults activities like
 // Swimming or Track & Field - Event here is one day/session of the
@@ -415,6 +429,12 @@ model MeetResult {
   event          Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
   eventName      String
   round          MeetResultRound  @default(FINAL)
+  // Copied from the matching MeetProgramEntry at import time (null when no
+  // program was uploaded, or that entry didn't set one) - lets the public
+  // page filter/group results the same way the program itself is split.
+  divisionId     String?
+  division       Division?        @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  gender         Gender?
   place          Int?
   athleteName    String
   schoolId       String
@@ -437,6 +457,7 @@ model MeetResult {
 
   @@index([eventId])
   @@index([eventId, eventName])
+  @@index([divisionId])
 }
 
 // The meet's program, set up ahead of results: which named events exist in
@@ -448,13 +469,24 @@ model MeetProgramEntry {
   id          String          @id @default(cuid())
   eventId     String
   event       Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  // Skill level (e.g. "Varsity"/"Junior Varsity") and Girls/Boys gender for
+  // this one named event - independent of each other, and independent of
+  // the session's own Event.divisionId (a session can mix both).
+  divisionId  String?
+  division    Division?       @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  gender      Gender?
   eventNumber Int
   eventName   String
   round       MeetResultRound @default(FINAL)
   createdAt   DateTime        @default(now())
 
-  @@unique([eventId, eventName, round])
+  // event_number, not event_name, is the authoritative identity of one race
+  // within a session - a prelim row and a final row for the same race share
+  // the same event_number so they display together, even if their names
+  // were typed slightly differently between two CSV uploads.
+  @@unique([eventId, eventNumber, round])
   @@index([eventId])
+  @@index([divisionId])
 }
 
 // An admin-entered value for one of the activity's custom schedule fields
