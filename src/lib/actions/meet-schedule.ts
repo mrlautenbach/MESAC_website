@@ -290,20 +290,28 @@ export async function importMeetScheduleAction(
       status: row.status,
     }));
 
-    // event_number (not session) is this race's true identity now - replace
-    // whichever existing rows share one of this file's event_numbers,
-    // regardless of which session they were previously attached to, so an
+    const touchedSessionIds = Array.from(new Set(entries.map((e) => e.eventId)));
+
+    // Two things need clearing before the new rows go in, not just one:
+    // every existing entry under one of this file's event_numbers (so an
     // event that moved sessions between uploads doesn't leave a stale copy
-    // behind under its old one.
+    // behind under its old session), AND every existing entry already
+    // attached to a session this file touches (so re-uploading a session's
+    // full, corrected program actually replaces it - including an event
+    // that was removed or renumbered - rather than only overwriting the
+    // event_numbers that still happen to appear in the new file).
     await tx.meetProgramEntry.deleteMany({
-      where: { tournamentId: tournament.id, eventNumber: { in: touchedEventNumbers } },
+      where: {
+        tournamentId: tournament.id,
+        OR: [{ eventNumber: { in: touchedEventNumbers } }, { eventId: { in: touchedSessionIds } }],
+      },
     });
     await tx.meetProgramEntry.createMany({ data: entries });
 
     return {
       createdSessions,
       entryCount: entries.length,
-      touchedSessionIds: Array.from(new Set(entries.map((e) => e.eventId))),
+      touchedSessionIds,
     };
   });
 
