@@ -105,6 +105,7 @@ export default async function EventPage({
         const primary = entries.final ?? entries.prelim!;
         return {
           key: `program-${eventNumber}`,
+          eventNumber,
           eventName: primary.eventName,
           division: primary.division ? { name: primary.division.name, slug: primary.division.slug } : null,
           gender: primary.gender,
@@ -134,6 +135,7 @@ export default async function EventPage({
       const final = rowsFor(eventName, "FINAL");
       return {
         key: `result-${eventName}`,
+        eventNumber: null,
         eventName,
         division: null,
         gender: null,
@@ -197,7 +199,7 @@ export default async function EventPage({
         </div>
         <p className="mt-1 text-muted">
           {format(event.date, "EEEE, MMM d, yyyy · h:mm a")}
-          {event.location ? ` · ${event.location}` : ""}
+          {event.location && !tournament.activity.usesMeetResults ? ` · ${event.location}` : ""}
           {event.externalId ? ` · ${tournament.activity.usesMeetResults ? "Session" : "Game"} ${event.externalId}` : ""}
         </p>
       </div>

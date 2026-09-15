@@ -87,7 +87,7 @@ async function MeetSchedule({
     prisma.event.findMany({
       where: { tournamentId, programEntries: { none: {} } },
       orderBy: { date: "asc" },
-      select: { id: true, slug: true, title: true, date: true, location: true, status: true, division: true },
+      select: { id: true, slug: true, title: true, date: true, status: true, division: true },
     }),
     divisionId ? prisma.division.findUnique({ where: { id: divisionId }, select: { slug: true } }) : null,
   ]);
@@ -96,30 +96,29 @@ async function MeetSchedule({
     ...entries.map((e) => ({
       key: e.id,
       date: e.scheduledTime,
+      sessionId: e.eventId,
       sessionTitle: e.event.title ?? "Untitled session",
       sessionSlug: e.event.slug,
+      eventNumber: e.eventNumber,
       eventName: e.eventName,
       round: e.round,
       division: e.division,
-      gender: e.gender,
-      location: e.location,
       status: e.status,
       liveStreamUrl: e.liveStreamUrl,
     })),
     ...unprogrammed.map((s) => ({
       key: s.id,
       date: s.date,
+      sessionId: s.id,
       sessionTitle: s.title ?? "Untitled session",
       sessionSlug: s.slug,
+      eventNumber: null,
       eventName: null,
       round: null,
       // No program rows for this session - it may still carry its own
       // division (set directly on the session) - show that rather than
-      // blanking it out. There's no session-level gender any more (gender
-      // is always per named event/round now).
+      // blanking it out.
       division: s.division,
-      gender: null,
-      location: s.location,
       status: s.status,
       liveStreamUrl: null,
     })),

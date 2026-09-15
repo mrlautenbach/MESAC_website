@@ -19,7 +19,6 @@ type ParsedRow = {
   rowNum: number;
   sessionName: string;
   sessionDateKey: string; // yyyy-mm-dd, for same-file session-date consistency checks
-  sessionDate: Date;
   scheduledTime: Date;
   eventNumber: number;
   eventName: string;
@@ -103,7 +102,6 @@ export async function importMeetScheduleAction(
     if (Number.isNaN(scheduledTime.getTime())) {
       return fail(rowNum, `Could not parse date/time "${dateRaw} ${timeRaw}" (use YYYY-MM-DD and HH:MM).`);
     }
-    const sessionDate = new Date(`${dateRaw}T00:00:00`);
 
     const eventNumberRaw = (record.event_number ?? "").trim();
     const eventNumber = Number(eventNumberRaw);
@@ -157,7 +155,6 @@ export async function importMeetScheduleAction(
       // (which would re-express it in UTC and can shift the calendar day
       // whenever the server's local timezone isn't UTC).
       sessionDateKey: dateRaw,
-      sessionDate,
       scheduledTime,
       eventNumber,
       eventName,
@@ -236,6 +233,17 @@ export async function importMeetScheduleAction(
 
   const touchedEventNumbers = Array.from(byEventNumber.keys());
 
+  // A brand-new session's own date/time is the earliest scheduledTime among
+  // this file's rows for it - not midnight - so it sorts and displays
+  // correctly next to other same-day sessions (e.g. a morning prelims
+  // session before an evening finals session).
+  const earliestTimeByKey = new Map<string, Date>();
+  for (const row of planned) {
+    const key = row.sessionName.toLowerCase();
+    const seen = earliestTimeByKey.get(key);
+    if (!seen || row.scheduledTime < seen) earliestTimeByKey.set(key, row.scheduledTime);
+  }
+
   const { createdSessions, entryCount, touchedSessionIds } = await prisma.$transaction(async (tx) => {
     const claimedSlugs = new Set<string>();
     const sessionIdCache = new Map(sessionIdByName);
@@ -262,7 +270,7 @@ export async function importMeetScheduleAction(
       claimedSlugs.add(slug);
 
       const session = await tx.event.create({
-        data: { tournamentId: tournament.id, slug, title: row.sessionName, date: row.sessionDate },
+        data: { tournamentId: tournament.id, slug, title: row.sessionName, date: earliestTimeByKey.get(key)! },
       });
       sessionIdCache.set(key, session.id);
       createdSessions += 1;

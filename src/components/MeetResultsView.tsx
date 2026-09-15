@@ -18,6 +18,9 @@ type MeetResultRow = {
 
 type MeetResultGroup = {
   key: string;
+  // Null when no program was uploaded for this session - nothing to number
+  // the event with, so it's grouped by first-appearance order instead.
+  eventNumber: number | null;
   eventName: string;
   // Skill level (e.g. "Varsity"/"Junior Varsity") and Girls/Boys gender for
   // this named event - independent of each other, both null when no
@@ -30,10 +33,12 @@ type MeetResultGroup = {
   final: MeetResultRow[];
 };
 
+type RoundFilter = "prelim" | "final" | "all";
+
 export function MeetResultsView({ groups }: { groups: MeetResultGroup[] }) {
   const hasPrelim = groups.some((g) => g.prelim.length > 0 || g.plannedRounds.prelim);
   const hasFinal = groups.some((g) => g.final.length > 0 || g.plannedRounds.final);
-  const [round, setRound] = useState<"prelim" | "final">(hasFinal ? "final" : "prelim");
+  const [round, setRound] = useState<RoundFilter>(hasFinal ? "final" : "prelim");
 
   // Division and gender are independent axes on the same groups - a filter
   // and a toggle, each shown only when the groups actually vary along it.
@@ -49,18 +54,22 @@ export function MeetResultsView({ groups }: { groups: MeetResultGroup[] }) {
   const [divisionSlug, setDivisionSlug] = useState<string>("");
   const [gender, setGender] = useState<"" | "GIRLS" | "BOYS">("");
 
+  const showPrelim = round === "prelim" || round === "all";
+  const showFinal = round === "final" || round === "all";
+
   const visibleGroups = groups
     .filter((g) => !divisionSlug || g.division?.slug === divisionSlug)
     .filter((g) => !gender || g.gender === gender)
     .map((g) => ({
       key: g.key,
+      eventNumber: g.eventNumber,
       eventName: g.eventName,
       division: g.division,
       gender: g.gender,
-      rows: round === "prelim" ? g.prelim : g.final,
-      planned: round === "prelim" ? g.plannedRounds.prelim : g.plannedRounds.final,
+      prelim: showPrelim && (g.prelim.length > 0 || g.plannedRounds.prelim) ? g.prelim : null,
+      final: showFinal && (g.final.length > 0 || g.plannedRounds.final) ? g.final : null,
     }))
-    .filter((g) => g.rows.length > 0 || g.planned);
+    .filter((g) => g.prelim !== null || g.final !== null);
 
   return (
     <div className="space-y-6">
@@ -80,6 +89,13 @@ export function MeetResultsView({ groups }: { groups: MeetResultGroup[] }) {
               className={`px-3 py-1.5 text-sm font-semibold ${round === "final" ? "bg-primary text-background" : "text-muted"}`}
             >
               Final
+            </button>
+            <button
+              type="button"
+              onClick={() => setRound("all")}
+              className={`px-3 py-1.5 text-sm font-semibold ${round === "all" ? "bg-primary text-background" : "text-muted"}`}
+            >
+              All
             </button>
           </div>
         )}
@@ -124,60 +140,80 @@ export function MeetResultsView({ groups }: { groups: MeetResultGroup[] }) {
 
       {visibleGroups.length === 0 ? (
         <p className="text-muted">
-          No {round === "prelim" ? "preliminary" : "final"} results have been posted yet.
+          No {round === "all" ? "" : round === "prelim" ? "preliminary " : "final "}results have been posted yet.
         </p>
       ) : (
-        visibleGroups.map((group) => {
-          // Reference time is contextual: a prelim row's own seed time, or a
-          // final row's prior prelim time - only shown when at least one row
-          // in this group actually has it.
-          const refKey = round === "prelim" ? "seedMark" : "prelimMark";
-          const refLabel = round === "prelim" ? "Seed" : "Prelim";
-          const showRef = group.rows.some((r) => r[refKey]);
-          return (
-            <div key={group.key} className="card p-4">
-              <h3 className="mb-3 flex flex-wrap items-center gap-2 text-base font-bold">
-                {group.eventName}
-                {group.gender && <span className={`tag ${GENDER_TAG_CLASS[group.gender]}`}>{GENDER_LABEL[group.gender]}</span>}
-                {group.division && (
-                  <span className={`tag ${divisionTagClass(group.division.name)}`}>{group.division.name}</span>
-                )}
-              </h3>
-              {group.rows.length === 0 ? (
-                <p className="text-sm text-muted">Not yet run.</p>
-              ) : (
-              <div className="overflow-x-auto">
-                <table className="mtable">
-                  <thead>
-                    <tr>
-                      <th style={{ width: 40 }}>Place</th>
-                      <th>Name</th>
-                      <th>School</th>
-                      <th className="text-right">Time/Mark</th>
-                      {showRef && <th className="text-right">{refLabel}</th>}
-                      <th className="text-right">Points</th>
-                      <th>Record</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.rows.map((row) => (
-                      <tr key={row.id}>
-                        <td className="font-extrabold tabular-nums">{row.place ?? "—"}</td>
-                        <td className="font-extrabold">{row.athleteName}</td>
-                        <td className="text-muted">{row.schoolName}</td>
-                        <td className="text-right tabular-nums">{row.mark}</td>
-                        {showRef && <td className="text-right tabular-nums text-muted">{row[refKey] ?? "—"}</td>}
-                        <td className="text-right tabular-nums">{row.points ?? "—"}</td>
-                        <td>{row.recordNotation && <span className="tag tag-accent">{row.recordNotation}</span>}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+        visibleGroups.map((group) => (
+          <div key={group.key} className="card p-4">
+            <h3 className="mb-3 flex flex-wrap items-center gap-2 text-base font-bold">
+              {group.eventNumber != null && <span className="text-muted">Event {group.eventNumber}</span>}
+              {group.eventName}
+              {group.gender && <span className={`tag ${GENDER_TAG_CLASS[group.gender]}`}>{GENDER_LABEL[group.gender]}</span>}
+              {group.division && (
+                <span className={`tag ${divisionTagClass(group.division.name)}`}>{group.division.name}</span>
+              )}
+            </h3>
+            <div className="space-y-4">
+              {group.prelim !== null && (
+                <RoundTable label={round === "all" ? "Preliminary" : null} rows={group.prelim} refKey="seedMark" refLabel="Seed" />
+              )}
+              {group.final !== null && (
+                <RoundTable label={round === "all" ? "Final" : null} rows={group.final} refKey="prelimMark" refLabel="Prelim" />
               )}
             </div>
-          );
-        })
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+function RoundTable({
+  label,
+  rows,
+  refKey,
+  refLabel,
+}: {
+  label: string | null;
+  rows: MeetResultRow[];
+  refKey: "seedMark" | "prelimMark";
+  refLabel: string;
+}) {
+  const showRef = rows.some((r) => r[refKey]);
+  return (
+    <div>
+      {label && <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted">{label}</h4>}
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted">Not yet run.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="mtable">
+            <thead>
+              <tr>
+                <th style={{ width: 40 }}>Place</th>
+                <th>Name</th>
+                <th>School</th>
+                <th className="text-right">Time/Mark</th>
+                {showRef && <th className="text-right">{refLabel}</th>}
+                <th className="text-right">Points</th>
+                <th>Record</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id}>
+                  <td className="font-extrabold tabular-nums">{row.place ?? "—"}</td>
+                  <td className="font-extrabold">{row.athleteName}</td>
+                  <td className="text-muted">{row.schoolName}</td>
+                  <td className="text-right tabular-nums">{row.mark}</td>
+                  {showRef && <td className="text-right tabular-nums text-muted">{row[refKey] ?? "—"}</td>}
+                  <td className="text-right tabular-nums">{row.points ?? "—"}</td>
+                  <td>{row.recordNotation && <span className="tag tag-accent">{row.recordNotation}</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
