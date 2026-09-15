@@ -148,10 +148,11 @@ function parseSide(raw: string, schoolByKey: Map<string, { id: string }>): SideS
     return { kind: "placeholder", outcome, refGameId: placeholder[2].trim() };
   }
 
-  // A placement-bracket seed: "1st", "2nd", "3rd", "4th", ... - this row's
-  // own division's final standings, once every group-stage game in it is
+  // A placement-bracket seed: "1st", "2nd", "3rd", "4th", ... (an optional
+  // trailing "place" is fine too, e.g. "4th Place") - this row's own
+  // division's final standings, once every group-stage game in it is
   // decided (see resolveStandingSlots).
-  const ordinal = raw.match(/^(\d+)(?:st|nd|rd|th)$/i);
+  const ordinal = raw.match(/^(\d+)(?:st|nd|rd|th)(?:\s+place)?$/i);
   if (ordinal) {
     const position = Number(ordinal[1]);
     if (position < 1) return { error: `Invalid standing "${raw}" (use 1st, 2nd, 3rd, and so on).` };
