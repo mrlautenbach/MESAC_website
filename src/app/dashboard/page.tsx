@@ -78,6 +78,9 @@ export default async function DashboardPage() {
           <Link href="/dashboard/admin/events/new" className="btn btn-primary">
             + New event
           </Link>
+          <Link href="/dashboard/results" className="btn btn-secondary">
+            Results
+          </Link>
           <Link href="/dashboard/admin/tournaments" className="btn btn-secondary">
             Tournaments
           </Link>
