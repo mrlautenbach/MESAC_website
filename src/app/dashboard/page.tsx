@@ -19,6 +19,10 @@ const EVENT_ROW = {
   title: true,
   homeSourceOutcome: true,
   awaySourceOutcome: true,
+  homeSourceStanding: true,
+  awaySourceStanding: true,
+  homeSourceLabel: true,
+  awaySourceLabel: true,
   homeSourceEvent: { select: { externalId: true } },
   awaySourceEvent: { select: { externalId: true } },
   division: { select: { name: true } },
@@ -138,20 +142,41 @@ type EventRowProps = {
     participants: { isHome: boolean; school: { name: string } }[];
     homeSourceOutcome: "WINNER" | "LOSER" | null;
     awaySourceOutcome: "WINNER" | "LOSER" | null;
+    homeSourceStanding: number | null;
+    awaySourceStanding: number | null;
+    homeSourceLabel: string | null;
+    awaySourceLabel: string | null;
     homeSourceEvent: { externalId: string | null } | null;
     awaySourceEvent: { externalId: string | null } | null;
   };
 };
 
 function EventRow({ event }: EventRowProps) {
+  // A meet session never sets any of these source fields; a team game does,
+  // even before either side has a concrete school (e.g. both still pending).
+  const isPendingDualMatchup =
+    event.homeSourceOutcome ||
+    event.awaySourceOutcome ||
+    event.homeSourceStanding ||
+    event.awaySourceStanding ||
+    event.homeSourceLabel ||
+    event.awaySourceLabel;
   const matchup =
-    event.participants.length === 0
+    event.participants.length === 0 && !isPendingDualMatchup
       ? event.title ?? "Untitled session"
       : event.participants.length <= 2
-      ? `${sideLabel(event.participants.find((p) => p.isHome), event.homeSourceOutcome, event.homeSourceEvent?.externalId)} vs ${sideLabel(
+      ? `${sideLabel(
+          event.participants.find((p) => p.isHome),
+          event.homeSourceOutcome,
+          event.homeSourceEvent?.externalId,
+          event.homeSourceStanding,
+          event.homeSourceLabel
+        )} vs ${sideLabel(
           event.participants.find((p) => !p.isHome),
           event.awaySourceOutcome,
-          event.awaySourceEvent?.externalId
+          event.awaySourceEvent?.externalId,
+          event.awaySourceStanding,
+          event.awaySourceLabel
         )}`
       : event.participants.map((p) => p.school.name).join(" vs ");
   return (

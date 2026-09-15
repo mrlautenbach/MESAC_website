@@ -23,6 +23,10 @@ export type EventRowEvent = {
   streamUrl: string | null;
   homeSourceOutcome: "WINNER" | "LOSER" | null;
   awaySourceOutcome: "WINNER" | "LOSER" | null;
+  homeSourceStanding: number | null;
+  awaySourceStanding: number | null;
+  homeSourceLabel: string | null;
+  awaySourceLabel: string | null;
   homeSourceEvent: { externalId: string | null } | null;
   awaySourceEvent: { externalId: string | null } | null;
   division: { name: string } | null;
@@ -74,10 +78,14 @@ function Side({
   participant,
   outcome,
   sourceExternalId,
+  sourceStanding,
+  sourceLabel,
 }: {
   participant: EventRowEvent["participants"][number] | undefined;
   outcome: "WINNER" | "LOSER" | null;
   sourceExternalId: string | null | undefined;
+  sourceStanding: number | null;
+  sourceLabel: string | null;
 }) {
   return (
     <>
@@ -88,7 +96,7 @@ function Side({
         color={participant?.school.themeColor}
         secondaryColor={participant?.school.themeColorSecondary}
       />
-      {sideLabel(participant, outcome, sourceExternalId)}
+      {sideLabel(participant, outcome, sourceExternalId, sourceStanding, sourceLabel)}
     </>
   );
 }
@@ -147,7 +155,19 @@ export function EventRows(props: EventRowsProps) {
             {group.events.map((event) => {
               const home = event.participants.find((p) => p.isHome);
               const away = event.participants.find((p) => !p.isHome);
-              const hasMatchup = Boolean(home || away);
+              // A meet session never sets any of these source fields; a team
+              // game does, even before either side has a concrete school
+              // (e.g. both sides still pending on a group stage).
+              const hasMatchup = Boolean(
+                home ||
+                  away ||
+                  event.homeSourceOutcome ||
+                  event.awaySourceOutcome ||
+                  event.homeSourceStanding ||
+                  event.awaySourceStanding ||
+                  event.homeSourceLabel ||
+                  event.awaySourceLabel
+              );
               const homeScore = home && event.results.find((r) => r.schoolId === home.schoolId)?.score;
               const awayScore = away && event.results.find((r) => r.schoolId === away.schoolId)?.score;
               const valueByFieldId = new Map(event.fieldValues.map((v) => [v.fieldId, v.value]));
@@ -174,6 +194,8 @@ export function EventRows(props: EventRowsProps) {
                             participant={home}
                             outcome={event.homeSourceOutcome}
                             sourceExternalId={event.homeSourceEvent?.externalId}
+                            sourceStanding={event.homeSourceStanding}
+                            sourceLabel={event.homeSourceLabel}
                           />
                         </Link>
                       </div>
@@ -188,6 +210,8 @@ export function EventRows(props: EventRowsProps) {
                             participant={away}
                             outcome={event.awaySourceOutcome}
                             sourceExternalId={event.awaySourceEvent?.externalId}
+                            sourceStanding={event.awaySourceStanding}
+                            sourceLabel={event.awaySourceLabel}
                           />
                         </Link>
                       </div>

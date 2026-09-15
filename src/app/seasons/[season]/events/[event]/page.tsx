@@ -152,14 +152,31 @@ export default async function EventPage({
 
   const homeParticipant = event.participants.find((p) => p.isHome);
   const awayParticipant = event.participants.find((p) => !p.isHome);
+  // A meet session never sets any of these source fields; a team game does,
+  // even before either side has a concrete school (e.g. both still pending).
+  const isPendingDualMatchup =
+    event.homeSourceEventId ||
+    event.awaySourceEventId ||
+    event.homeSourceStanding ||
+    event.awaySourceStanding ||
+    event.homeSourceLabel ||
+    event.awaySourceLabel;
   const matchupTitle =
-    event.participants.length === 0
+    event.participants.length === 0 && !isPendingDualMatchup
       ? event.title ?? "Untitled session"
-      : event.participants.length === 2 || event.homeSourceEventId || event.awaySourceEventId
-      ? `${sideLabel(homeParticipant, event.homeSourceOutcome, event.homeSourceEvent?.externalId)} vs ${sideLabel(
+      : event.participants.length === 2 || isPendingDualMatchup
+      ? `${sideLabel(
+          homeParticipant,
+          event.homeSourceOutcome,
+          event.homeSourceEvent?.externalId,
+          event.homeSourceStanding,
+          event.homeSourceLabel
+        )} vs ${sideLabel(
           awayParticipant,
           event.awaySourceOutcome,
-          event.awaySourceEvent?.externalId
+          event.awaySourceEvent?.externalId,
+          event.awaySourceStanding,
+          event.awaySourceLabel
         )}`
       : event.participants.map((p) => p.school.name).join(" vs ");
 

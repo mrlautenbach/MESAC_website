@@ -142,7 +142,19 @@ export default async function SchedulePage() {
                                   {events.slice(0, PREVIEW_COUNT).map((event) => {
                                     const home = event.participants.find((p) => p.isHome) ?? null;
                                     const away = event.participants.find((p) => !p.isHome) ?? null;
-                                    const hasMatchup = event.participants.length > 0;
+                                    // A meet session never sets any of these source fields; a
+                                    // team game does, even before either side has a concrete
+                                    // school (e.g. both sides still pending).
+                                    const hasMatchup =
+                                      event.participants.length > 0 ||
+                                      Boolean(
+                                        event.homeSourceOutcome ||
+                                          event.awaySourceOutcome ||
+                                          event.homeSourceStanding ||
+                                          event.awaySourceStanding ||
+                                          event.homeSourceLabel ||
+                                          event.awaySourceLabel
+                                      );
                                     const isDual = event.participants.length <= 2;
                                     const href = event.division
                                       ? `/seasons/${current.slug}/${event.division.slug}/schedule`
@@ -160,12 +172,24 @@ export default async function SchedulePage() {
                                             <span className="inline-flex items-center gap-3">
                                               <span className="inline-flex items-center gap-1">
                                                 <SchoolColorDot color={home?.school.themeColor} secondaryColor={home?.school.themeColorSecondary} />
-                                                {sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)}
+                                                {sideLabel(
+                                                  home,
+                                                  event.homeSourceOutcome,
+                                                  event.homeSourceEvent?.externalId,
+                                                  event.homeSourceStanding,
+                                                  event.homeSourceLabel
+                                                )}
                                               </span>
                                               <span className="text-muted">v</span>
                                               <span className="inline-flex items-center gap-1">
                                                 <SchoolColorDot color={away?.school.themeColor} secondaryColor={away?.school.themeColorSecondary} />
-                                                {sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId)}
+                                                {sideLabel(
+                                                  away,
+                                                  event.awaySourceOutcome,
+                                                  event.awaySourceEvent?.externalId,
+                                                  event.awaySourceStanding,
+                                                  event.awaySourceLabel
+                                                )}
                                               </span>
                                             </span>
                                           ) : (

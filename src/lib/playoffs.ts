@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
+import { computeStandings, computeLowScoreTeamStandings } from "@/lib/standings";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -76,6 +77,77 @@ export async function resolvePlayoffSlots(tx: Db, sourceEventId: string) {
     if (dep.awaySourceEventId === sourceEventId && dep.awaySourceOutcome) {
       const schoolId = dep.awaySourceOutcome === "WINNER" ? outcome.winnerSchoolId : outcome.loserSchoolId;
       await fillSlot(tx, dep.id, false, schoolId);
+    }
+  }
+}
+
+// Call after any game's result (or status) changes - fills in a placement
+// slot ("4th place plays...") for every division whose group-stage games
+// (every event that isn't itself a pending-or-resolved bracket slot) are all
+// decided, so a position no longer just committed doesn't keep the slot
+// pending. Unlike resolvePlayoffSlots this isn't scoped to one source event,
+// since a standings position depends on every game in the division, not one
+// game in particular - so it re-checks every division with a pending slot.
+//
+// computeStandings/computeLowScoreTeamStandings always read through the
+// module-level `prisma` client, not whatever `Db` is passed in here - so
+// this must only ever be called with `prisma` itself, after any transaction
+// that changed the underlying games has already committed. Calling it with
+// an open transaction's `tx` would read stale, pre-commit standings.
+export async function resolveStandingSlots(tx: Db, tournamentId: string) {
+  const pending = await tx.event.findMany({
+    where: {
+      tournamentId,
+      OR: [{ homeSourceStanding: { not: null } }, { awaySourceStanding: { not: null } }],
+    },
+    include: { participants: true },
+  });
+  if (pending.length === 0) return;
+
+  const tournament = await tx.tournament.findUnique({ where: { id: tournamentId }, include: { activity: true } });
+  if (!tournament) return;
+  const { scoringType, winPoints, drawPoints, lossPoints } = tournament.activity;
+
+  const divisionIds = new Set(pending.map((e) => e.divisionId));
+  const standingsByDivision = new Map<string | null, { schoolId: string }[]>();
+
+  for (const divisionId of divisionIds) {
+    // Not final yet: some non-bracket game in this division is still
+    // scheduled, so the table could still change.
+    const stillScheduled = await tx.event.count({
+      where: {
+        tournamentId,
+        divisionId,
+        status: "SCHEDULED",
+        homeSourceEventId: null,
+        awaySourceEventId: null,
+        homeSourceStanding: null,
+        awaySourceStanding: null,
+        homeSourceLabel: null,
+        awaySourceLabel: null,
+      },
+    });
+    if (stillScheduled > 0) continue;
+
+    const rows =
+      scoringType === "LOW_SCORE"
+        ? await computeLowScoreTeamStandings(tournamentId, divisionId, true)
+        : await computeStandings(tournamentId, { winPoints, drawPoints, lossPoints }, divisionId, true);
+    standingsByDivision.set(divisionId, rows);
+  }
+
+  for (const event of pending) {
+    const rows = standingsByDivision.get(event.divisionId);
+    if (!rows) continue;
+    const home = event.participants.find((p) => p.isHome);
+    const away = event.participants.find((p) => !p.isHome);
+    if (event.homeSourceStanding && !home) {
+      const row = rows[event.homeSourceStanding - 1];
+      if (row) await fillSlot(tx, event.id, true, row.schoolId);
+    }
+    if (event.awaySourceStanding && !away) {
+      const row = rows[event.awaySourceStanding - 1];
+      if (row) await fillSlot(tx, event.id, false, row.schoolId);
     }
   }
 }

@@ -23,6 +23,10 @@ const HEADLINE_EVENT = {
   status: true,
   homeSourceOutcome: true,
   awaySourceOutcome: true,
+  homeSourceStanding: true,
+  awaySourceStanding: true,
+  homeSourceLabel: true,
+  awaySourceLabel: true,
   homeSourceEvent: { select: { externalId: true } },
   awaySourceEvent: { select: { externalId: true } },
   division: { select: { name: true } },
@@ -159,6 +163,10 @@ type HeadlineEvent = {
   location: string | null;
   homeSourceOutcome: "WINNER" | "LOSER" | null;
   awaySourceOutcome: "WINNER" | "LOSER" | null;
+  homeSourceStanding: number | null;
+  awaySourceStanding: number | null;
+  homeSourceLabel: string | null;
+  awaySourceLabel: string | null;
   homeSourceEvent: { externalId: string | null } | null;
   awaySourceEvent: { externalId: string | null } | null;
   division: { name: string } | null;
@@ -214,14 +222,26 @@ function LiveResultsBand({ tournament }: { tournament: LiveResultsTournament }) 
 // game is named by its two sides, either of which may still be a playoff
 // placeholder ("Winner of G3").
 function matchupOf(event: HeadlineEvent) {
-  if (event.participants.length === 0) return event.title ?? "Untitled session";
+  // A meet session never sets any of these; a team game does, even before
+  // either side has a concrete school (e.g. both sides still pending).
+  const isDualMatchup =
+    event.participants.length > 0 ||
+    event.homeSourceOutcome ||
+    event.awaySourceOutcome ||
+    event.homeSourceStanding ||
+    event.awaySourceStanding ||
+    event.homeSourceLabel ||
+    event.awaySourceLabel;
+  if (!isDualMatchup) return event.title ?? "Untitled session";
   const home = event.participants.find((p) => p.isHome);
   const away = event.participants.find((p) => !p.isHome);
-  return `${sideLabel(home, event.homeSourceOutcome, event.homeSourceEvent?.externalId)} v ${sideLabel(
-    away,
-    event.awaySourceOutcome,
-    event.awaySourceEvent?.externalId
-  )}`;
+  return `${sideLabel(
+    home,
+    event.homeSourceOutcome,
+    event.homeSourceEvent?.externalId,
+    event.homeSourceStanding,
+    event.homeSourceLabel
+  )} v ${sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId, event.awaySourceStanding, event.awaySourceLabel)}`;
 }
 
 function NextCell({ event, tournamentSlug }: { event: HeadlineEvent; tournamentSlug: string }) {

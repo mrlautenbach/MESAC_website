@@ -114,11 +114,26 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: P
           Match schools by their short code or exact name: {schoolCodes.map((s) => s.code || s.name).join(", ")}.
         </p>
         <p className="text-muted">
-          For a playoff round, set <code>home</code> or <code>away</code> to <code>WINNER(G1)</code> or{" "}
-          <code>LOSER(G1)</code> instead of a school. Once game G1 is scored, that slot fills in automatically. A
-          game can only reference a <code>game_id</code> from an earlier row in the file, or one already on the
-          schedule.
+          A <code>home</code> or <code>away</code> cell can also be one of three placeholders instead of a school,
+          for a side that isn&apos;t decided yet:
         </p>
+        <ul className="list-inside list-disc text-muted">
+          <li>
+            <code>Winner of G1</code> / <code>Loser of G1</code> (or <code>WINNER(G1)</code>/<code>LOSER(G1)</code>)
+            - fills in automatically once game G1 is scored. G1 must be a <code>game_id</code> from an earlier row
+            in the file, or one already on the schedule.
+          </li>
+          <li>
+            <code>1st</code>, <code>2nd</code>, <code>3rd</code>, ... - a placement bracket seeded by this row&apos;s
+            own division&apos;s final standings, filled in automatically once every group-stage game in that
+            division is decided.
+          </li>
+          <li>
+            <code>TBD</code>, or <code>TBD(Local)</code> to show a name - an opponent that isn&apos;t in the
+            database yet. This one is never filled in automatically; set it by hand later from the event&apos;s own
+            page.
+          </li>
+        </ul>
         <a href={templateHref} download={`${season?.label.replace(/[^a-z0-9]+/gi, "-") || "events"}-template.csv`} className="btn btn-secondary">
           Download CSV template
         </a>

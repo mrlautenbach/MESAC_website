@@ -361,6 +361,23 @@ model Event {
   awaySourceOutcome SlotOutcome?
   awayDependents    Event[]      @relation("AwaySource")
 
+  // A second kind of pending slot: seeded by a final standings position
+  // ("1st", "4th", ...) within this event's own division, rather than by one
+  // specific game's winner/loser - e.g. a placement bracket built from pool
+  // standings. Filled in automatically once every group-stage game in that
+  // division is decided (see resolveStandingSlots) - there's no dependent
+  // relation to declare since it isn't tied to one source event.
+  homeSourceStanding Int?
+  awaySourceStanding Int?
+
+  // A third kind of pending slot: a free-text placeholder ("Local", or just
+  // "TBD" for none) for an opponent that isn't in the database yet and has
+  // no automatic resolution - filled in by hand later from the event's own
+  // "Change who's playing" editor, same as overriding a WINNER()/LOSER()
+  // slot before it resolves on its own.
+  homeSourceLabel String?
+  awaySourceLabel String?
+
   participants      EventParticipant[]
   results           Result[]
   individualResults IndividualResult[]

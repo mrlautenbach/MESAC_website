@@ -10,6 +10,7 @@ import { DocumentUploader } from "@/components/DocumentUploader";
 import { DocumentList } from "@/components/DocumentList";
 import { MeetResultsImportForm } from "@/components/MeetResultsImportForm";
 import { EventHistory } from "@/components/EventHistory";
+import { ordinal } from "@/lib/eventDisplay";
 
 export default async function EditEventPage({ params }: { params: Promise<{ event: string }> }) {
   const user = await getCurrentUser();
@@ -61,15 +62,28 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
   const homeParticipant = event.participants.find((p) => p.isHome) ?? null;
   const awayParticipant = event.participants.find((p) => !p.isHome) ?? null;
   const canEditMatchup = isAdmin && event.participants.length <= 2;
-  const pendingLabel = (outcome: "WINNER" | "LOSER" | null, externalId: string | null | undefined) =>
-    outcome ? `${outcome === "WINNER" ? "Winner" : "Loser"} of ${externalId ?? "TBD"}` : null;
+  const pendingLabel = (
+    outcome: "WINNER" | "LOSER" | null,
+    externalId: string | null | undefined,
+    standing: number | null,
+    label: string | null
+  ) => {
+    if (label) return label;
+    if (outcome) return `${outcome === "WINNER" ? "Winner" : "Loser"} of ${externalId ?? "TBD"}`;
+    if (standing) return `${ordinal(standing)} place`;
+    return null;
+  };
   const homeSide = {
     schoolId: homeParticipant?.schoolId ?? null,
-    pendingLabel: homeParticipant ? null : pendingLabel(event.homeSourceOutcome, event.homeSourceEvent?.externalId),
+    pendingLabel: homeParticipant
+      ? null
+      : pendingLabel(event.homeSourceOutcome, event.homeSourceEvent?.externalId, event.homeSourceStanding, event.homeSourceLabel),
   };
   const awaySide = {
     schoolId: awayParticipant?.schoolId ?? null,
-    pendingLabel: awayParticipant ? null : pendingLabel(event.awaySourceOutcome, event.awaySourceEvent?.externalId),
+    pendingLabel: awayParticipant
+      ? null
+      : pendingLabel(event.awaySourceOutcome, event.awaySourceEvent?.externalId, event.awaySourceStanding, event.awaySourceLabel),
   };
 
   const individualResultsBySchool: Record<string, { athleteName: string; score: number }[]> = {};

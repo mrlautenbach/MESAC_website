@@ -19,8 +19,27 @@ export type StandingsRow = {
   form: ("W" | "L" | "D")[];
 };
 
-function eventWhere(tournamentId: string, divisionId?: string | null) {
-  return divisionId ? { tournamentId, divisionId } : { tournamentId };
+// `excludeBracketGames` drops any event with a pending-or-resolved playoff
+// slot on either side (game-outcome, standings-seeded, or a free-text
+// placeholder) - used only when computing the standings a placement bracket
+// seeds itself from, so a completed bracket game can't feed back into the
+// table that seeded it. Every other caller (the public standings page)
+// leaves this off, unchanged from before bracket seeding existed.
+function eventWhere(tournamentId: string, divisionId?: string | null, excludeBracketGames?: boolean) {
+  return {
+    tournamentId,
+    ...(divisionId ? { divisionId } : {}),
+    ...(excludeBracketGames
+      ? {
+          homeSourceEventId: null,
+          awaySourceEventId: null,
+          homeSourceStanding: null,
+          awaySourceStanding: null,
+          homeSourceLabel: null,
+          awaySourceLabel: null,
+        }
+      : {}),
+  };
 }
 
 const FORM_LETTER: Record<string, "W" | "L" | "D"> = { WIN: "W", LOSS: "L", DRAW: "D" };
@@ -35,10 +54,11 @@ export async function computeStandings(
   // point values as an argument saves re-fetching the tournament and its
   // activity on every results-page render just to read them.
   scoring: { winPoints: number; drawPoints: number; lossPoints: number },
-  divisionId?: string | null
+  divisionId?: string | null,
+  excludeBracketGames?: boolean
 ): Promise<StandingsRow[]> {
   const events = await prisma.event.findMany({
-    where: eventWhere(tournamentId, divisionId),
+    where: eventWhere(tournamentId, divisionId, excludeBracketGames),
     orderBy: { date: "asc" },
     select: {
       results: { select: { schoolId: true, score: true, outcome: true, school: { select: { name: true, logoUrl: true } } } },
@@ -132,10 +152,11 @@ export type LowScoreTeamRow = {
 // score, not win/loss points.
 export async function computeLowScoreTeamStandings(
   tournamentId: string,
-  divisionId?: string | null
+  divisionId?: string | null,
+  excludeBracketGames?: boolean
 ): Promise<LowScoreTeamRow[]> {
   const results = await prisma.result.findMany({
-    where: { event: eventWhere(tournamentId, divisionId), score: { not: null } },
+    where: { event: eventWhere(tournamentId, divisionId, excludeBracketGames), score: { not: null } },
     include: { school: true },
   });
 

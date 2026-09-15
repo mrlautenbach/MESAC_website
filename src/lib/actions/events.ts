@@ -15,7 +15,7 @@ import {
 } from "@/lib/validation";
 import { parseCsv } from "@/lib/csv";
 import { normalizeDivisionName } from "@/lib/divisionAlias";
-import { computeOutcomes, resolvePlayoffSlots, tryFillFromExistingSource } from "@/lib/playoffs";
+import { computeOutcomes, resolvePlayoffSlots, resolveStandingSlots, tryFillFromExistingSource } from "@/lib/playoffs";
 import type { ActionResult } from "@/lib/actions/auth";
 import { z } from "zod";
 
@@ -113,7 +113,14 @@ const REQUIRED_HEADERS = ["date", "home", "away"];
 
 type SideSpec =
   | { kind: "school"; schoolId: string }
-  | { kind: "placeholder"; outcome: "WINNER" | "LOSER"; refGameId: string };
+  | { kind: "placeholder"; outcome: "WINNER" | "LOSER"; refGameId: string }
+  // Seeded by a final-standings position within this row's own division
+  // ("1st", "4th", ...) - see resolveStandingSlots.
+  | { kind: "standing"; position: number }
+  // A free-text placeholder for an opponent not yet in the database
+  // ("TBD(Local)"), or a bare "TBD" for no particular label - filled in by
+  // hand later, same as overriding an unresolved game-outcome slot.
+  | { kind: "label"; text: string | null };
 
 type PlannedRow = {
   rowNum: number;
@@ -133,10 +140,29 @@ type PlannedRow = {
 };
 
 function parseSide(raw: string, schoolByKey: Map<string, { id: string }>): SideSpec | { error: string } {
-  const placeholder = raw.match(/^(winner|loser)\s*\(\s*([^)]+?)\s*\)$/i);
+  // "WINNER(G3)"/"LOSER(G3)" (original syntax) plus the more conversational
+  // "W of G3", "Winner of G3", "L of G3", "Loser of G3" - all case-insensitive.
+  const placeholder = raw.match(/^(winner|win|w|loser|lose|loss|l)\s*(?:of\s+)?\(?\s*([a-z0-9._-]+?)\s*\)?$/i);
   if (placeholder) {
-    return { kind: "placeholder", outcome: placeholder[1].toUpperCase() as "WINNER" | "LOSER", refGameId: placeholder[2].trim() };
+    const outcome: "WINNER" | "LOSER" = /^w/i.test(placeholder[1]) ? "WINNER" : "LOSER";
+    return { kind: "placeholder", outcome, refGameId: placeholder[2].trim() };
   }
+
+  // A placement-bracket seed: "1st", "2nd", "3rd", "4th", ... - this row's
+  // own division's final standings, once every group-stage game in it is
+  // decided (see resolveStandingSlots).
+  const ordinal = raw.match(/^(\d+)(?:st|nd|rd|th)$/i);
+  if (ordinal) {
+    const position = Number(ordinal[1]);
+    if (position < 1) return { error: `Invalid standing "${raw}" (use 1st, 2nd, 3rd, and so on).` };
+    return { kind: "standing", position };
+  }
+
+  // A named or bare placeholder for an opponent not yet in the database -
+  // filled in by hand later from this event's own "Change who's playing".
+  const tbd = raw.match(/^tbd(?:\s*\(\s*(.+?)\s*\))?$/i);
+  if (tbd) return { kind: "label", text: tbd[1]?.trim() || null };
+
   const school = schoolByKey.get(raw.toLowerCase());
   if (!school) return { error: `Unknown school "${raw}".` };
   return { kind: "school", schoolId: school.id };
@@ -363,7 +389,9 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     | { participantAction: "none" }
     | { participantAction: "clear" }
     | { participantAction: "create" | "replace"; schoolId: string }
-    | { participantAction: "pending"; sourceEventId: string; outcome: "WINNER" | "LOSER" };
+    | { participantAction: "pending"; sourceEventId: string; outcome: "WINNER" | "LOSER" }
+    | { participantAction: "pending-standing"; position: number }
+    | { participantAction: "pending-label"; text: string | null };
 
   const { createdIds, updatedIds, removedIds } = await prisma.$transaction(
     async (tx) => {
@@ -381,11 +409,19 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
           return { participantAction: "replace", schoolId: spec.schoolId };
         }
         if (existingParticipant) return { participantAction: "none" };
+        if (spec.kind === "standing") return { participantAction: "pending-standing", position: spec.position };
+        if (spec.kind === "label") return { participantAction: "pending-label", text: spec.text };
         return { participantAction: "pending", sourceEventId: gameIdToEventId.get(spec.refGameId)!, outcome: spec.outcome };
       }
 
       async function applyParticipant(eventId: string, isHome: boolean, resolved: ResolvedSide, existingParticipant: { schoolId: string } | null) {
-        if (resolved.participantAction === "none" || resolved.participantAction === "pending") return;
+        if (
+          resolved.participantAction === "none" ||
+          resolved.participantAction === "pending" ||
+          resolved.participantAction === "pending-standing" ||
+          resolved.participantAction === "pending-label"
+        )
+          return;
         if (resolved.participantAction === "clear") {
           if (existingParticipant) {
             await tx.result.deleteMany({ where: { eventId, schoolId: existingParticipant.schoolId } });
@@ -406,15 +442,31 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       }
 
       function currentSchoolId(resolved: ResolvedSide, existingParticipant: { schoolId: string } | null): string | null {
-        if (resolved.participantAction === "pending" || resolved.participantAction === "clear") return null;
+        if (
+          resolved.participantAction === "pending" ||
+          resolved.participantAction === "pending-standing" ||
+          resolved.participantAction === "pending-label" ||
+          resolved.participantAction === "clear"
+        )
+          return null;
         if (resolved.participantAction === "none") return existingParticipant?.schoolId ?? null;
         return resolved.schoolId;
       }
 
-      function sourceFieldsFor(resolved: ResolvedSide) {
-        if (resolved.participantAction === "pending") return { eventId: resolved.sourceEventId, outcome: resolved.outcome };
+      type SourceFields = { eventId: string | null; outcome: "WINNER" | "LOSER" | null; standing: number | null; label: string | null };
+
+      function sourceFieldsFor(resolved: ResolvedSide): SourceFields | undefined {
+        if (resolved.participantAction === "pending") {
+          return { eventId: resolved.sourceEventId, outcome: resolved.outcome, standing: null, label: null };
+        }
+        if (resolved.participantAction === "pending-standing") {
+          return { eventId: null, outcome: null, standing: resolved.position, label: null };
+        }
+        if (resolved.participantAction === "pending-label") {
+          return { eventId: null, outcome: null, standing: null, label: resolved.text };
+        }
         if (resolved.participantAction === "create" || resolved.participantAction === "replace" || resolved.participantAction === "clear") {
-          return { eventId: null, outcome: null };
+          return { eventId: null, outcome: null, standing: null, label: null };
         }
         return undefined; // "none" - leave whatever was already stored
       }
@@ -441,8 +493,22 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
               status: row.status,
               streamUrl: row.streamUrl,
               order: row.order,
-              ...(homeSource ? { homeSourceEventId: homeSource.eventId, homeSourceOutcome: homeSource.outcome } : {}),
-              ...(awaySource ? { awaySourceEventId: awaySource.eventId, awaySourceOutcome: awaySource.outcome } : {}),
+              ...(homeSource
+                ? {
+                    homeSourceEventId: homeSource.eventId,
+                    homeSourceOutcome: homeSource.outcome,
+                    homeSourceStanding: homeSource.standing,
+                    homeSourceLabel: homeSource.label,
+                  }
+                : {}),
+              ...(awaySource
+                ? {
+                    awaySourceEventId: awaySource.eventId,
+                    awaySourceOutcome: awaySource.outcome,
+                    awaySourceStanding: awaySource.standing,
+                    awaySourceLabel: awaySource.label,
+                  }
+                : {}),
             },
           });
           eventId = existing.id;
@@ -479,8 +545,12 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
               externalId: row.gameId,
               homeSourceEventId: homeSource?.eventId ?? null,
               homeSourceOutcome: homeSource?.outcome ?? null,
+              homeSourceStanding: homeSource?.standing ?? null,
+              homeSourceLabel: homeSource?.label ?? null,
               awaySourceEventId: awaySource?.eventId ?? null,
               awaySourceOutcome: awaySource?.outcome ?? null,
+              awaySourceStanding: awaySource?.standing ?? null,
+              awaySourceLabel: awaySource?.label ?? null,
             },
           });
           eventId = event.id;
@@ -550,6 +620,10 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     },
     { timeout: 60_000 }
   );
+
+  // Runs after the transaction commits, not inside it - it needs to see
+  // every row this file just wrote (see resolveStandingSlots).
+  await resolveStandingSlots(prisma, tournament.id);
 
   const allIds = [...createdIds, ...updatedIds];
   await recordAudit({
@@ -696,8 +770,8 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
           prisma.event.update({
             where: { id: event.id },
             data: side.isHome
-              ? { homeSourceEventId: null, homeSourceOutcome: null }
-              : { awaySourceEventId: null, awaySourceOutcome: null },
+              ? { homeSourceEventId: null, homeSourceOutcome: null, homeSourceStanding: null, homeSourceLabel: null }
+              : { awaySourceEventId: null, awaySourceOutcome: null, awaySourceStanding: null, awaySourceLabel: null },
           }),
         ]);
 
@@ -812,8 +886,10 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
   }
 
   // This game might now be decided - fill in any playoff slot waiting on
-  // its winner/loser ("winner of this game plays...").
+  // its winner/loser ("winner of this game plays..."), or a placement slot
+  // whose division just finished its group stage ("4th place plays...").
   await resolvePlayoffSlots(prisma, event.id);
+  await resolveStandingSlots(prisma, event.tournamentId);
 
   // Individual (per-athlete) scores, for LOW_SCORE activities like golf. The
   // "present" marker distinguishes "no rows submitted for this school"
