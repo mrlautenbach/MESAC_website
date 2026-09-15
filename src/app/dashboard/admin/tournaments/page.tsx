@@ -11,6 +11,7 @@ import { TournamentSchoolsManager } from "@/components/TournamentSchoolsManager"
 import { LiveResultsPhotoManager } from "@/components/LiveResultsPhotoManager";
 import { DeleteActivityForm } from "@/components/DeleteActivityForm";
 import { DeleteTournamentForm } from "@/components/DeleteTournamentForm";
+import { SetTournamentCurrentButton } from "@/components/SetTournamentCurrentButton";
 import { EXPECTED_ROSTER } from "@/lib/expectedRoster";
 import { isParticipating } from "@/lib/tournamentRoster";
 
@@ -197,6 +198,7 @@ export default async function TournamentsAdminPage() {
                                   <Link href={`/seasons/${t.slug}`} className="text-muted underline">
                                     {t.name}
                                   </Link>
+                                  <SetTournamentCurrentButton tournamentId={t.id} />
                                   {isAdmin && (
                                     <details>
                                       <summary className="cursor-pointer font-semibold text-danger">Delete</summary>

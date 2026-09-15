@@ -133,6 +133,42 @@ export async function updateTournamentAction(_prevState: ActionResult | null, fo
   return { ok: true };
 }
 
+// Promotes an archived edition back to being the activity's current one
+// (and un-marks whichever edition held that spot before) - the only way to
+// recover from an edition ending up in the archive list by mistake (e.g. an
+// empty tournament accidentally created after it), since every other
+// tournament control only ever appears for whichever one is already
+// current.
+export async function setTournamentCurrentAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const admin = await requireUser();
+  const tournamentId = String(formData.get("tournamentId") ?? "");
+
+  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId }, include: { activity: true } });
+  if (!tournament) return { ok: false, error: "Tournament not found." };
+  if (tournament.isCurrent) return { ok: true };
+
+  await prisma.$transaction([
+    prisma.tournament.updateMany({
+      where: { activityId: tournament.activityId, isCurrent: true },
+      data: { isCurrent: false },
+    }),
+    prisma.tournament.update({ where: { id: tournamentId }, data: { isCurrent: true } }),
+  ]);
+
+  await recordAudit({
+    actorId: admin.id,
+    actorLabel: admin.name,
+    action: "TOURNAMENT_SET_CURRENT",
+    entityType: "Tournament",
+    entityId: tournamentId,
+    summary: `${admin.name} made "${tournament.name}" the current tournament for "${tournament.activity.name}"`,
+  });
+
+  revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
+  revalidatePath("/dashboard/admin/tournaments");
+  return { ok: true };
+}
+
 // Permanently removes one tournament edition and everything under it -
 // events, meet program/results, divisions, team photos, participation
 // overrides - cascaded by the schema, without touching the activity or its
