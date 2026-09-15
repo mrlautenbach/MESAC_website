@@ -10,6 +10,7 @@ import { DivisionsManager } from "@/components/DivisionsManager";
 import { TournamentSchoolsManager } from "@/components/TournamentSchoolsManager";
 import { LiveResultsPhotoManager } from "@/components/LiveResultsPhotoManager";
 import { DeleteActivityForm } from "@/components/DeleteActivityForm";
+import { DeleteTournamentForm } from "@/components/DeleteTournamentForm";
 import { EXPECTED_ROSTER } from "@/lib/expectedRoster";
 import { isParticipating } from "@/lib/tournamentRoster";
 
@@ -175,19 +176,36 @@ export default async function TournamentsAdminPage() {
                                   photoUrl={current.liveResultsPhotoUrl}
                                 />
                               </div>
+                              {isAdmin && (
+                                <details className="mt-3">
+                                  <summary className="cursor-pointer text-xs font-semibold text-danger">
+                                    Delete this tournament
+                                  </summary>
+                                  <div className="mt-3">
+                                    <DeleteTournamentForm tournamentId={current.id} tournamentName={current.name} />
+                                  </div>
+                                </details>
+                              )}
                             </div>
                           )}
 
                           {archived.length > 0 && (
-                            <div className="text-xs text-muted">
-                              Archive:{" "}
-                              {archived.map((t, i) => (
-                                <span key={t.id}>
-                                  {i > 0 && ", "}
-                                  <Link href={`/seasons/${t.slug}`} className="underline">
+                            <div className="space-y-1 text-xs">
+                              <p className="font-semibold text-muted">Archive:</p>
+                              {archived.map((t) => (
+                                <div key={t.id} className="flex flex-wrap items-center gap-2">
+                                  <Link href={`/seasons/${t.slug}`} className="text-muted underline">
                                     {t.name}
                                   </Link>
-                                </span>
+                                  {isAdmin && (
+                                    <details>
+                                      <summary className="cursor-pointer font-semibold text-danger">Delete</summary>
+                                      <div className="mt-2">
+                                        <DeleteTournamentForm tournamentId={t.id} tournamentName={t.name} />
+                                      </div>
+                                    </details>
+                                  )}
+                                </div>
                               ))}
                             </div>
                           )}

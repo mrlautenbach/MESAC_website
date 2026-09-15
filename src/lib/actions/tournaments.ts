@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { revalidateTournament } from "@/lib/revalidate";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/session";
+import { requireUser, requireAdmin } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import { tournamentInputSchema } from "@/lib/validation";
 import type { ActionResult } from "@/lib/actions/auth";
@@ -130,6 +130,55 @@ export async function updateTournamentAction(_prevState: ActionResult | null, fo
   });
 
   revalidateTournament({ slug: existing.slug, activitySlug: existing.activity.slug });
+  return { ok: true };
+}
+
+// Permanently removes one tournament edition and everything under it -
+// events, meet program/results, divisions, team photos, participation
+// overrides - cascaded by the schema, without touching the activity or its
+// other editions. The admin must type the tournament's exact name to
+// confirm, same guard as deleting a whole activity. If this was the
+// activity's current edition, the next-most-recent remaining one (if any)
+// is promoted to current so the activity page doesn't lose its default
+// tournament.
+export async function deleteTournamentAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  const tournamentId = String(formData.get("tournamentId") ?? "");
+  const confirmName = String(formData.get("confirmName") ?? "").trim();
+
+  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId }, include: { activity: true } });
+  if (!tournament) return { ok: false, error: "Tournament not found." };
+
+  if (confirmName !== tournament.name) {
+    return { ok: false, error: `Type "${tournament.name}" exactly to confirm deletion.` };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tournament.delete({ where: { id: tournamentId } });
+
+    if (tournament.isCurrent) {
+      const nextCurrent = await tx.tournament.findFirst({
+        where: { activityId: tournament.activityId },
+        orderBy: { startDate: "desc" },
+      });
+      if (nextCurrent) {
+        await tx.tournament.update({ where: { id: nextCurrent.id }, data: { isCurrent: true } });
+      }
+    }
+  });
+
+  await recordAudit({
+    actorId: admin.id,
+    actorLabel: admin.name,
+    action: "TOURNAMENT_DELETE",
+    entityType: "Tournament",
+    entityId: tournamentId,
+    summary: `${admin.name} permanently deleted tournament "${tournament.name}" (${tournament.activity.name}) and everything under it`,
+    before: { name: tournament.name, activity: tournament.activity.name },
+  });
+
+  revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
+  revalidatePath("/dashboard/admin/tournaments");
   return { ok: true };
 }
 
