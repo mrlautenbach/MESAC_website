@@ -136,7 +136,9 @@ type PlannedRow = {
   away: SideSpec | null;
   homeScore: number | null;
   awayScore: number | null;
-  fieldValues: { fieldId: string; value: string }[];
+  // null means this row's cell for that field is blank - clears any
+  // existing value, same as leaving location/streamUrl/order blank does.
+  fieldValues: { fieldId: string; value: string | null }[];
 };
 
 function parseSide(raw: string, schoolByKey: Map<string, { id: string }>): SideSpec | { error: string } {
@@ -350,7 +352,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     const fieldValues: PlannedRow["fieldValues"] = [];
     for (const field of activityFields) {
       const raw = get(field.key);
-      if (raw) fieldValues.push({ fieldId: field.id, value: raw.slice(0, 500) });
+      fieldValues.push({ fieldId: field.id, value: raw ? raw.slice(0, 500) : null });
     }
 
     if (rowFailed) continue;
@@ -580,11 +582,15 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
         }
 
         for (const fv of row.fieldValues) {
-          await tx.eventFieldValue.upsert({
-            where: { eventId_fieldId: { eventId, fieldId: fv.fieldId } },
-            create: { eventId, fieldId: fv.fieldId, value: fv.value },
-            update: { value: fv.value },
-          });
+          if (fv.value === null) {
+            await tx.eventFieldValue.deleteMany({ where: { eventId, fieldId: fv.fieldId } });
+          } else {
+            await tx.eventFieldValue.upsert({
+              where: { eventId_fieldId: { eventId, fieldId: fv.fieldId } },
+              create: { eventId, fieldId: fv.fieldId, value: fv.value },
+              update: { value: fv.value },
+            });
+          }
         }
 
         await resolvePlayoffSlots(tx, eventId);
