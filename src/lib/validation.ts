@@ -91,6 +91,8 @@ export const activityInputSchema = z.object({
   // Meet-style (swimming, track & field): a per-event CSV import of
   // individual placings, in addition to the results document.
   usesMeetResults: z.boolean(),
+  // Gates the tournament-level "Live results" link/text/photo.
+  usesLiveResults: z.boolean(),
 });
 
 export const meetResultRowSchema = z.object({

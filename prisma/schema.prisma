@@ -166,6 +166,13 @@ model Activity {
   // import of individual placings - see MeetResult. Off by default; only
   // meaningful when scoringType is NONE.
   usesMeetResults   Boolean  @default(false)
+  // Gates the tournament-level "Live results" link/text/photo (see
+  // Tournament.liveResultsUrl etc.) both in the admin edit form and on the
+  // public tournament page. Only meaningful for activities where a meet or
+  // match is scored live elsewhere and posted as a standalone results feed
+  // (swimming, track & field, wrestling, cross country) - most team sports
+  // just use the regular schedule/results tables instead.
+  usesLiveResults   Boolean  @default(false)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 

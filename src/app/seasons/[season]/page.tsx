@@ -103,7 +103,7 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
         </div>
       )}
 
-      <LiveResultsBand tournament={tournament} />
+      {tournament.activity.usesLiveResults && <LiveResultsBand tournament={tournament} />}
 
       {roster.length > 0 && (
         <div className="border-b-2 border-divider bg-surface px-6 py-6 sm:px-10">

@@ -160,6 +160,7 @@ export default async function TournamentsAdminPage() {
                               <SeasonEditionForm
                                 activityId={activity.id}
                                 schools={schools}
+                                showLiveResults={activity.usesLiveResults}
                                 existing={{
                                   id: current.id,
                                   name: current.name,
@@ -171,12 +172,14 @@ export default async function TournamentsAdminPage() {
                                   liveResultsText: current.liveResultsText,
                                 }}
                               />
-                              <div className="mt-3">
-                                <LiveResultsPhotoManager
-                                  tournamentId={current.id}
-                                  photoUrl={current.liveResultsPhotoUrl}
-                                />
-                              </div>
+                              {activity.usesLiveResults && (
+                                <div className="mt-3">
+                                  <LiveResultsPhotoManager
+                                    tournamentId={current.id}
+                                    photoUrl={current.liveResultsPhotoUrl}
+                                  />
+                                </div>
+                              )}
                               {isAdmin && (
                                 <details className="mt-3">
                                   <summary className="cursor-pointer text-xs font-semibold text-danger">
@@ -232,6 +235,7 @@ export default async function TournamentsAdminPage() {
                                 showPlayed: activity.showPlayed,
                                 usesSetScores: activity.usesSetScores,
                                 usesMeetResults: activity.usesMeetResults,
+                                usesLiveResults: activity.usesLiveResults,
                               }}
                             />
                           )}

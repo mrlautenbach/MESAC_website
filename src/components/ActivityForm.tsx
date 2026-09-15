@@ -33,6 +33,7 @@ type ExistingActivity = {
   showPlayed: boolean;
   usesSetScores: boolean;
   usesMeetResults: boolean;
+  usesLiveResults: boolean;
 };
 
 export function ActivityForm({
@@ -118,6 +119,17 @@ export function ActivityForm({
           <option value="LOW_SCORE">Team + individual score, lowest wins (e.g. golf)</option>
           <option value="NONE">No results table, just post a results document (meets, festivals)</option>
         </select>
+      </div>
+
+      <div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="usesLiveResults" defaultChecked={existing?.usesLiveResults ?? false} />
+          Uses live results (e.g. swimming, track &amp; field, wrestling, cross country)
+        </label>
+        <p className="mt-1 text-xs text-muted">
+          Adds a Live results link/text/photo field to each tournament, shown on its public page. Off by default -
+          most team sports just use the regular schedule/results tables instead.
+        </p>
       </div>
 
       {scoringType === "NONE" && (
