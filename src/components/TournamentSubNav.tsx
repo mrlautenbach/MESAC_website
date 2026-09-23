@@ -31,7 +31,7 @@ export function TournamentSubNav({
     { key: "schedule", label: "Schedule", href: `${splitBase}/schedule` },
     { key: "results", label: "Results", href: `${splitBase}/results` },
     { key: "watch-live", label: "Watch live", href: `${root}/watch-live`, icon: true },
-    { key: "team-photos", label: "Photos", href: `${root}/team-photos` },
+    { key: "team-photos", label: "Team photos", href: `${root}/team-photos` },
   ];
 
   const divisionScoped = active === "schedule" || active === "results";

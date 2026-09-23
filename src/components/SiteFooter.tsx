@@ -40,7 +40,7 @@ export async function SiteFooter() {
             <span className="text-lg font-extrabold tracking-tight">MESAC</span>
           </Link>
           <p className="mt-3 max-w-[34ch] text-[13px] leading-relaxed text-background/70">
-            The Middle East South Asian Conference — six international schools, three seasons, one calendar.
+            The Middle East South Asian Conference: six international schools, three seasons, one calendar.
           </p>
         </div>
 
