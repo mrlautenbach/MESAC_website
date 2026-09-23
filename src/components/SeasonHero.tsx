@@ -34,7 +34,7 @@ export function SeasonHero({
   const archivedYearLabel = startYear === endYear ? startYear : `${startYear}–${endYear.slice(2)}`;
 
   return (
-    <div className="relative overflow-hidden bg-foreground px-6 py-10 text-background sm:px-10">
+    <div className="relative overflow-hidden bg-foreground px-6 py-7 text-background sm:px-10 sm:py-10">
       <div className="lattice-panel absolute inset-0 text-accent opacity-[.16]" />
       <div className="relative mx-auto max-w-5xl">
         <Link href={`/tournaments/${activitySlug}`} className="text-sm font-semibold text-accent hover:underline">
@@ -53,7 +53,7 @@ export function SeasonHero({
           </div>
           <div className="grid border border-accent/40 text-sm">
             <div className={`px-4 py-3 ${hostSchoolName ? "border-b border-accent/40" : ""}`}>
-              <div className="text-[10px] tracking-[0.12em] opacity-70">DATES</div>
+              <div className="text-[11px] tracking-[0.12em] opacity-80">DATES</div>
               <div className="text-[17px] font-extrabold">
                 {format(startDate, "d MMM")} – {format(endDate, "d MMM yyyy")}
               </div>
@@ -72,7 +72,7 @@ export function SeasonHero({
                   </div>
                 )}
                 <div>
-                  <div className="text-[10px] tracking-[0.12em] opacity-70">HOST</div>
+                  <div className="text-[11px] tracking-[0.12em] opacity-80">HOST</div>
                   <div className="text-[17px] font-extrabold">{hostSchoolName}</div>
                 </div>
               </div>

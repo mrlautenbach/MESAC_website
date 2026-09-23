@@ -64,7 +64,12 @@ export default async function TournamentsIndexPage() {
                           return (
                             <li key={a.id}>
                               <Link href={current ? `/seasons/${current.slug}` : `/tournaments/${a.slug}`} className="btn btn-secondary">
-                                {current ? current.name : a.name}
+                                {/* A sport with several activities (JV/Varsity) would otherwise
+                                    show identical "Fall 2026" buttons side by side. */}
+                                {group.length > 1 || !current ? a.name : current.name}
+                                {group.length > 1 && current && (
+                                  <span className="font-normal text-muted">{current.name}</span>
+                                )}
                               </Link>
                             </li>
                           );

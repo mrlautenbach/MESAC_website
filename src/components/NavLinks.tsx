@@ -3,25 +3,28 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const LINKS = [
+export const NAV_LINKS = [
+  { href: "/schedule", label: "Schedule" },
   { href: "/tournaments", label: "Tournaments" },
   { href: "/records", label: "History" },
   { href: "/schools", label: "Schools" },
 ];
 
-export function NavLinks() {
+export function NavLinks({ linkClassName }: { linkClassName?: string }) {
   const pathname = usePathname();
 
   return (
     <>
-      {LINKS.map((link) => {
-        const isCurrent = link.href === "/" ? pathname === "/" : pathname?.startsWith(link.href);
-        return (
-          <Link key={link.href} href={link.href} aria-current={isCurrent ? "page" : undefined}>
-            {link.label}
-          </Link>
-        );
-      })}
+      {NAV_LINKS.map((link) => (
+        <Link
+          key={link.href}
+          href={link.href}
+          aria-current={pathname?.startsWith(link.href) ? "page" : undefined}
+          className={linkClassName}
+        >
+          {link.label}
+        </Link>
+      ))}
     </>
   );
 }
