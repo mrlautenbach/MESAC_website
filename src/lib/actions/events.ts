@@ -14,7 +14,7 @@ import {
   streamUrlSchema,
 } from "@/lib/validation";
 import { parseCsv } from "@/lib/csv";
-import { normalizeDivisionName } from "@/lib/divisionAlias";
+import { findDivision } from "@/lib/divisionAlias";
 import { createGuestSchools } from "@/lib/newSchools";
 import { computeOutcomes, resolvePlayoffSlots, resolveStandingSlots, tryFillFromExistingSource } from "@/lib/playoffs";
 import type { ActionResult } from "@/lib/actions/auth";
@@ -255,8 +255,15 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     schoolByKey.set(s.name.trim().toLowerCase(), s);
     if (s.code) schoolByKey.set(s.code.trim().toLowerCase(), s);
   }
-  const divisionByName = new Map(tournament.divisions.map((d) => [normalizeDivisionName(d.name), d]));
   const requiresDivision = tournament.divisions.length > 0;
+  const divisionNames = tournament.divisions.map((d) => d.name).join(", ");
+  // Said once for the whole file rather than on every row.
+  if (!requiresDivision && col("gender") >= 0 && rows.slice(1).some((r) => (r[col("gender")] ?? "").trim())) {
+    return {
+      ok: false,
+      error: `${tournament.activity.name} · ${tournament.name} has no divisions set up, so the gender column can't be matched. Add them (e.g. Girls and Boys) under Divisions on the activity's Tournaments page, then upload again - or leave the gender column blank.`,
+    };
+  }
   const activityFields = tournament.activity.fields;
 
   const existingEvents = await prisma.event.findMany({
@@ -266,6 +273,9 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
   const existingByGameId = new Map(existingEvents.map((e) => [e.externalId!, e]));
   const knownGameIds = new Set(existingByGameId.keys());
   const fileGameIdRows = new Map<string, number>();
+  // game_ids of rows that failed: a later "Winner of G21" pointing at one of
+  // them isn't reported again as an unknown game - fixing G21's row fixes it.
+  const failedGameIds = new Set<string>();
 
   const rowErrors: { row: number; message: string }[] = [];
   const planned: PlannedRow[] = [];
@@ -301,8 +311,8 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     let divisionId: string | null = null;
     const genderRaw = get("gender");
     if (genderRaw) {
-      const division = divisionByName.get(normalizeDivisionName(genderRaw));
-      if (!division) fail(`Unknown gender "${genderRaw}".`);
+      const division = findDivision(tournament.divisions, genderRaw);
+      if (!division) fail(`Unknown gender "${genderRaw}" (this tournament's divisions are ${divisionNames}).`);
       else divisionId = division.id;
     } else if (requiresDivision) {
       fail("This tournament has divisions. Set the gender column.");
@@ -327,7 +337,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       else away = parsed;
     }
     for (const side of [home, away]) {
-      if (side?.kind === "placeholder" && !knownGameIds.has(side.refGameId)) {
+      if (side?.kind === "placeholder" && !knownGameIds.has(side.refGameId) && !failedGameIds.has(side.refGameId)) {
         fail(`References unknown game_id "${side.refGameId}" (it must appear in an earlier row, or already exist in this season).`);
       }
     }
@@ -379,7 +389,10 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       fieldValues.push({ fieldId: field.id, value: raw ? raw.slice(0, 500) : null });
     }
 
-    if (rowFailed) continue;
+    if (rowFailed) {
+      if (gameId) failedGameIds.add(gameId);
+      continue;
+    }
 
     if (gameId) {
       fileGameIdRows.set(gameId, rowNum);
