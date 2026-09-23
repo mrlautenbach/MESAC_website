@@ -43,17 +43,21 @@ export async function createTournamentAction(_prevState: ActionResult | null, fo
   const existingSlug = await prisma.tournament.findUnique({ where: { slug: parsed.data.slug } });
   if (existingSlug) return { ok: false, error: "A tournament with that URL slug already exists." };
 
-  const [tournament] = await prisma.$transaction([
-    prisma.tournament.create({
-      data: {
-        ...parsed.data,
-        liveResultsUrl: parsed.data.liveResultsUrl || null,
-        liveResultsText: parsed.data.liveResultsText || null,
-      },
-    }),
+  // Un-mark the old current edition before creating the new one - the other
+  // way round, the updateMany also caught the tournament just created and
+  // left the activity with no current tournament at all.
+  const [, tournament] = await prisma.$transaction([
     prisma.tournament.updateMany({
       where: { activityId: parsed.data.activityId, isCurrent: true },
       data: { isCurrent: false },
+    }),
+    prisma.tournament.create({
+      data: {
+        ...parsed.data,
+        isCurrent: true,
+        liveResultsUrl: parsed.data.liveResultsUrl || null,
+        liveResultsText: parsed.data.liveResultsText || null,
+      },
     }),
   ]);
 
