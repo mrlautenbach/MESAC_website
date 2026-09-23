@@ -469,31 +469,34 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
         return { participantAction: "pending", sourceEventId: gameIdToEventId.get(spec.refGameId)!, outcome: spec.outcome };
       }
 
-      async function applyParticipant(eventId: string, isHome: boolean, resolved: ResolvedSide, existingParticipant: { schoolId: string } | null) {
-        if (
-          resolved.participantAction === "none" ||
-          resolved.participantAction === "pending" ||
-          resolved.participantAction === "pending-standing" ||
-          resolved.participantAction === "pending-label"
-        )
-          return;
-        if (resolved.participantAction === "clear") {
-          if (existingParticipant) {
-            await tx.result.deleteMany({ where: { eventId, schoolId: existingParticipant.schoolId } });
-            await tx.eventParticipant.deleteMany({ where: { eventId, isHome } });
+      function incomingSchoolId(resolved: ResolvedSide): string | null {
+        return resolved.participantAction === "create" || resolved.participantAction === "replace" ? resolved.schoolId : null;
+      }
+
+      // Both sides' outgoing schools are removed before either incoming one
+      // is added: a school can only be in a game once, so adding first would
+      // crash whenever a school moves to the other side of the same game (a
+      // re-upload with home and away swapped, say).
+      async function applyParticipants(
+        eventId: string,
+        sides: { isHome: boolean; resolved: ResolvedSide; existing: { schoolId: string } | null; vacate: boolean }[]
+      ) {
+        for (const side of sides) {
+          if (side.existing && side.vacate) {
+            await tx.result.deleteMany({ where: { eventId, schoolId: side.existing.schoolId } });
+            await tx.eventParticipant.deleteMany({ where: { eventId, isHome: side.isHome } });
           }
-          return;
         }
-        if (resolved.participantAction === "replace" && existingParticipant) {
-          await tx.result.deleteMany({ where: { eventId, schoolId: existingParticipant.schoolId } });
-          await tx.eventParticipant.deleteMany({ where: { eventId, isHome } });
+        for (const side of sides) {
+          const schoolId = incomingSchoolId(side.resolved);
+          if (!schoolId) continue;
+          await tx.eventParticipant.create({ data: { eventId, schoolId, isHome: side.isHome } });
+          await tx.result.upsert({
+            where: { eventId_schoolId: { eventId, schoolId } },
+            create: { eventId, schoolId },
+            update: {},
+          });
         }
-        await tx.eventParticipant.create({ data: { eventId, schoolId: resolved.schoolId, isHome } });
-        await tx.result.upsert({
-          where: { eventId_schoolId: { eventId, schoolId: resolved.schoolId } },
-          create: { eventId, schoolId: resolved.schoolId },
-          update: {},
-        });
       }
 
       function currentSchoolId(resolved: ResolvedSide, existingParticipant: { schoolId: string } | null): string | null {
@@ -531,8 +534,21 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
         const existingHome = existing?.participants.find((p) => p.isHome) ?? null;
         const existingAway = existing?.participants.find((p) => !p.isHome) ?? null;
 
-        const homeResolved = resolveSide(row.home, existingHome);
-        const awayResolved = resolveSide(row.away, existingAway);
+        let homeResolved = resolveSide(row.home, existingHome);
+        let awayResolved = resolveSide(row.away, existingAway);
+        // A side that's still a placeholder keeps whichever school already
+        // filled it - unless the file now names that same school for the
+        // other side, in which case the placeholder goes back to pending.
+        let vacateHome = homeResolved.participantAction === "clear" || homeResolved.participantAction === "replace";
+        let vacateAway = awayResolved.participantAction === "clear" || awayResolved.participantAction === "replace";
+        if (existingAway && awayResolved.participantAction === "none" && incomingSchoolId(homeResolved) === existingAway.schoolId) {
+          awayResolved = resolveSide(row.away, null);
+          vacateAway = true;
+        }
+        if (existingHome && homeResolved.participantAction === "none" && incomingSchoolId(awayResolved) === existingHome.schoolId) {
+          homeResolved = resolveSide(row.home, null);
+          vacateHome = true;
+        }
         const homeSource = sourceFieldsFor(homeResolved);
         const awaySource = sourceFieldsFor(awayResolved);
 
@@ -612,8 +628,10 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
           createdIds.push(eventId);
         }
 
-        await applyParticipant(eventId, true, homeResolved, existingHome);
-        await applyParticipant(eventId, false, awayResolved, existingAway);
+        await applyParticipants(eventId, [
+          { isHome: true, resolved: homeResolved, existing: existingHome, vacate: vacateHome },
+          { isHome: false, resolved: awayResolved, existing: existingAway, vacate: vacateAway },
+        ]);
 
         const homeSchoolId = currentSchoolId(homeResolved, existingHome);
         const awaySchoolId = currentSchoolId(awayResolved, existingAway);

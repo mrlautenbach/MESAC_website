@@ -49,7 +49,12 @@ export async function getEventOutcome(
 }
 
 async function fillSlot(tx: Db, dependentEventId: string, isHome: boolean, schoolId: string) {
-  const existing = await tx.eventParticipant.findFirst({ where: { eventId: dependentEventId, isHome } });
+  // Leave the slot open if it's filled already - or if this school is
+  // already on the other side (e.g. "1st vs ABA" and ABA finishes first): a
+  // school can only be in a game once, and an admin has to sort that out.
+  const existing = await tx.eventParticipant.findFirst({
+    where: { eventId: dependentEventId, OR: [{ isHome }, { schoolId }] },
+  });
   if (existing) return;
   await tx.eventParticipant.create({ data: { eventId: dependentEventId, schoolId, isHome } });
   await tx.result.upsert({
