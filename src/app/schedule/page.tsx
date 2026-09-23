@@ -68,7 +68,7 @@ export default async function SchedulePage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+    <div className="page-wrap py-8">
       <h6 className="text-primary-dark">Live &amp; upcoming</h6>
       <h1 className="mt-2 mb-8 text-4xl sm:text-5xl">Every activity, its own schedule.</h1>
 
@@ -83,6 +83,17 @@ export default async function SchedulePage() {
             groups.set(row.sport, group);
           }
           const dateRange = SEASON_DATE_RANGES[season.order];
+          const eventsFor = (row: (typeof rows)[number]) => {
+            const current = row.activity?.tournaments[0];
+            return current ? (eventsByTournamentId.get(current.id) ?? []) : [];
+          };
+          // Sports with nothing coming up collapse into one line at the end,
+          // so a quiet season doesn't read as a long list of empty rows.
+          const allGroups = Array.from(groups.entries());
+          const busyGroups = allGroups.filter(([, group]) => group.some((row) => eventsFor(row).length > 0));
+          const quietRows = allGroups
+            .filter(([, group]) => !group.some((row) => eventsFor(row).length > 0))
+            .flatMap(([, group]) => group);
 
           return (
             <section key={season.id}>
@@ -92,7 +103,7 @@ export default async function SchedulePage() {
               </div>
 
               <div className="space-y-3">
-                {Array.from(groups.entries()).map(([sport, group]) => (
+                {busyGroups.map(([sport, group]) => (
                   <div key={sport} className="border-b border-divider py-3">
                     <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-[160px_1fr]">
                       <h6 className="flex items-center gap-1.5 pt-1 text-muted">
@@ -219,6 +230,30 @@ export default async function SchedulePage() {
                     </div>
                   </div>
                 ))}
+                {quietRows.length > 0 && (
+                  <p className="border-b border-divider py-3 text-sm text-muted">
+                    <span className="font-semibold">Nothing scheduled yet:</span>{" "}
+                    {quietRows.map((row, i) => (
+                      <span key={row.key}>
+                        {i > 0 && ", "}
+                        {row.activity ? (
+                          <Link
+                            href={
+                              row.activity.tournaments[0]
+                                ? `/seasons/${row.activity.tournaments[0].slug}`
+                                : `/tournaments/${row.activity.slug}`
+                            }
+                            className="text-foreground hover:text-primary"
+                          >
+                            {row.activity.name}
+                          </Link>
+                        ) : (
+                          row.name
+                        )}
+                      </span>
+                    ))}
+                  </p>
+                )}
               </div>
             </section>
           );

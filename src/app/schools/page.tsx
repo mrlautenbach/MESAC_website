@@ -32,8 +32,8 @@ export default async function SchoolsPage() {
 
   return (
     <div>
-      <div className="grid gap-0 sm:grid-cols-[1fr_1.5fr] sm:items-start">
-        <div className="border-b-2 border-divider p-8 sm:border-b-0 sm:border-r-2">
+      <div className="page-wrap grid gap-0 sm:grid-cols-[1fr_1.5fr]">
+        <div className="border-b-2 border-divider py-8 sm:border-b-0 sm:border-r-2 sm:pr-8">
           <h6 className="text-primary-dark">Member schools</h6>
           <h2 className="mt-3 mb-3">Six schools, one league table.</h2>
           <p className="text-muted">
@@ -62,23 +62,29 @@ export default async function SchoolsPage() {
                   <br />
                   <span className="text-[11.5px] text-muted">{s.city ?? "—"}</span>
                 </span>
-                <span className="ml-3 text-[11.5px] tabular-nums text-muted">{s.teams} teams</span>
+                <span className="ml-3 text-[11.5px] tabular-nums text-muted">
+                  {s.teams > 0 ? `${s.teams} ${s.teams === 1 ? "team" : "teams"}` : ""}
+                </span>
               </li>
             ))}
           </ul>
         </div>
-        <SchoolsMap schools={mappable} />
+        <div className="py-8 sm:pl-8">
+          <SchoolsMap schools={mappable} />
+        </div>
       </div>
 
-      <div className="grid gap-0 border-t-2 border-divider sm:grid-cols-2">
-        <div className="border-b border-divider p-6 sm:border-b-0 sm:border-r-2 sm:border-divider">
+      <div className="border-t-2 border-divider">
+      <div className="page-wrap grid gap-0 sm:grid-cols-2">
+        <div className="border-b border-divider py-6 sm:border-b-0 sm:border-r-2 sm:border-divider sm:pr-6">
           <h6 className="text-primary-dark">Hosting rota</h6>
           <p className="mt-2 text-sm">Each activity&apos;s host school is set on its tournament page.</p>
         </div>
-        <div className="p-6">
+        <div className="py-6 sm:pl-6">
           <h6 className="text-primary-dark">Travel</h6>
           <p className="mt-2 text-sm">Dates and host details live on each activity&apos;s tournament page.</p>
         </div>
+      </div>
       </div>
     </div>
   );

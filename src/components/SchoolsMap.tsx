@@ -66,12 +66,13 @@ export function SchoolsMap({ schools }: { schools: SchoolPoint[] }) {
 
           L.marker([cluster.lat, lon], { icon })
             .addTo(map)
-            .bindTooltip(`<b>${school.code}</b><br/>${place.toUpperCase()} · ${school.teams} TEAMS`, {
-              permanent: true,
-              direction: "right",
-              offset: [10, 0],
-              className: "schools-map-tooltip",
-            });
+            // Shown on hover/tap rather than permanently: at regional zoom
+            // the Gulf schools sit close enough that always-on labels
+            // pile on top of each other. The list beside the map names them.
+            .bindTooltip(
+              `<b>${school.code}</b> · ${school.name}<br/>${place}${school.teams > 0 ? ` · ${school.teams} teams` : ""}`,
+              { direction: "top", offset: [0, -10], className: "schools-map-tooltip" }
+            );
         });
       }
 
@@ -91,7 +92,7 @@ export function SchoolsMap({ schools }: { schools: SchoolPoint[] }) {
   }
 
   return (
-    <div className="relative h-[500px]">
+    <div className="relative h-[420px] border border-divider sm:h-[560px]">
       <div ref={containerRef} className="absolute inset-0" />
       <style>{`
         .schools-map-tooltip {
@@ -104,8 +105,8 @@ export function SchoolsMap({ schools }: { schools: SchoolPoint[] }) {
           padding: 4px 8px;
           box-shadow: none;
         }
-        .schools-map-tooltip::before {
-          border-right-color: var(--divider);
+        .schools-map-tooltip.leaflet-tooltip-top::before {
+          border-top-color: var(--divider);
         }
       `}</style>
     </div>

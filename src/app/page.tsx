@@ -55,6 +55,7 @@ export default async function HomePage() {
       include: {
         participants: { include: { school: true } },
         results: true,
+        division: { select: { name: true } },
         tournament: { include: { activity: true, hostSchool: true } },
       },
     }),
@@ -89,7 +90,7 @@ export default async function HomePage() {
     order: s.order,
     activities: s.activities.map((a) => ({
       key: a.id,
-      name: a.tournaments[0]?.name ?? a.name,
+      name: a.name,
       sport: a.sport,
       href: a.tournaments[0] ? `/seasons/${a.tournaments[0].slug}` : `/tournaments/${a.slug}`,
     })),
@@ -110,9 +111,9 @@ export default async function HomePage() {
   return (
     <div>
       {/* Poster hero */}
-      <div className="relative overflow-hidden bg-primary px-6 pb-10 pt-20 text-background sm:px-10 sm:pt-24">
+      <div className="relative overflow-hidden bg-primary pb-10 pt-20 text-background sm:pt-24">
         <div className="lattice-band absolute inset-x-0 top-0 h-[72px] border-b-2 border-accent/70 text-accent opacity-50" />
-        <div className="relative mx-auto grid max-w-6xl gap-10 sm:grid-cols-[1.35fr_1fr] sm:items-end">
+        <div className="page-wrap relative grid gap-10 sm:grid-cols-[1.35fr_1fr] sm:items-end">
           <div>
             <h6 className="text-background opacity-85">
               {schools.length} schools · {tournamentCount} tournaments
@@ -144,7 +145,10 @@ export default async function HomePage() {
                     <span className="text-[13px] leading-tight">
                       <b>{home?.school.code || home?.school.name}</b> v {away?.school.code || away?.school.name}
                       <br />
-                      <span className="text-[11.5px] text-muted">{event.tournament.activity.name}</span>
+                      <span className="text-[11.5px] text-muted">
+                        {event.division ? `${event.division.name} ` : ""}
+                        {event.tournament.activity.name}
+                      </span>
                     </span>
                     <span className="text-2xl font-extrabold tracking-tight tabular-nums">
                       {homeScore ?? "–"}–{awayScore ?? "–"}
@@ -159,22 +163,27 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="relative mx-auto mt-10 grid max-w-6xl grid-cols-3 gap-3 border-t border-white/15 pt-6 sm:grid-cols-6">
-          {shuffledSchools.map((school) => (
-            <div
-              key={school.id}
-              className="flex h-32 items-center justify-center border border-white/20 bg-[color-mix(in_srgb,var(--primary-tint)_16%,transparent)] border-b-[3px]"
-              style={school.themeColor ? { borderBottomColor: school.themeColor } : undefined}
-            >
-              {school.logoUrl ? (
-                <Image src={school.logoUrl} alt={school.name} width={210} height={96} className="max-h-24 w-auto object-contain" />
-              ) : (
-                <span className="text-[11px] font-bold tracking-[0.1em] text-background/60">
+        <div className="page-wrap relative mt-10">
+          <div className="grid grid-cols-3 gap-3 border-t border-white/15 pt-6 sm:grid-cols-6">
+            {shuffledSchools.map((school) => (
+              <Link
+                key={school.id}
+                href="/schools"
+                title={school.name}
+                className="flex h-32 flex-col items-center justify-center gap-2 border border-white/20 border-b-[3px] bg-[color-mix(in_srgb,var(--primary-tint)_16%,transparent)] px-2 transition-colors hover:bg-[color-mix(in_srgb,var(--primary-tint)_26%,transparent)]"
+                style={school.themeColor ? { borderBottomColor: school.themeColor } : undefined}
+              >
+                {school.logoUrl && (
+                  <span className="flex h-16 w-16 items-center justify-center bg-white p-1.5">
+                    <Image src={school.logoUrl} alt="" width={64} height={64} className="max-h-full w-auto object-contain" />
+                  </span>
+                )}
+                <span className="text-[12px] font-bold tracking-[0.1em] text-background/85">
                   {school.code ?? school.name.slice(0, 3).toUpperCase()}
                 </span>
-              )}
-            </div>
-          ))}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -203,11 +212,12 @@ export default async function HomePage() {
       </div>
 
       {/* Three score cells */}
-      <div className="grid border-b-2 border-divider sm:grid-cols-3">
+      <div className="border-b-2 border-divider">
+      <div className="page-wrap grid sm:grid-cols-3">
         {[0, 1].map((i) => {
           const event = scoreCells[i];
           return (
-            <div key={i} className="border-b border-divider p-7 sm:border-b-0 sm:border-r-2 sm:border-divider">
+            <div key={i} className="border-b border-divider py-7 sm:border-b-0 sm:border-r-2 sm:border-divider sm:pr-7 sm:[&:nth-child(2)]:pl-7">
               {event ? (
                 <ScoreCell event={event} />
               ) : upcomingTournaments[i] ? (
@@ -218,25 +228,29 @@ export default async function HomePage() {
             </div>
           );
         })}
-        <div className="relative overflow-hidden bg-foreground p-7 text-background">
+        <div className="relative my-4 overflow-hidden bg-foreground p-7 text-background sm:my-0 sm:ml-7">
           <div className="lattice-panel absolute inset-0 text-accent opacity-[.16]" />
           <NextUpGallery tournaments={upcomingCards} />
         </div>
       </div>
+      </div>
 
       {/* Stat row */}
-      <div className="grid border-b-2 border-divider bg-surface sm:grid-cols-3">
-        <Stat value={String(schools.length)} label="Member schools" />
-        <Stat value={String(tournamentCount)} label="Tournaments this year" />
-        <Stat value={String(countries)} label="Countries" />
+      <div className="border-b-2 border-divider bg-surface">
+        <div className="page-wrap grid sm:grid-cols-3">
+          <Stat value={String(schools.length)} label="Member schools" />
+          <Stat value={String(tournamentCount)} label="Tournaments this year" />
+          <Stat value={String(countries)} label="Countries" />
+        </div>
       </div>
 
       {/* Season browser + season calendar */}
-      <div className="grid border-b-2 border-divider sm:grid-cols-[1.1fr_1fr]">
-        <div className="border-b border-divider p-7 sm:border-b-0 sm:border-r-2 sm:border-divider">
+      <div className="border-b-2 border-divider">
+      <div className="page-wrap grid sm:grid-cols-[1.1fr_1fr]">
+        <div className="border-b border-divider py-7 sm:border-b-0 sm:border-r-2 sm:border-divider sm:pr-7">
           <SeasonBrowser seasons={seasonCards} />
         </div>
-        <div className="p-7">
+        <div className="py-7 sm:pl-7">
           <h3 className="mb-2.5">Season calendar</h3>
           <p className="text-sm text-muted">Three seasons make up the MESAC year.</p>
           <div className="mhr" />
@@ -248,15 +262,18 @@ export default async function HomePage() {
           ))}
         </div>
       </div>
-
-      {/* Photo */}
-      <div className="relative min-h-[480px] border-b-2 border-divider">
-        <PhotoSlider photos={homePhotos.map((p) => ({ id: p.id, url: p.url, altText: p.altText }))} />
       </div>
 
+      {/* Photo - only once there's a real one to show */}
+      {homePhotos.length > 0 && (
+        <div className="relative min-h-[480px] border-b-2 border-divider">
+          <PhotoSlider photos={homePhotos.map((p) => ({ id: p.id, url: p.url, altText: p.altText }))} />
+        </div>
+      )}
+
       {/* Footer duo */}
-      <div className="grid sm:grid-cols-[1fr_1.6fr]">
-        <div className="border-b border-divider p-7 sm:border-b-0 sm:border-r-2 sm:border-divider">
+      <div className="page-wrap grid sm:grid-cols-[1fr_1.6fr]">
+        <div className="border-b border-divider py-7 sm:border-b-0 sm:border-r-2 sm:border-divider sm:pr-7">
           <h6 className="text-primary-dark">From the schools</h6>
           {recentRecap ? (
             <>
@@ -267,7 +284,7 @@ export default async function HomePage() {
             <p className="mt-2.5 text-sm text-muted">Recaps from recent games will show up here.</p>
           )}
         </div>
-        <div className="p-7">
+        <div className="py-7 sm:pl-7">
           <h6 className="text-primary-dark">Member schools</h6>
           <p className="mt-2.5 text-sm leading-[1.9] text-muted">
             {shuffledSchools.map((s) => s.name).join(" · ")}
@@ -280,7 +297,7 @@ export default async function HomePage() {
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
-    <div className="border-b border-divider p-6 sm:border-b-0 sm:border-r-2 sm:border-divider [&:last-child]:border-r-0">
+    <div className="border-b border-divider py-6 sm:border-b-0 sm:border-r-2 sm:border-divider sm:px-6 sm:first:pl-0 [&:last-child]:border-r-0">
       <div className="text-5xl font-extrabold leading-none tracking-tight">{value}</div>
       <h6 className="mt-1 text-muted">{label}</h6>
     </div>
@@ -292,6 +309,7 @@ type ResultEvent = {
   participants: { isHome: boolean; school: { id: string; name: string; code: string | null } }[];
   results: { schoolId: string; score: number | null; outcome: string | null }[];
   date: Date;
+  division: { name: string } | null;
   tournament: { activity: { name: string }; hostSchool: { name: string } | null };
 };
 
@@ -303,7 +321,10 @@ function ScoreCell({ event }: { event: ResultEvent }) {
   const sorted = [...pairs].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   return (
     <div>
-      <h6 className="text-primary-dark">Final · {event.tournament.activity.name}</h6>
+      <h6 className="text-primary-dark">
+        Final · {event.division ? `${event.division.name} ` : ""}
+        {event.tournament.activity.name}
+      </h6>
       {sorted.map((r, i) => (
         <div key={i}>
           <div className="mt-3.5 flex items-baseline justify-between">
