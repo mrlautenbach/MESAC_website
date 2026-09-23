@@ -22,7 +22,7 @@ export default async function SchoolYearPage({ params }: { params: Promise<{ yea
   if (!archive) notFound();
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+    <div className="page-wrap py-8 [&>*]:max-w-3xl">
       <Link href="/records" className="text-sm font-semibold text-primary-dark hover:underline">
         &larr; History
       </Link>

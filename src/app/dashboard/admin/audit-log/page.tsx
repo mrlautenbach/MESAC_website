@@ -14,7 +14,7 @@ export default async function AuditLogPage() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="page-wrap py-8 [&>*]:max-w-4xl">
       <h1 className="mb-6 text-2xl font-bold">Audit log</h1>
       <p className="mb-4 text-sm text-muted">
         Every create, edit, and delete of results, photos, and accounts. This list is append-only and cannot be

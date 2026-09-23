@@ -32,7 +32,7 @@ export default async function TournamentsAdminPage() {
   const activityCount = seasons.reduce((n, s) => n + s.activities.length, 0);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-10 px-4 py-8">
+    <div className="page-wrap space-y-10 py-8 [&>*]:max-w-3xl">
       <div>
         <h1 className="text-2xl font-bold">Activities ({activityCount})</h1>
         <p className="mt-1 text-sm text-muted">

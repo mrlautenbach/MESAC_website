@@ -188,7 +188,7 @@ export default async function EventPage({
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 space-y-8">
+    <div className="page-wrap space-y-8 py-8 [&>*]:max-w-4xl">
       <div>
         <Link
           href={

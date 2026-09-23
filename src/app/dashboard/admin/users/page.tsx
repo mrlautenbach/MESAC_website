@@ -15,7 +15,7 @@ export default async function UsersAdminPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-10 px-4 py-8">
+    <div className="page-wrap space-y-10 py-8 [&>*]:max-w-3xl">
       <div>
         <h1 className="mb-6 text-2xl font-bold">Create an account</h1>
         <CreateUserForm schools={schools} />

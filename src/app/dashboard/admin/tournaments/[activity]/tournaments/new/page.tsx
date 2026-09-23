@@ -18,7 +18,7 @@ export default async function NewTournamentPage({ params }: { params: Promise<{ 
   if (!activity) notFound();
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
+    <div className="page-wrap py-8 [&>*]:max-w-2xl">
       <h1 className="mb-1 text-2xl font-bold">
         {activity.tournaments.length === 0 ? "Create first tournament" : "Start new tournament"}
       </h1>

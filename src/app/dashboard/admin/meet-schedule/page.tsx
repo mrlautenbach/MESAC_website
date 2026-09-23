@@ -14,7 +14,7 @@ export default async function MeetSchedulePage({
   if (!user) redirect("/login");
   if (user.role !== "ADMIN") {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-10">
+      <div className="page-wrap py-10 [&>*]:max-w-2xl">
         <p className="text-danger">You don&apos;t have access to this page.</p>
       </div>
     );
@@ -35,14 +35,14 @@ export default async function MeetSchedulePage({
 
   if (!tournament.activity.usesMeetResults) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-8">
+      <div className="page-wrap py-8 [&>*]:max-w-2xl">
         <p className="text-danger">This activity doesn&apos;t use meet results.</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+    <div className="page-wrap space-y-6 py-8 [&>*]:max-w-2xl">
       <div>
         <Link href="/dashboard/admin/tournaments" className="text-sm font-semibold text-primary hover:underline">
           &larr; Activities

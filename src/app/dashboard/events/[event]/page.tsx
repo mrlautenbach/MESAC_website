@@ -43,7 +43,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
   const isScopedEditor = user.role === "EDITOR" && !!user.schoolId && participantSchoolIds.includes(user.schoolId);
   if (!isAdmin && !isScopedEditor) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-10">
+      <div className="page-wrap py-10 [&>*]:max-w-2xl">
         <p className="text-danger">You don&apos;t have access to edit this event.</p>
       </div>
     );
@@ -110,7 +110,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
   });
 
   return (
-    <div className="mx-auto max-w-3xl space-y-10 px-4 py-8">
+    <div className="page-wrap space-y-10 py-8 [&>*]:max-w-3xl">
       <div>
         <Link
           href={`/seasons/${event.tournament.slug}/events/${event.slug}`}

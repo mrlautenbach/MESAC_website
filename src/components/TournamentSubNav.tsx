@@ -42,7 +42,7 @@ export function TournamentSubNav({
 
   return (
     <div className="sticky top-0 z-20 border-b-2 border-divider bg-background">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 sm:px-6">
+      <div className="page-wrap flex flex-wrap items-center gap-x-6 gap-y-2">
         <nav aria-label="Tournament" className="-mb-0.5 flex overflow-x-auto [scrollbar-width:none]">
           {tabs.map((tab) => (
             <Link

@@ -25,7 +25,7 @@ export default async function TournamentsIndexPage() {
   const seasons = await loadSeasons();
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+    <div className="page-wrap py-8">
       <h6 className="text-primary-dark">Tournament results</h6>
       <h1 className="mt-2 mb-8 text-4xl sm:text-5xl">Every activity, one table each.</h1>
 

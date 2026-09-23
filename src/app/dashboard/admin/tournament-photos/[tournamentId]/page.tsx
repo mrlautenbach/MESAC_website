@@ -34,7 +34,7 @@ export default async function TournamentPhotosAdminPage({
   const slotByKey = new Map(teamPhotos.map((p) => [`${p.schoolId}:${p.divisionId ?? "none"}`, p]));
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 px-4 py-8">
+    <div className="page-wrap space-y-8 py-8 [&>*]:max-w-3xl">
       <div>
         <Link href="/dashboard/admin/tournaments" className="text-sm font-semibold text-primary-dark hover:underline">
           &larr; Tournaments

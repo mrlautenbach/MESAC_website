@@ -34,9 +34,9 @@ export function SeasonHero({
   const archivedYearLabel = startYear === endYear ? startYear : `${startYear}–${endYear.slice(2)}`;
 
   return (
-    <div className="relative overflow-hidden bg-foreground px-6 py-7 text-background sm:px-10 sm:py-10">
+    <div className="relative overflow-hidden bg-foreground py-7 text-background sm:py-10">
       <div className="lattice-panel absolute inset-0 text-accent opacity-[.16]" />
-      <div className="relative mx-auto max-w-5xl">
+      <div className="page-wrap relative">
         <Link href={`/tournaments/${activitySlug}`} className="text-sm font-semibold text-accent hover:underline">
           &larr; {activityName}
         </Link>

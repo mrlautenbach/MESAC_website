@@ -23,7 +23,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ tou
   const archived = activity.tournaments.filter((t) => t.id !== current?.id);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 space-y-10 sm:px-6">
+    <div className="page-wrap space-y-10 py-8 [&>*]:max-w-4xl">
       <div>
         <h6 className="text-primary-dark">{activity.sport}</h6>
         <h1 className="mt-2 text-4xl sm:text-5xl">{activity.name}</h1>

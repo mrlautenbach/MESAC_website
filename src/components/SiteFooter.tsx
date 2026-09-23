@@ -33,7 +33,7 @@ export async function SiteFooter() {
       <div className="lattice-panel absolute inset-0 text-accent opacity-[.1]" />
       <h2 className="sr-only">Site footer</h2>
 
-      <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-12 sm:grid-cols-[1fr_0.6fr_2.8fr] sm:px-10">
+      <div className="page-wrap relative grid gap-10 py-12 sm:grid-cols-[1fr_0.6fr_2.8fr]">
         <div>
           <Link href="/" className="flex items-center gap-2.5">
             <Image src="/mesac-logo.png" alt="" width={36} height={36} className="h-9 w-9 object-contain" />
@@ -95,11 +95,13 @@ export async function SiteFooter() {
         </div>
       </div>
 
-      <div className="relative mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 border-t border-accent/25 px-6 py-5 text-[12px] text-background/60 sm:px-10">
-        <span>&copy; {new Date().getFullYear()} Middle East South Asian Conference</span>
-        <Link href="/login" className="hover:text-accent">
-          Admin login
-        </Link>
+      <div className="page-wrap relative">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-accent/25 py-5 text-[12px] text-background/60">
+          <span>&copy; {new Date().getFullYear()} Middle East South Asian Conference</span>
+          <Link href="/login" className="hover:text-accent">
+            Admin login
+          </Link>
+        </div>
       </div>
     </footer>
   );

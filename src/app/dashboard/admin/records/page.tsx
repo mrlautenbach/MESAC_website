@@ -19,7 +19,7 @@ export default async function RecordsAdminPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-12 px-4 py-8">
+    <div className="page-wrap space-y-12 py-8 [&>*]:max-w-3xl">
       <div>
         <h2 className="mb-1 text-xl font-bold">Previous years&apos; results</h2>
         <p className="mb-4 text-sm text-muted">

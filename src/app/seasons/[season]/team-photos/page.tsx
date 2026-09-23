@@ -89,7 +89,7 @@ export default async function TeamPhotosPage({ params }: { params: Promise<{ sea
         usesMeetResults={tournament.activity.usesMeetResults}
         active="team-photos"
       />
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <div className="page-wrap py-8">
 
       {!hasAnySlots ? (
         <p className="text-muted">No team photos yet.</p>

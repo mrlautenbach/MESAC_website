@@ -43,7 +43,7 @@ export default async function DivisionSchedulePage({
         currentDivisionSlug={division.slug}
         active="schedule"
       />
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <div className="page-wrap py-8">
         <h4 className="mb-3">Schedule</h4>
         <TournamentSchedule
           tournamentId={tournament.id}

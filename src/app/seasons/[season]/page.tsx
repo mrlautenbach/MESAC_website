@@ -79,8 +79,9 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
       />
 
       {(nextEvent || lastEvent) && (
-        <div className="grid border-b-2 border-divider sm:grid-cols-2">
-          <div className="border-b border-divider p-7 sm:border-b-0 sm:border-r-2 sm:border-divider">
+        <div className="border-b-2 border-divider">
+        <div className="page-wrap grid sm:grid-cols-2">
+          <div className="border-b border-divider py-7 sm:border-b-0 sm:border-r-2 sm:border-divider sm:pr-7">
             {nextEvent ? (
               <NextCell event={nextEvent} tournamentSlug={tournament.slug} />
             ) : (
@@ -90,7 +91,7 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
               </>
             )}
           </div>
-          <div className="p-7">
+          <div className="py-7 sm:pl-7">
             {lastEvent ? (
               <LatestCell event={lastEvent} tournamentSlug={tournament.slug} />
             ) : (
@@ -101,19 +102,20 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
             )}
           </div>
         </div>
+        </div>
       )}
 
       {tournament.activity.usesLiveResults && <LiveResultsBand tournament={tournament} />}
 
       {!tournament.activity.usesMeetResults && (
-        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <div className="page-wrap py-8">
           <h4 className="mb-3">Coming up</h4>
           <UpcomingGames tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
         </div>
       )}
       {roster.length > 0 && (
-        <div className="border-b-2 border-divider bg-surface px-6 py-6 sm:px-10">
-          <div className="mx-auto max-w-5xl">
+        <div className="border-b-2 border-divider bg-surface py-6">
+          <div className="page-wrap">
             <h6 className="text-primary-dark">Competing</h6>
             <ul className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
               {roster.map((school) => (
@@ -174,8 +176,8 @@ function LiveResultsBand({ tournament }: { tournament: LiveResultsTournament }) 
   if (!liveResultsUrl && !liveResultsText && !liveResultsPhotoUrl) return null;
 
   return (
-    <div className="border-b-2 border-divider bg-surface px-6 py-6 sm:px-10">
-      <div className="mx-auto max-w-5xl">
+    <div className="border-b-2 border-divider bg-surface py-6">
+      <div className="page-wrap">
         <Eyebrow>
           <span className="inline-flex items-center gap-1.5">
             <LiveIcon />

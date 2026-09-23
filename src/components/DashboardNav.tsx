@@ -28,7 +28,7 @@ export function DashboardNav({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <div className="border-b-2 border-divider bg-surface/60">
-      <div className="mx-auto flex max-w-5xl items-center gap-4 px-4">
+      <div className="page-wrap flex items-center gap-4">
         <span className="hidden shrink-0 text-[11px] font-bold uppercase tracking-[0.12em] text-muted sm:inline">
           Admin
         </span>
