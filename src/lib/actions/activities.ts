@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, requireUser } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
@@ -226,7 +227,8 @@ export async function deleteActivityAction(_prevState: ActionResult | null, form
   revalidatePath("/tournaments");
   revalidatePath("/schedule");
   revalidatePath("/");
-  return { ok: true };
+  // The activity's own admin page no longer exists.
+  redirect("/dashboard/admin/tournaments");
 }
 
 // Reconciles a division set to exactly the checked names: creates any
