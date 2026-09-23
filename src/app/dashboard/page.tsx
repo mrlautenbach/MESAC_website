@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { sideLabel } from "@/lib/eventDisplay";
+import { StatusTag } from "@/components/StatusTag";
 
 const PAST_LIMIT = 20;
 
@@ -27,7 +28,8 @@ const EVENT_ROW = {
   awaySourceEvent: { select: { externalId: true } },
   division: { select: { name: true } },
   tournament: { select: { name: true, slug: true, activity: { select: { name: true } } } },
-  participants: { select: { isHome: true, school: { select: { name: true } } } },
+  participants: { select: { isHome: true, schoolId: true, school: { select: { name: true } } } },
+  results: { select: { schoolId: true, score: true } },
 } as const;
 
 export default async function DashboardPage() {
@@ -66,7 +68,7 @@ export default async function DashboardPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 space-y-8">
+    <div className="page-wrap py-8 space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Welcome, {user.name}</h1>
@@ -84,9 +86,9 @@ export default async function DashboardPage() {
         {upcoming.length === 0 ? (
           <p className="text-muted">No upcoming events.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="card divide-y divide-border">
             {upcoming.map((event) => (
-              <EventRow key={event.id} event={event} />
+              <EventRow key={event.id} event={event} now={now} />
             ))}
           </ul>
         )}
@@ -97,9 +99,9 @@ export default async function DashboardPage() {
         {past.length === 0 ? (
           <p className="text-muted">No past events yet.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="card divide-y divide-border">
             {past.map((event) => (
-              <EventRow key={event.id} event={event} />
+              <EventRow key={event.id} event={event} now={now} />
             ))}
           </ul>
         )}
@@ -118,7 +120,8 @@ type EventRowProps = {
     title: string | null;
     tournament: { name: string; slug: string; activity: { name: string } };
     division: { name: string } | null;
-    participants: { isHome: boolean; school: { name: string } }[];
+    participants: { isHome: boolean; schoolId: string; school: { name: string } }[];
+    results: { schoolId: string; score: number | null }[];
     homeSourceOutcome: "WINNER" | "LOSER" | null;
     awaySourceOutcome: "WINNER" | "LOSER" | null;
     homeSourceStanding: number | null;
@@ -128,9 +131,10 @@ type EventRowProps = {
     homeSourceEvent: { externalId: string | null } | null;
     awaySourceEvent: { externalId: string | null } | null;
   };
+  now: Date;
 };
 
-function EventRow({ event }: EventRowProps) {
+function EventRow({ event, now }: EventRowProps) {
   // A meet session never sets any of these source fields; a team game does,
   // even before either side has a concrete school (e.g. both still pending).
   const isPendingDualMatchup =
@@ -158,20 +162,38 @@ function EventRow({ event }: EventRowProps) {
           event.awaySourceLabel
         )}`
       : event.participants.map((p) => p.school.name).join(" vs ");
+  const home = event.participants.find((p) => p.isHome);
+  const away = event.participants.find((p) => !p.isHome);
+  const scoreOf = (schoolId?: string) => event.results.find((r) => r.schoolId === schoolId)?.score;
+  const score =
+    event.status === "COMPLETED" && scoreOf(home?.schoolId) != null && scoreOf(away?.schoolId) != null
+      ? `${scoreOf(home?.schoolId)}–${scoreOf(away?.schoolId)}`
+      : null;
+  // Only a game that's already been played without a result gets the loud
+  // button - everything else is a quiet link, so the one that needs doing stands out.
+  const needsResult = event.status === "SCHEDULED" && event.date <= now;
+
   return (
-    <li className="card flex flex-wrap items-center justify-between gap-3 p-4">
-      <div>
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+      <div className="min-w-0 flex-1">
         <div className="font-semibold">{matchup}</div>
         <div className="text-sm text-muted">
           {event.tournament.activity.name}
-          {event.division ? ` · ${event.division.name}` : ""} ({event.tournament.name}) ·{" "}
-          {format(event.date, "EEE, MMM d, yyyy · h:mm a")}
+          {event.division ? ` · ${event.division.name}` : ""} · {format(event.date, "EEE, MMM d · h:mm a")}
           {event.location ? ` · ${event.location}` : ""}
         </div>
       </div>
-      <Link href={`/dashboard/events/${event.id}`} className="btn btn-primary">
-        Enter results / add photos
-      </Link>
+      {score && <span className="text-lg font-extrabold tabular-nums">{score}</span>}
+      <StatusTag status={event.status} />
+      {needsResult ? (
+        <Link href={`/dashboard/events/${event.id}`} className="btn btn-primary px-3 py-1.5 text-xs">
+          Enter result
+        </Link>
+      ) : (
+        <Link href={`/dashboard/events/${event.id}`} className="w-12 text-right text-sm font-semibold text-primary hover:underline">
+          Edit
+        </Link>
+      )}
     </li>
   );
 }

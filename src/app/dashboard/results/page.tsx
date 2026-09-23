@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { format } from "date-fns";
+import type { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { sideLabel } from "@/lib/eventDisplay";
@@ -32,25 +33,7 @@ const RESULT_EVENT_ROW = {
   participants: { select: { isHome: true, school: { select: { name: true } } } },
 } as const;
 
-type ResultEvent = {
-  id: string;
-  slug: string;
-  date: Date;
-  location: string | null;
-  status: "SCHEDULED" | "COMPLETED" | "CANCELLED";
-  title: string | null;
-  homeSourceOutcome: "WINNER" | "LOSER" | null;
-  awaySourceOutcome: "WINNER" | "LOSER" | null;
-  homeSourceStanding: number | null;
-  awaySourceStanding: number | null;
-  homeSourceLabel: string | null;
-  awaySourceLabel: string | null;
-  homeSourceEvent: { externalId: string | null } | null;
-  awaySourceEvent: { externalId: string | null } | null;
-  division: { name: string } | null;
-  tournament: { id: string; name: string; slug: string; activity: { id: string; name: string; usesMeetResults: boolean } };
-  participants: { isHome: boolean; school: { name: string } }[];
-};
+type ResultEvent = Prisma.EventGetPayload<{ select: typeof RESULT_EVENT_ROW }>;
 
 export default async function ResultsDashboardPage() {
   const user = await getCurrentUser();
@@ -63,11 +46,11 @@ export default async function ResultsDashboardPage() {
   // importMeetResultsAction).
   const scope = user.role === "ADMIN" ? {} : { participants: { some: { schoolId: user.schoolId ?? "" } } };
 
-  const events = (await prisma.event.findMany({
-    where: { ...scope, tournament: { isCurrent: true, archived: false } },
+  const events = await prisma.event.findMany({
+    where: { ...scope, tournament: { isCurrent: true } },
     orderBy: { date: "asc" },
     select: RESULT_EVENT_ROW,
-  })) as ResultEvent[];
+  });
 
   const tournamentOrder: string[] = [];
   const byTournament = new Map<string, { tournament: ResultEvent["tournament"]; events: ResultEvent[] }>();
@@ -81,7 +64,7 @@ export default async function ResultsDashboardPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8">
+    <div className="page-wrap space-y-8 py-8">
       <div>
         <h1 className="text-2xl font-bold">Results</h1>
         <p className="text-muted">
@@ -127,39 +110,69 @@ function SectionHeader({ tournament }: { tournament: ResultEvent["tournament"] }
 // faster way to find the right game, not a second way to save a score).
 function GameTournamentSection({ group }: { group: TournamentGroup }) {
   const now = new Date();
-  const needsResult = group.events.filter((e) => e.status !== "COMPLETED" && e.date <= now);
-  const rest = group.events.filter((e) => !needsResult.includes(e));
+  const needsResult: ResultEvent[] = [];
+  const upcoming: ResultEvent[] = [];
+  const done: ResultEvent[] = [];
+  for (const e of group.events) {
+    if (e.status === "SCHEDULED") (e.date <= now ? needsResult : upcoming).push(e);
+    else done.push(e);
+  }
 
   return (
     <section className="card p-4">
       <SectionHeader tournament={group.tournament} />
-      {needsResult.length > 0 && (
-        <ul className="space-y-2">
-          {needsResult.map((event) => (
-            <GameRow key={event.id} event={event} needsResult />
-          ))}
-        </ul>
-      )}
-      {rest.length > 0 && (
-        <details className="mt-3">
-          <summary className="cursor-pointer text-xs font-semibold text-muted">
-            {needsResult.length > 0 ? `Other games (${rest.length})` : `All games (${rest.length})`}
-          </summary>
-          <ul className="mt-2 space-y-2">
-            {rest.map((event) => (
-              <GameRow key={event.id} event={event} needsResult={false} />
-            ))}
-          </ul>
-        </details>
-      )}
       {group.events.length === 0 && <p className="text-sm text-muted">No games scheduled yet.</p>}
+      <div className="space-y-5">
+        {needsResult.length > 0 && <GameList title={`Needs a result (${needsResult.length})`} events={needsResult} needsResult />}
+        {upcoming.length > 0 && <GameList title={`Upcoming (${upcoming.length})`} events={upcoming} />}
+        {done.length > 0 && (
+          <details>
+            <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-muted">
+              Completed or cancelled ({done.length})
+            </summary>
+            <div className="mt-2">
+              <GameList events={done} />
+            </div>
+          </details>
+        )}
+      </div>
     </section>
   );
 }
 
+function GameList({ title, events, needsResult = false }: { title?: string; events: ResultEvent[]; needsResult?: boolean }) {
+  return (
+    <div>
+      {title && (
+        <h3 className={`mb-1.5 text-xs font-bold uppercase tracking-wide ${needsResult ? "text-danger" : "text-muted"}`}>
+          {title}
+        </h3>
+      )}
+      <ul className="divide-y divide-border border-y border-border">
+        {events.map((event) => (
+          <GameRow key={event.id} event={event} needsResult={needsResult} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function GameRow({ event, needsResult }: { event: ResultEvent; needsResult: boolean }) {
-  const matchup =
-    event.participants.length <= 2
+  // An event with no two-school matchup (e.g. a Cross Country race) is named
+  // by its title rather than "TBD vs TBD".
+  const hasMatchup =
+    event.participants.length > 0 ||
+    Boolean(
+      event.homeSourceOutcome ||
+        event.awaySourceOutcome ||
+        event.homeSourceStanding ||
+        event.awaySourceStanding ||
+        event.homeSourceLabel ||
+        event.awaySourceLabel
+    );
+  const matchup = !hasMatchup
+    ? (event.title ?? "Untitled event")
+    : event.participants.length <= 2
       ? `${sideLabel(
           event.participants.find((p) => p.isHome),
           event.homeSourceOutcome,
@@ -176,22 +189,21 @@ function GameRow({ event, needsResult }: { event: ResultEvent; needsResult: bool
       : event.participants.map((p) => p.school.name).join(" vs ");
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 border-t border-divider pt-2 first:border-t-0 first:pt-0">
+    <li className="flex flex-wrap items-center justify-between gap-3 py-2">
       <div>
         <div className="text-sm font-semibold">{matchup}</div>
         <div className="text-xs text-muted">
           {event.division ? `${event.division.name} · ` : ""}
-          {format(event.date, "EEE, MMM d, yyyy · h:mm a")}
+          {format(event.date, "EEE, MMM d · h:mm a")}
+          {event.status === "CANCELLED" ? " · Cancelled" : ""}
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <span className={`text-xs font-semibold ${needsResult ? "text-danger" : "text-success"}`}>
-          {needsResult ? "Needs result" : event.status === "COMPLETED" ? "Result entered" : "Not started"}
-        </span>
-        <Link href={`/dashboard/events/${event.id}`} className="btn btn-secondary px-3 py-1 text-xs">
-          {event.status === "COMPLETED" ? "Edit result" : "Enter result"}
-        </Link>
-      </div>
+      <Link
+        href={`/dashboard/events/${event.id}`}
+        className={needsResult ? "btn btn-primary px-3 py-1 text-xs" : "text-sm font-semibold text-primary hover:underline"}
+      >
+        {event.status === "COMPLETED" ? "Edit result" : needsResult ? "Enter result" : "Edit"}
+      </Link>
     </li>
   );
 }

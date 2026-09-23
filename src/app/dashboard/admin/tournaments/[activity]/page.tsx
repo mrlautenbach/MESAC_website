@@ -59,7 +59,7 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
   ].filter(Boolean) as { id: string; label: string }[];
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
+    <div className="page-wrap py-8">
       <Link href="/dashboard/admin/tournaments" className="text-sm font-semibold text-primary-dark hover:underline">
         &larr; All activities
       </Link>
@@ -76,15 +76,20 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
         </Link>
       </div>
 
-      <nav aria-label="On this page" className="mt-6 flex flex-wrap gap-x-5 gap-y-1 border-y border-divider py-2.5 text-sm">
+      <div className="mt-6 lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10">
+      {/* A row of jump links on narrow screens; a sticky sidebar on wide ones. */}
+      <nav
+        aria-label="On this page"
+        className="flex flex-wrap gap-x-5 gap-y-1 border-y border-divider py-2.5 text-sm lg:sticky lg:top-6 lg:flex-col lg:self-start lg:border-y-0 lg:border-l-2 lg:py-0 lg:pl-4"
+      >
         {sections.map((s) => (
-          <a key={s.id} href={`#${s.id}`} className="font-semibold text-primary hover:underline">
+          <a key={s.id} href={`#${s.id}`} className="font-semibold text-primary hover:underline lg:py-1">
             {s.label}
           </a>
         ))}
       </nav>
 
-      <div className="mt-8 space-y-12">
+      <div className="mt-8 max-w-3xl space-y-12 lg:mt-0">
         {current ? (
           <section id="current" className="scroll-mt-4 space-y-6">
             <div>
@@ -198,8 +203,10 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
         )}
 
         <section id="settings" className="scroll-mt-4 space-y-6">
-          <h6 className="text-primary-dark">Activity settings</h6>
-          <p className="-mt-4 text-sm text-muted">Applies to every tournament of this activity, now and in future years.</p>
+          <div>
+            <h6 className="text-primary-dark">Activity settings</h6>
+            <p className="mt-1 text-sm text-muted">Applies to every tournament of this activity, now and in future years.</p>
+          </div>
 
           {isAdmin && (
             <Panel title="Name, sport & scoring">
@@ -251,6 +258,7 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
             </details>
           )}
         </section>
+      </div>
       </div>
     </div>
   );
