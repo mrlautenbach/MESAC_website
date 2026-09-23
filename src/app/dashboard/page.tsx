@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { EARLIEST_FIRST, LATEST_FIRST } from "@/lib/eventOrder";
 import { getCurrentUser } from "@/lib/session";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { sideLabel } from "@/lib/eventDisplay";
@@ -56,12 +57,12 @@ export default async function DashboardPage() {
   const [upcoming, past] = await Promise.all([
     prisma.event.findMany({
       where: { ...scope, date: { gte: now } },
-      orderBy: { date: "asc" },
+      orderBy: EARLIEST_FIRST,
       select: EVENT_ROW,
     }),
     prisma.event.findMany({
       where: { ...scope, date: { lt: now } },
-      orderBy: { date: "desc" },
+      orderBy: LATEST_FIRST,
       take: PAST_LIMIT,
       select: EVENT_ROW,
     }),

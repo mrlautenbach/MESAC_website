@@ -347,6 +347,10 @@ model Event {
   // re-uploaded CSV update this same game instead of duplicating it, and is
   // what playoff rows reference to say "winner of this game".
   externalId   String?
+  // The number in externalId ("G12" -> 12), so games at the same time list
+  // in game order - G2 before G10, which sorting the text itself gets wrong.
+  // Set by the schedule CSV import alongside externalId.
+  gameNumber   Int?
   // Optional explicit display-order override for schedule/results listings,
   // set via the schedule CSV's "order" column - falls back to date order
   // (the default) when unset. Mainly for meet-style activities where

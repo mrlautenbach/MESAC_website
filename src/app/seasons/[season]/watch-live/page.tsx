@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { EARLIEST_FIRST } from "@/lib/eventOrder";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { EventRows } from "@/components/EventRows";
@@ -25,7 +26,7 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
     // shows its own status tag so a completed or cancelled game reads as
     // such instead of being hidden entirely.
     where: { tournamentId: tournament.id, streamUrl: { not: null } },
-    orderBy: { date: "asc" },
+    orderBy: EARLIEST_FIRST,
     include: {
       participants: { include: { school: true } },
       division: true,

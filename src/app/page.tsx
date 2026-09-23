@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { LATEST_FIRST } from "@/lib/eventOrder";
 import { SeasonBrowser } from "@/components/SeasonBrowser";
 import { PhotoSlider } from "@/components/PhotoSlider";
 import { NextUpGallery } from "@/components/NextUpGallery";
@@ -50,7 +51,7 @@ export default async function HomePage() {
       // A meet-style session (no home/away pair) doesn't fit this score
       // ticker - it has its own results display, not a two-team score.
       where: { status: "COMPLETED", participants: { some: {} } },
-      orderBy: { date: "desc" },
+      orderBy: LATEST_FIRST,
       take: 5,
       include: {
         participants: { include: { school: true } },

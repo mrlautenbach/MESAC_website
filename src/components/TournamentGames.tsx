@@ -1,5 +1,6 @@
 import { startOfToday } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { SCHEDULE_ORDER } from "@/lib/eventOrder";
 import { computeStandings, computeLowScoreTeamStandings, computeIndividualStandings } from "@/lib/standings";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { EventRows } from "@/components/EventRows";
@@ -234,7 +235,7 @@ async function EventsTable({
   const [events, customFields] = await Promise.all([
     prisma.event.findMany({
       where,
-      orderBy: [{ order: { sort: "asc", nulls: "last" } }, { date: "asc" }],
+      orderBy: SCHEDULE_ORDER,
       take: limit,
       include: {
         participants: { include: { school: true } },

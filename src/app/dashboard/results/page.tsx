@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import type { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
+import { EARLIEST_FIRST } from "@/lib/eventOrder";
 import { getCurrentUser } from "@/lib/session";
 import { sideLabel } from "@/lib/eventDisplay";
 
@@ -48,7 +49,7 @@ export default async function ResultsDashboardPage() {
 
   const events = await prisma.event.findMany({
     where: { ...scope, tournament: { isCurrent: true } },
-    orderBy: { date: "asc" },
+    orderBy: EARLIEST_FIRST,
     select: RESULT_EVENT_ROW,
   });
 

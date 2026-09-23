@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { SCHEDULE_ORDER } from "@/lib/eventOrder";
 import { format, startOfDay } from "date-fns";
 import { sideLabel } from "@/lib/eventDisplay";
 import { SchoolColorDot } from "@/components/SchoolColorDot";
@@ -50,7 +51,7 @@ export default async function SchedulePage() {
     currentTournamentIds.map((tournamentId) =>
       prisma.event.findMany({
         where: { tournamentId, date: { gte: today }, status: { not: "CANCELLED" } },
-        orderBy: [{ order: { sort: "asc", nulls: "last" } }, { date: "asc" }],
+        orderBy: SCHEDULE_ORDER,
         take: PREVIEW_COUNT,
         include: {
           participants: { include: { school: true } },

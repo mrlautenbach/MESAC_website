@@ -3,6 +3,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { LATEST_FIRST, SCHEDULE_ORDER } from "@/lib/eventOrder";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { LiveIcon } from "@/components/icons/LiveIcon";
@@ -48,12 +49,12 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
     loadRoster(tournament.id),
     prisma.event.findFirst({
       where: { tournamentId: tournament.id, status: { not: "COMPLETED" }, date: { gte: now } },
-      orderBy: [{ order: { sort: "asc", nulls: "last" } }, { date: "asc" }],
+      orderBy: SCHEDULE_ORDER,
       select: HEADLINE_EVENT,
     }),
     prisma.event.findFirst({
       where: { tournamentId: tournament.id, status: "COMPLETED" },
-      orderBy: { date: "desc" },
+      orderBy: LATEST_FIRST,
       select: HEADLINE_EVENT,
     }),
   ]);

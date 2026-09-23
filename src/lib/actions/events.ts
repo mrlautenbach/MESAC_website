@@ -16,6 +16,7 @@ import {
 import { parseCsv } from "@/lib/csv";
 import { findDivision } from "@/lib/divisionAlias";
 import { createGuestSchools } from "@/lib/newSchools";
+import { gameNumberOf } from "@/lib/eventOrder";
 import { computeOutcomes, resolvePlayoffSlots, resolveStandingSlots, tryFillFromExistingSource } from "@/lib/playoffs";
 import type { ActionResult } from "@/lib/actions/auth";
 import { z } from "zod";
@@ -614,6 +615,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
               streamUrl: row.streamUrl,
               order: row.order,
               externalId: row.gameId,
+              gameNumber: gameNumberOf(row.gameId),
               homeSourceEventId: homeSource?.eventId ?? null,
               homeSourceOutcome: homeSource?.outcome ?? null,
               homeSourceStanding: homeSource?.standing ?? null,
