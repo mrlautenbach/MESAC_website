@@ -1,9 +1,10 @@
-import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { loadRoster } from "@/lib/tournamentRoster";
+import { SeasonHero } from "@/components/SeasonHero";
+import { TournamentSubNav } from "@/components/TournamentSubNav";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export default async function TeamPhotosPage({ params }: { params: Promise<{ sea
   const { season: slug } = await params;
   const tournament = await prisma.tournament.findUnique({
     where: { slug },
-    include: { activity: true, divisions: true },
+    include: { activity: true, divisions: true, hostSchool: true },
   });
   if (!tournament) notFound();
 
@@ -70,12 +71,25 @@ export default async function TeamPhotosPage({ params }: { params: Promise<{ sea
   const hasAnySlots = sections.some((s) => s.slots.length > 0);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-      <Link href={`/seasons/${tournament.slug}`} className="text-sm font-semibold text-primary-dark hover:underline">
-        &larr; {tournament.activity.name}
-      </Link>
-      <h6 className="mt-4 text-primary-dark">{tournament.activity.sport}</h6>
-      <h1 className="mt-2 mb-8 text-4xl sm:text-5xl">{tournament.activity.name} team photos</h1>
+    <div>
+      <SeasonHero
+        activityName={tournament.activity.name}
+        activitySport={tournament.activity.sport}
+        activitySlug={tournament.activity.slug}
+        tournamentName={tournament.name}
+        startDate={tournament.startDate}
+        endDate={tournament.endDate}
+        hostSchoolName={tournament.hostSchool?.name}
+        hostSchoolLogoUrl={tournament.hostSchool?.logoUrl}
+        archived={tournament.archived}
+      />
+      <TournamentSubNav
+        tournamentSlug={tournament.slug}
+        divisions={tournament.divisions}
+        usesMeetResults={tournament.activity.usesMeetResults}
+        active="team-photos"
+      />
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
 
       {!hasAnySlots ? (
         <p className="text-muted">No team photos yet.</p>
@@ -140,6 +154,7 @@ export default async function TeamPhotosPage({ params }: { params: Promise<{ sea
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

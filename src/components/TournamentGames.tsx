@@ -1,3 +1,4 @@
+import { startOfToday } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { computeStandings, computeLowScoreTeamStandings, computeIndividualStandings } from "@/lib/standings";
 import { SchoolBadge } from "@/components/SchoolBadge";
@@ -167,6 +168,33 @@ export async function TournamentResults({ tournamentId, tournamentSlug, division
   );
 }
 
+// The next few games for a tournament's landing page, across every
+// division, so visitors see what's on without picking a tab first.
+export async function UpcomingGames({
+  tournamentId,
+  tournamentSlug,
+  activity,
+  limit = 5,
+}: {
+  tournamentId: string;
+  tournamentSlug: string;
+  activity: Activity;
+  limit?: number;
+}) {
+  return (
+    <EventsTable
+      tournamentId={tournamentId}
+      tournamentSlug={tournamentSlug}
+      activityId={activity.id}
+      scoringType={activity.scoringType}
+      usesSetScores={activity.usesSetScores}
+      statusFilter="UPCOMING"
+      emptyMessage="Nothing else is scheduled right now."
+      limit={limit}
+    />
+  );
+}
+
 async function EventsTable({
   tournamentId,
   tournamentSlug,
@@ -176,6 +204,7 @@ async function EventsTable({
   usesSetScores,
   statusFilter,
   emptyMessage,
+  limit,
 }: {
   tournamentId: string;
   tournamentSlug: string;
@@ -183,8 +212,10 @@ async function EventsTable({
   activityId: string;
   scoringType: Activity["scoringType"];
   usesSetScores: boolean;
-  statusFilter: "COMPLETED" | null;
+  // "UPCOMING" = still scheduled and not yet in the past.
+  statusFilter: "COMPLETED" | "UPCOMING" | null;
   emptyMessage: string;
+  limit?: number;
 }) {
   const where = {
     tournamentId,
@@ -196,13 +227,15 @@ async function EventsTable({
     ...(divisionId
       ? { OR: [{ divisionId }, { programEntries: { some: { divisionId } } }, { meetResults: { some: { divisionId } } }] }
       : {}),
-    ...(statusFilter ? { status: statusFilter } : {}),
+    ...(statusFilter === "COMPLETED" ? { status: "COMPLETED" as const } : {}),
+    ...(statusFilter === "UPCOMING" ? { status: "SCHEDULED" as const, date: { gte: startOfToday() } } : {}),
   };
 
   const [events, customFields] = await Promise.all([
     prisma.event.findMany({
       where,
       orderBy: [{ order: { sort: "asc", nulls: "last" } }, { date: "asc" }],
+      take: limit,
       include: {
         participants: { include: { school: true } },
         results: true,
@@ -216,7 +249,7 @@ async function EventsTable({
     prisma.activityField.findMany({ where: { activityId }, orderBy: { order: "asc" } }),
   ]);
 
-  const showWatch = statusFilter === null;
+  const showWatch = statusFilter !== "COMPLETED";
 
   if (events.length === 0) return <p className="text-muted">{emptyMessage}</p>;
 

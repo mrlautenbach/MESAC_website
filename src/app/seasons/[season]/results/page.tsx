@@ -34,8 +34,13 @@ export default async function TournamentResultsPage({ params }: { params: Promis
         archived={tournament.archived}
       />
 
+      <TournamentSubNav
+        tournamentSlug={tournament.slug}
+        divisions={tournament.divisions}
+        usesMeetResults={tournament.activity.usesMeetResults}
+        active="results"
+      />
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <TournamentSubNav tournamentSlug={tournament.slug} active="results" />
         <TournamentResults tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
       </div>
     </div>

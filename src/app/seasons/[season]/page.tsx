@@ -9,6 +9,7 @@ import { LiveIcon } from "@/components/icons/LiveIcon";
 import { sideLabel } from "@/lib/eventDisplay";
 import { loadRoster } from "@/lib/tournamentRoster";
 import { SchoolBadge } from "@/components/SchoolBadge";
+import { UpcomingGames } from "@/components/TournamentGames";
 
 export const dynamic = "force-dynamic";
 
@@ -57,13 +58,6 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
     }),
   ]);
 
-  const hasDivisions = tournament.divisions.length > 0;
-  // Meet-style activities (Swimming, Track & Field) show a combined Overall
-  // section - every event regardless of division - ahead of the per-division
-  // ones, since a meet's events aren't naturally split like a team sport's
-  // are. Watch Live/Team Photos then only need to appear once, on Overall.
-  const showOverall = hasDivisions && tournament.activity.usesMeetResults;
-
   return (
     <div>
       <SeasonHero
@@ -76,6 +70,12 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
         hostSchoolName={tournament.hostSchool?.name}
         hostSchoolLogoUrl={tournament.hostSchool?.logoUrl}
         archived={tournament.archived}
+      />
+
+      <TournamentSubNav
+        tournamentSlug={tournament.slug}
+        divisions={tournament.divisions}
+        usesMeetResults={tournament.activity.usesMeetResults}
       />
 
       {(nextEvent || lastEvent) && (
@@ -105,6 +105,12 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
 
       {tournament.activity.usesLiveResults && <LiveResultsBand tournament={tournament} />}
 
+      {!tournament.activity.usesMeetResults && (
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+          <h4 className="mb-3">Coming up</h4>
+          <UpcomingGames tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
+        </div>
+      )}
       {roster.length > 0 && (
         <div className="border-b-2 border-divider bg-surface px-6 py-6 sm:px-10">
           <div className="mx-auto max-w-5xl">
@@ -127,30 +133,6 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
         </div>
       )}
 
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        {hasDivisions ? (
-          <div className="space-y-8">
-            {showOverall && (
-              <section>
-                <h4 className="mb-3">Overall</h4>
-                <TournamentSubNav tournamentSlug={tournament.slug} />
-              </section>
-            )}
-            {tournament.divisions.map((division) => (
-              <section key={division.id}>
-                <h4 className="mb-3">{division.name}</h4>
-                <TournamentSubNav
-                  tournamentSlug={tournament.slug}
-                  divisionSlug={division.slug}
-                  showWatchAndPhotos={!showOverall}
-                />
-              </section>
-            ))}
-          </div>
-        ) : (
-          <TournamentSubNav tournamentSlug={tournament.slug} />
-        )}
-      </div>
     </div>
   );
 }

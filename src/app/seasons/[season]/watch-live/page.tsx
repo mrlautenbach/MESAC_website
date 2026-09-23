@@ -48,8 +48,13 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
         archived={tournament.archived}
       />
 
+      <TournamentSubNav
+        tournamentSlug={tournament.slug}
+        divisions={tournament.divisions}
+        usesMeetResults={tournament.activity.usesMeetResults}
+        active="watch-live"
+      />
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <TournamentSubNav tournamentSlug={tournament.slug} active="watch-live" />
         <h4 className="mb-3">Watch live</h4>
 
         {events.length === 0 ? (
