@@ -15,6 +15,7 @@ import {
 } from "@/lib/validation";
 import { parseCsv } from "@/lib/csv";
 import { normalizeDivisionName } from "@/lib/divisionAlias";
+import { createGuestSchools } from "@/lib/newSchools";
 import { computeOutcomes, resolvePlayoffSlots, resolveStandingSlots, tryFillFromExistingSource } from "@/lib/playoffs";
 import type { ActionResult } from "@/lib/actions/auth";
 import { z } from "zod";
@@ -105,7 +106,7 @@ export async function createEventAction(_prevState: ActionResult | null, formDat
 }
 
 export type ImportEventsResult =
-  | { ok: true; created: number; updated: number; removed: number }
+  | { ok: true; created: number; updated: number; removed: number; newSchools: string[] }
   | { ok: false; error: string; rowErrors?: { row: number; message: string }[] };
 
 const STATUS_VALUES = new Set(["SCHEDULED", "COMPLETED", "CANCELLED"]);
@@ -120,7 +121,10 @@ type SideSpec =
   // A free-text placeholder for an opponent not yet in the database
   // ("TBD(Local)"), or a bare "TBD" for no particular label - filled in by
   // hand later, same as overriding an unresolved game-outcome slot.
-  | { kind: "label"; text: string | null };
+  | { kind: "label"; text: string | null }
+  // A school not in the database yet, added as a guest school when the
+  // import is allowed to (see createGuestSchools).
+  | { kind: "newSchool"; name: string };
 
 type PlannedRow = {
   rowNum: number;
@@ -141,13 +145,30 @@ type PlannedRow = {
   fieldValues: { fieldId: string; value: string | null }[];
 };
 
-function parseSide(raw: string, schoolByKey: Map<string, { id: string }>): SideSpec | { error: string } {
+function parseSide(
+  raw: string,
+  schoolByKey: Map<string, { id: string }>,
+  knownGameIds: Set<string>,
+  allowNewSchools: boolean
+): SideSpec | { error: string } {
+  // A real school name or code always wins, so a code that happens to start
+  // with W or L ("WAB", "Local") is never read as a winner/loser slot.
+  const school = schoolByKey.get(raw.toLowerCase());
+  if (school) return { kind: "school", schoolId: school.id };
+
   // "WINNER(G3)"/"LOSER(G3)" (original syntax) plus the more conversational
-  // "W of G3", "Winner of G3", "L of G3", "Loser of G3" - all case-insensitive.
-  const placeholder = raw.match(/^(winner|win|w|loser|lose|loss|l)\s*(?:of\s+)?\(?\s*([a-z0-9._-]+?)\s*\)?$/i);
+  // "W of G3", "Winner of G3", "L G3", "Loser of G3" - all case-insensitive.
+  // The word and the game id must be separated by a space, "of" or
+  // parentheses; the run-together form ("WG3") is only accepted when the rest
+  // is a game_id that actually exists.
+  const separated =
+    raw.match(/^(winner|win|w|loser|lose|loss|l)\s*\(\s*([a-z0-9._-]+)\s*\)$/i) ??
+    raw.match(/^(winner|win|w|loser|lose|loss|l)\s+(?:of\s+)?([a-z0-9._-]+)$/i);
+  const joined = raw.match(/^(w|l)([a-z0-9._-]+)$/i);
+  const placeholder = separated ?? (joined && knownGameIds.has(joined[2]) ? joined : null);
   if (placeholder) {
     const outcome: "WINNER" | "LOSER" = /^w/i.test(placeholder[1]) ? "WINNER" : "LOSER";
-    return { kind: "placeholder", outcome, refGameId: placeholder[2].trim() };
+    return { kind: "placeholder", outcome, refGameId: placeholder[2] };
   }
 
   // A placement-bracket seed: "1st", "2nd", "3rd", "4th", ... (an optional
@@ -166,9 +187,8 @@ function parseSide(raw: string, schoolByKey: Map<string, { id: string }>): SideS
   const tbd = raw.match(/^tbd(?:\s*\(\s*(.+?)\s*\))?$/i);
   if (tbd) return { kind: "label", text: tbd[1]?.trim() || null };
 
-  const school = schoolByKey.get(raw.toLowerCase());
-  if (!school) return { error: `Unknown school "${raw}".` };
-  return { kind: "school", schoolId: school.id };
+  if (allowNewSchools) return { kind: "newSchool", name: raw };
+  return { error: `Unknown school "${raw}".` };
 }
 
 function parseScore(raw: string): number | null | { error: true } {
@@ -198,6 +218,8 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     return { ok: false, error: "Choose a tournament first." };
   }
   const replaceExisting = formData.get("replaceExisting") === "on";
+  // Only admins can add schools, same as the Schools page.
+  const addNewSchools = formData.get("addNewSchools") === "on" && admin.role === "ADMIN";
 
   const file = formData.get("csvFile");
   const pastedText = formData.get("csvText");
@@ -293,14 +315,14 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     if (!homeRaw) {
       fail("Missing home.");
     } else {
-      const parsed = parseSide(homeRaw, schoolByKey);
+      const parsed = parseSide(homeRaw, schoolByKey, knownGameIds, addNewSchools);
       if ("error" in parsed) fail(parsed.error);
       else home = parsed;
     }
     if (!awayRaw) {
       fail("Missing away.");
     } else {
-      const parsed = parseSide(awayRaw, schoolByKey);
+      const parsed = parseSide(awayRaw, schoolByKey, knownGameIds, addNewSchools);
       if ("error" in parsed) fail(parsed.error);
       else away = parsed;
     }
@@ -309,7 +331,9 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
         fail(`References unknown game_id "${side.refGameId}" (it must appear in an earlier row, or already exist in this season).`);
       }
     }
-    if (home && away && home.kind === "school" && away.kind === "school" && home.schoolId === away.schoolId) {
+    const sideKey = (side: SideSpec | null) =>
+      side?.kind === "school" ? side.schoolId : side?.kind === "newSchool" ? `new:${side.name.toLowerCase()}` : null;
+    if (sideKey(home) && sideKey(home) === sideKey(away)) {
       fail("Home and away must be different schools.");
     }
 
@@ -396,12 +420,26 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     | { participantAction: "pending-standing"; position: number }
     | { participantAction: "pending-label"; text: string | null };
 
-  const { createdIds, updatedIds, removedIds } = await prisma.$transaction(
+  const { createdIds, updatedIds, removedIds, newSchoolNames } = await prisma.$transaction(
     async (tx) => {
       const claimedSlugs = new Set<string>();
       const gameIdToEventId = new Map(Array.from(existingByGameId.entries()).map(([gid, e]) => [gid, e.id]));
       const createdIds: string[] = [];
       const updatedIds: string[] = [];
+
+      // Add any schools the file names that aren't in the database yet, then
+      // point those rows at the new school like any other.
+      const newSchoolNames = planned.flatMap((row) =>
+        [row.home, row.away].flatMap((side) => (side?.kind === "newSchool" ? [side.name] : []))
+      );
+      const newSchools = await createGuestSchools(tx, newSchoolNames, admin);
+      for (const school of newSchools.values()) schoolSlugById.set(school.id, school.slug);
+      const toSchool = (side: SideSpec | null): SideSpec | null =>
+        side?.kind === "newSchool" ? { kind: "school", schoolId: newSchools.get(side.name.toLowerCase())!.id } : side;
+      for (const row of planned) {
+        row.home = toSchool(row.home);
+        row.away = toSchool(row.away);
+      }
 
       function resolveSide(spec: SideSpec | null, existingParticipant: { schoolId: string } | null): ResolvedSide {
         // Drops a stale participant from an earlier upload; otherwise a no-op.
@@ -414,6 +452,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
         if (existingParticipant) return { participantAction: "none" };
         if (spec.kind === "standing") return { participantAction: "pending-standing", position: spec.position };
         if (spec.kind === "label") return { participantAction: "pending-label", text: spec.text };
+        if (spec.kind === "newSchool") throw new Error("New schools are created before rows are written.");
         return { participantAction: "pending", sourceEventId: gameIdToEventId.get(spec.refGameId)!, outcome: spec.outcome };
       }
 
@@ -623,7 +662,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       );
       await ensureInRoster(tx, tournament.id, importedSchoolIds);
 
-      return { createdIds, updatedIds, removedIds };
+      return { createdIds, updatedIds, removedIds, newSchoolNames: [...newSchools.values()].map((school) => school.name) };
     },
     { timeout: 60_000 }
   );
@@ -645,7 +684,8 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
 
   revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
   revalidatePath("/dashboard");
-  return { ok: true, created: createdIds.length, updated: updatedIds.length, removed: removedIds.length };
+  if (newSchoolNames.length > 0) revalidatePath("/dashboard/admin/schools");
+  return { ok: true, created: createdIds.length, updated: updatedIds.length, removed: removedIds.length, newSchools: newSchoolNames };
 }
 
 const updateEventSchema = z.object({

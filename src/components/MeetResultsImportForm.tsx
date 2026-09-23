@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { importMeetResultsAction, clearMeetResultsAction, type ImportMeetResultsResult } from "@/lib/actions/meet-results";
+import { AddNewSchoolsCheckbox, NewSchoolsNote } from "@/components/NewSchoolsImport";
 
 export function MeetResultsImportForm({ eventId, resultCount }: { eventId: string; resultCount: number }) {
   const [state, formAction, pending] = useActionState<ImportMeetResultsResult | null, FormData>(
@@ -72,6 +73,8 @@ export function MeetResultsImportForm({ eventId, resultCount }: { eventId: strin
           />
         </div>
 
+        <AddNewSchoolsCheckbox />
+
         {state && !state.ok && (
           <div role="alert" className="space-y-2 bg-red-50 px-4 py-3 text-sm text-danger">
             <p className="font-semibold">{state.error}</p>
@@ -89,6 +92,7 @@ export function MeetResultsImportForm({ eventId, resultCount }: { eventId: strin
         {state?.ok && (
           <p role="status" className="bg-green-50 px-3 py-2 text-sm text-success">
             Imported {state.imported} result{state.imported === 1 ? "" : "s"}!
+            <NewSchoolsNote names={state.newSchools} />
           </p>
         )}
 

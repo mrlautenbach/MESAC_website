@@ -6,10 +6,11 @@ import { requireAdmin } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import { meetResultRowSchema } from "@/lib/validation";
 import { parseCsv, csvRowsToObjects } from "@/lib/csv";
+import { createGuestSchools } from "@/lib/newSchools";
 import type { ActionResult } from "@/lib/actions/auth";
 
 export type ImportMeetResultsResult =
-  | { ok: true; imported: number }
+  | { ok: true; imported: number; newSchools: string[] }
   | { ok: false; error: string; rowErrors?: { row: number; message: string }[] };
 
 const REQUIRED_HEADERS = ["event_name", "name", "school", "mark"];
@@ -25,6 +26,7 @@ export async function importMeetResultsAction(
   const admin = await requireAdmin();
 
   const eventId = String(formData.get("eventId") ?? "");
+  const addNewSchools = formData.get("addNewSchools") === "on";
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: { tournament: { include: { activity: true } }, division: true, programEntries: true },
@@ -63,7 +65,10 @@ export async function importMeetResultsAction(
     round: "PRELIM" | "FINAL";
     place: number | null;
     athleteName: string;
-    schoolId: string;
+    // An existing school's id, or null for a new school (newSchoolName) that's
+    // only added once the whole file checks out.
+    schoolId: string | null;
+    newSchoolName: string | null;
     mark: string;
     seedMark: string | null;
     prelimMark: string | null;
@@ -78,9 +83,13 @@ export async function importMeetResultsAction(
     const rowNum = i + 2; // header is row 1
     if (Object.values(record).every((v) => v === "")) return;
 
-    const schoolRaw = record.school ?? "";
+    const schoolRaw = (record.school ?? "").trim();
     const school = schoolByKey.get(schoolRaw.toLowerCase());
-    if (!school) {
+    if (!schoolRaw) {
+      rowErrors.push({ row: rowNum, message: "Missing school." });
+      return;
+    }
+    if (!school && !addNewSchools) {
       rowErrors.push({ row: rowNum, message: `Unknown school "${schoolRaw}".` });
       return;
     }
@@ -92,13 +101,12 @@ export async function importMeetResultsAction(
       return;
     }
 
-    const parsed = meetResultRowSchema.safeParse({
+    const parsed = meetResultRowSchema.omit({ schoolId: true }).safeParse({
       eventName: record.event_name,
       round,
       eventNumber: record.event_number ?? "",
       place: record.place ?? "",
       athleteName: record.name,
-      schoolId: school.id,
       mark: record.mark,
       seedMark: record.seed ?? "",
       prelimMark: record.prelim_time ?? "",
@@ -147,7 +155,8 @@ export async function importMeetResultsAction(
       round: parsed.data.round,
       place: parsed.data.place,
       athleteName: parsed.data.athleteName,
-      schoolId: parsed.data.schoolId,
+      schoolId: school?.id ?? null,
+      newSchoolName: school ? null : schoolRaw,
       mark: parsed.data.mark,
       seedMark: parsed.data.seedMark || null,
       prelimMark: parsed.data.prelimMark || null,
@@ -164,10 +173,22 @@ export async function importMeetResultsAction(
   }
   if (planned.length === 0) return { ok: false, error: "No result rows found in the file." };
 
-  await prisma.$transaction([
-    prisma.meetResult.deleteMany({ where: { eventId: event.id } }),
-    prisma.meetResult.createMany({ data: planned.map((p) => ({ eventId: event.id, ...p })) }),
-  ]);
+  const newSchoolNames = await prisma.$transaction(async (tx) => {
+    const newSchools = await createGuestSchools(
+      tx,
+      planned.flatMap((p) => (p.newSchoolName ? [p.newSchoolName] : [])),
+      admin
+    );
+    await tx.meetResult.deleteMany({ where: { eventId: event.id } });
+    await tx.meetResult.createMany({
+      data: planned.map(({ newSchoolName, schoolId, ...p }) => ({
+        eventId: event.id,
+        ...p,
+        schoolId: schoolId ?? newSchools.get(newSchoolName!.toLowerCase())!.id,
+      })),
+    });
+    return [...newSchools.values()].map((s) => s.name);
+  });
 
   await recordAudit({
     actorId: admin.id,
@@ -181,7 +202,8 @@ export async function importMeetResultsAction(
 
   revalidatePath(`/seasons/${event.tournament.slug}/events/${event.slug}`);
   revalidatePath(`/dashboard/events/${event.id}`);
-  return { ok: true, imported: planned.length };
+  if (newSchoolNames.length > 0) revalidatePath("/dashboard/admin/schools");
+  return { ok: true, imported: planned.length, newSchools: newSchoolNames };
 }
 
 export async function clearMeetResultsAction(eventId: string): Promise<ActionResult> {

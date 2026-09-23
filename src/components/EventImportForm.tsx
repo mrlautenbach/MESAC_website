@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { importEventsAction, type ImportEventsResult } from "@/lib/actions/events";
+import { AddNewSchoolsCheckbox, NewSchoolsNote } from "@/components/NewSchoolsImport";
 
 type SeasonOption = {
   id: string;
@@ -14,6 +15,8 @@ type Props = {
   seasons: SeasonOption[];
   schoolCodes: { code: string; name: string }[];
   defaultTournamentId?: string;
+  // Only admins can add schools, so only they get the "add unknown schools" option.
+  canAddSchools?: boolean;
 };
 
 function buildTemplate(season: SeasonOption | undefined, schoolCodes: Props["schoolCodes"]) {
@@ -32,7 +35,7 @@ function buildTemplate(season: SeasonOption | undefined, schoolCodes: Props["sch
 
 // Meet-style activities (Swimming, Track & Field) set up their schedule via
 // the combined schedule+program CSV instead - see MeetScheduleImportForm.
-export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: Props) {
+export function EventImportForm({ seasons, schoolCodes, defaultTournamentId, canAddSchools = false }: Props) {
   const [state, formAction, pending] = useActionState<ImportEventsResult | null, FormData>(importEventsAction, null);
   const [tournamentId, setTournamentId] = useState(
     (defaultTournamentId && seasons.some((s) => s.id === defaultTournamentId) ? defaultTournamentId : seasons[0]?.id) ?? ""
@@ -56,6 +59,7 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: P
           import another file
         </button>
         .
+        <NewSchoolsNote names={state.newSchools} />
       </div>
     );
   }
@@ -169,6 +173,8 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: P
           and anything attached to them (results, photos, documents).
         </span>
       </label>
+
+      {canAddSchools && <AddNewSchoolsCheckbox />}
 
       {state && !state.ok && (
         <div role="alert" className="space-y-2 bg-red-50 px-4 py-3 text-sm text-danger">

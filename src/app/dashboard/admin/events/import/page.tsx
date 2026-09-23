@@ -60,6 +60,7 @@ export default async function ImportEventsPage({
         seasons={tournamentOptions}
         schoolCodes={schools.map((s) => ({ code: s.code ?? "", name: s.name }))}
         defaultTournamentId={defaultTournamentId}
+        canAddSchools={user.role === "ADMIN"}
       />
     </div>
   );
