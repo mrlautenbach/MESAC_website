@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
-import { GolfIndividualSchedule, GolfTeamComingSoon } from "@/components/GolfViews";
+import { GolfIndividualSchedule, GolfTeamSchedule } from "@/components/GolfViews";
 import { TournamentSchedule } from "@/components/TournamentGames";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +55,7 @@ export default async function TournamentSchedulePage({
         {golfView === "individual" ? (
           <GolfIndividualSchedule tournamentId={tournament.id} />
         ) : golfView === "team" ? (
-          <GolfTeamComingSoon />
+          <GolfTeamSchedule tournamentId={tournament.id} />
         ) : (
           <TournamentSchedule tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
         )}

@@ -58,3 +58,114 @@ export function teamSeeding<S extends { id: string }>(schools: S[], players: Sco
 export function seedingIsFinal(rows: SeedingRow<unknown>[]): boolean {
   return rows.length > 0 && rows.every((r) => r.players > 0 && r.scoresIn === r.players);
 }
+
+// ── Team match play ────────────────────────────────────────────────────
+
+type PairsResult = { winner: "HOME" | "AWAY" | "HALVED" | null };
+
+// A pairs match is worth 1 to the winner, or ½ each when halved.
+function pairsPoints(pair: PairsResult, side: "HOME" | "AWAY"): number {
+  if (pair.winner === "HALVED") return 0.5;
+  return pair.winner === side ? 1 : 0;
+}
+
+export type MatchScore = { home: number; away: number; decided: number; total: number; complete: boolean };
+
+export function matchScore(pairs: PairsResult[]): MatchScore {
+  const decided = pairs.filter((p) => p.winner !== null);
+  return {
+    home: decided.reduce((sum, p) => sum + pairsPoints(p, "HOME"), 0),
+    away: decided.reduce((sum, p) => sum + pairsPoints(p, "AWAY"), 0),
+    decided: decided.length,
+    total: pairs.length,
+    complete: pairs.length > 0 && decided.length === pairs.length,
+  };
+}
+
+// 1.5 -> "1½", 0.5 -> "½", 2 -> "2".
+export function formatGolfPoints(n: number): string {
+  const whole = Math.floor(n);
+  const half = n - whole === 0.5;
+  return half ? `${whole === 0 ? "" : whole}½` : String(whole);
+}
+
+// Tidies the usual ways a match-play margin gets typed: "3UP" -> "3 up",
+// "2 & 1" -> "2&1", "as"/"all square" -> "AS". Anything else is kept as typed.
+export function normalizeMargin(raw: string): string | null {
+  const text = raw.trim();
+  if (!text) return null;
+  const up = text.match(/^(\d+)\s*up$/i);
+  if (up) return `${up[1]} up`;
+  const andN = text.match(/^(\d+)\s*(?:&|and)\s*(\d+)$/i);
+  if (andN) return `${andN[1]}&${andN[2]}`;
+  if (/^(as|a\/s|all\s*square|halved)$/i.test(text)) return "AS";
+  return text.slice(0, 20);
+}
+
+export type TeamStandingsRow<S> = {
+  school: S;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  // Pairs-match points across every round - the tie-breaker.
+  flightPoints: number;
+  points: number;
+  place: number;
+};
+
+type TeamMatch = { homeSchoolId: string; awaySchoolId: string; pairs: PairsResult[] };
+
+// Standings for the team match play: a school match counts once all three
+// of its pairs matches have a result. Ranked by match points (the
+// activity's own win/draw/loss points), then by total flight points; schools
+// still level share a place.
+export function teamStandings<S extends { id: string; name: string }>(
+  schools: S[],
+  matches: TeamMatch[],
+  scoring: { winPoints: number; drawPoints: number; lossPoints: number }
+): TeamStandingsRow<S>[] {
+  const rows = new Map(
+    schools.map((school) => [school.id, { school, played: 0, wins: 0, draws: 0, losses: 0, flightPoints: 0, points: 0, place: 0 }])
+  );
+  for (const match of matches) {
+    const home = rows.get(match.homeSchoolId);
+    const away = rows.get(match.awaySchoolId);
+    if (!home || !away) continue;
+    const score = matchScore(match.pairs);
+    home.flightPoints += score.home;
+    away.flightPoints += score.away;
+    if (!score.complete) continue;
+    home.played++;
+    away.played++;
+    if (score.home > score.away) {
+      home.wins++;
+      away.losses++;
+    } else if (score.away > score.home) {
+      away.wins++;
+      home.losses++;
+    } else {
+      home.draws++;
+      away.draws++;
+    }
+  }
+  const list = [...rows.values()];
+  for (const row of list) {
+    row.points = row.wins * scoring.winPoints + row.draws * scoring.drawPoints + row.losses * scoring.lossPoints;
+  }
+  list.sort((a, b) => b.points - a.points || b.flightPoints - a.flightPoints || a.school.name.localeCompare(b.school.name));
+  for (const row of list) {
+    row.place = list.findIndex((r) => r.points === row.points && r.flightPoints === row.flightPoints) + 1;
+  }
+  return list;
+}
+
+// A school's pair for a flight - its two roster players seeded for it -
+// as "First Player & Second Player", or "TBD" before the roster is in.
+export function pairName(players: { schoolId: string; seed: number; name: string }[], schoolId: string, flight: number): string {
+  const names = players
+    .filter((p) => p.schoolId === schoolId && flightOf(p.seed) === flight)
+    .sort((a, b) => a.seed - b.seed)
+    .map((p) => p.name);
+  return names.length > 0 ? names.join(" & ") : "TBD";
+}

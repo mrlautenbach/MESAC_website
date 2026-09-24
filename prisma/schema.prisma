@@ -93,6 +93,8 @@ model School {
   tournamentEntries        TournamentSchool[]
   meetResults              MeetResult[]
   golfPlayers              GolfPlayer[]
+  golfHomeMatches          GolfTeamMatch[] @relation("GolfHome")
+  golfAwayMatches          GolfTeamMatch[] @relation("GolfAway")
 }
 
 model User {
@@ -290,6 +292,7 @@ model Tournament {
   programEntries MeetProgramEntry[]
   golfPlayers    GolfPlayer[]
   golfGroups     GolfGroup[]
+  golfMatches    GolfTeamMatch[]
 
   @@index([activityId])
 }
@@ -746,4 +749,50 @@ model GolfGroup {
   createdAt    DateTime     @default(now())
 
   @@unique([tournamentId, number])
+}
+
+enum GolfPairsWinner {
+  HOME
+  AWAY
+  HALVED
+}
+
+// One school-vs-school match in a round of the team match play. It's three
+// pairs matches, one per flight; the school that wins more of them (a
+// halved one is half each) wins the match, and 1½-1½ is a draw.
+model GolfTeamMatch {
+  id           String           @id @default(cuid())
+  tournamentId String
+  tournament   Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  round        Int
+  startTime    DateTime
+  course       String?
+  homeSchoolId String
+  homeSchool   School           @relation("GolfHome", fields: [homeSchoolId], references: [id])
+  awaySchoolId String
+  awaySchool   School           @relation("GolfAway", fields: [awaySchoolId], references: [id])
+  pairs        GolfPairsMatch[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([tournamentId, round, homeSchoolId, awaySchoolId])
+  @@index([tournamentId])
+}
+
+// One flight's pairs match within a school match. The pairs aren't stored:
+// each school's pair for a flight is its two roster players seeded for it
+// (seeds 1&2, 3&4, 5&6), fixed for the whole event.
+model GolfPairsMatch {
+  id        String           @id @default(cuid())
+  matchId   String
+  match     GolfTeamMatch    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  flight    Int
+  startHole Int?
+  marshal   String?
+  // Null until the pairs match is played.
+  winner    GolfPairsWinner?
+  // Golf's margin notation - "3 up", "2&1" - shown next to the winner.
+  margin    String?
+
+  @@unique([matchId, flight])
 }

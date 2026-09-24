@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import { parseCsv, csvRowsToObjects } from "@/lib/csv";
-import { flightOf, GOLF_SEEDS_PER_SCHOOL } from "@/lib/golf";
+import { flightOf, GOLF_SEEDS_PER_SCHOOL, normalizeMargin } from "@/lib/golf";
 
 // Every golf upload returns the same shape: a one-line summary on success,
 // or every row's problem at once so the whole file can be fixed in one go.
@@ -333,5 +333,252 @@ export async function saveGolfGroupScoresAction(_prev: GolfImportResult | null, 
     summary: `${admin.name} saved Group ${group.number}'s Day 1 scores for ${group.tournament.name}`,
   });
   refresh(group.tournament);
+  return { ok: true, summary: "Saved." };
+}
+
+// ── Team match play ────────────────────────────────────────────────────
+
+function parseTime(date: string, time: string): Date {
+  const t = time.trim();
+  return new Date(`${date.trim()}T${t.length === 4 ? `0${t}` : t}:00`);
+}
+
+// The team draw: one row per pairs match - round, date, time, home, away,
+// flight, plus optional start_hole, marshal and course. Rows sharing a
+// round and the same two schools make up one school match. Uploading
+// replaces the draw, but a pairs match that's still in the file keeps its
+// result, so a corrected file can be re-uploaded mid-event.
+export async function importGolfTeamDrawAction(_prev: GolfImportResult | null, formData: FormData): Promise<GolfImportResult> {
+  const admin = await requireAdmin();
+  const loaded = await loadGolfTournament(String(formData.get("tournamentId") ?? ""));
+  if (!loaded.ok) return { ok: false, error: loaded.error };
+  const { tournament } = loaded;
+  const csv = await readCsv(formData, ["round", "date", "time", "home", "away", "flight"]);
+  if (!csv.ok) return { ok: false, error: csv.error };
+  const findSchool = await schoolLookup();
+
+  type Pair = { flight: number; startHole: number | null; marshal: string | null };
+  type Match = { round: number; startTime: Date; course: string | null; homeSchoolId: string; awaySchoolId: string; row: number; pairs: Map<number, Pair> };
+  const matches = new Map<string, Match>();
+  const schoolInRound = new Map<string, { key: string; row: number }>();
+  const rowErrors: RowError[] = [];
+
+  for (const { record, row } of csv.records) {
+    let ok = true;
+    const fail = (message: string) => {
+      rowErrors.push({ row, message });
+      ok = false;
+    };
+    const round = Number(record.round);
+    const flight = Number(record.flight);
+    const startTime = parseTime(record.date ?? "", record.time ?? "");
+    const home = findSchool(record.home ?? "");
+    const away = findSchool(record.away ?? "");
+    const holeRaw = (record.start_hole ?? "").trim();
+    const startHole = holeRaw ? Number(holeRaw) : null;
+    if (!Number.isInteger(round) || round < 1) fail(`Round "${record.round}" must be a whole number.`);
+    if (![1, 2, 3].includes(flight)) fail(`Flight "${record.flight}" must be 1, 2 or 3.`);
+    if (Number.isNaN(startTime.getTime())) fail(`Could not read date/time "${record.date} ${record.time}" (use YYYY-MM-DD and HH:MM).`);
+    if (!home) fail(`Unknown school "${record.home}".`);
+    if (!away) fail(`Unknown school "${record.away}".`);
+    if (startHole !== null && (!Number.isInteger(startHole) || startHole < 1 || startHole > 18)) fail(`start_hole "${holeRaw}" must be 1-18.`);
+    if (!ok || !home || !away) continue;
+    if (home.id === away.id) {
+      fail("Home and away must be different schools.");
+      continue;
+    }
+
+    const key = `${round}:${home.id}:${away.id}`;
+    for (const school of [home, away]) {
+      const seen = schoolInRound.get(`${round}:${school.id}`);
+      if (seen && seen.key !== key) fail(`${school.code || school.name} already plays another match in round ${round} (row ${seen.row}).`);
+      else if (!seen) schoolInRound.set(`${round}:${school.id}`, { key, row });
+    }
+    if (!ok) continue;
+
+    const course = (record.course ?? "").trim() || null;
+    const marshal = (record.marshal ?? "").trim() || null;
+    let match = matches.get(key);
+    if (!match) {
+      match = { round, startTime, course, homeSchoolId: home.id, awaySchoolId: away.id, row, pairs: new Map() };
+      matches.set(key, match);
+    } else {
+      if (match.startTime.getTime() !== startTime.getTime()) fail(`This match has a different date or time in row ${match.row}.`);
+      if (course && match.course && course !== match.course) fail(`This match has a different course in row ${match.row}.`);
+      if (!ok) continue;
+      match.course ??= course;
+    }
+    if (match.pairs.has(flight)) {
+      fail(`Flight ${flight} of this match is already in an earlier row.`);
+      continue;
+    }
+    match.pairs.set(flight, { flight, startHole, marshal });
+  }
+  if (rowErrors.length > 0) return failed(rowErrors);
+  if (matches.size === 0) return { ok: false, error: "No match rows found in the file." };
+
+  const removed = await prisma.$transaction(async (tx) => {
+    const keepIds: string[] = [];
+    for (const m of matches.values()) {
+      const saved = await tx.golfTeamMatch.upsert({
+        where: {
+          tournamentId_round_homeSchoolId_awaySchoolId: {
+            tournamentId: tournament.id,
+            round: m.round,
+            homeSchoolId: m.homeSchoolId,
+            awaySchoolId: m.awaySchoolId,
+          },
+        },
+        create: { tournamentId: tournament.id, round: m.round, startTime: m.startTime, course: m.course, homeSchoolId: m.homeSchoolId, awaySchoolId: m.awaySchoolId },
+        update: { startTime: m.startTime, course: m.course },
+      });
+      keepIds.push(saved.id);
+      for (const p of m.pairs.values()) {
+        await tx.golfPairsMatch.upsert({
+          where: { matchId_flight: { matchId: saved.id, flight: p.flight } },
+          create: { matchId: saved.id, ...p },
+          update: { startHole: p.startHole, marshal: p.marshal },
+        });
+      }
+      await tx.golfPairsMatch.deleteMany({ where: { matchId: saved.id, flight: { notIn: [...m.pairs.keys()] } } });
+    }
+    const stale = await tx.golfTeamMatch.deleteMany({ where: { tournamentId: tournament.id, id: { notIn: keepIds } } });
+    return stale.count;
+  });
+
+  const rounds = new Set([...matches.values()].map((m) => m.round)).size;
+  await recordAudit({
+    actorId: admin.id,
+    actorLabel: admin.name,
+    action: "GOLF_TEAM_DRAW_IMPORT",
+    entityType: "Tournament",
+    entityId: tournament.id,
+    summary: `${admin.name} imported the golf team draw for ${tournament.name} (${matches.size} matches, ${rounds} rounds)`,
+  });
+  refresh(tournament);
+  return {
+    ok: true,
+    summary: `Saved ${matches.size} match${matches.size === 1 ? "" : "es"} over ${rounds} round${rounds === 1 ? "" : "s"}${removed > 0 ? `, and removed ${removed} no longer in the file` : ""}.`,
+  };
+}
+
+// Reads a winner cell: either school (code or name), "home"/"away" (as the
+// row names them), "halved" (or AS / tie), or blank for not played yet.
+// Returns the winning school's id, "HALVED" or null; undefined means the
+// cell couldn't be read.
+function parseWinner(
+  raw: string,
+  findSchool: Awaited<ReturnType<typeof schoolLookup>>,
+  rowHomeId: string,
+  rowAwayId: string
+): string | "HALVED" | null | undefined {
+  const text = raw.trim();
+  if (!text) return null;
+  if (/^(halved|half|as|a\/s|all\s*square|tie|tied|draw)$/i.test(text)) return "HALVED";
+  if (/^home$/i.test(text)) return rowHomeId;
+  if (/^away$/i.test(text)) return rowAwayId;
+  const school = findSchool(text);
+  return school && (school.id === rowHomeId || school.id === rowAwayId) ? school.id : undefined;
+}
+
+// Team results: one row per pairs match - round, home, away, flight,
+// winner (either school, or "halved"), and optional margin ("3 up", "2&1").
+// A blank winner clears that result. Pairs matches not in the file are
+// left as they are.
+export async function importGolfTeamResultsAction(_prev: GolfImportResult | null, formData: FormData): Promise<GolfImportResult> {
+  const admin = await requireAdmin();
+  const loaded = await loadGolfTournament(String(formData.get("tournamentId") ?? ""));
+  if (!loaded.ok) return { ok: false, error: loaded.error };
+  const { tournament } = loaded;
+  const csv = await readCsv(formData, ["round", "home", "away", "flight", "winner"]);
+  if (!csv.ok) return { ok: false, error: csv.error };
+  const findSchool = await schoolLookup();
+  const matches = await prisma.golfTeamMatch.findMany({ where: { tournamentId: tournament.id }, include: { pairs: true } });
+
+  const rowErrors: RowError[] = [];
+  const updates = new Map<string, { winner: "HOME" | "AWAY" | "HALVED" | null; margin: string | null }>();
+  for (const { record, row } of csv.records) {
+    const round = Number(record.round);
+    const flight = Number(record.flight);
+    const home = findSchool(record.home ?? "");
+    const away = findSchool(record.away ?? "");
+    if (!home) rowErrors.push({ row, message: `Unknown school "${record.home}".` });
+    if (!away) rowErrors.push({ row, message: `Unknown school "${record.away}".` });
+    if (!home || !away) continue;
+    // Either order of the two schools finds the match - which one's home
+    // is easy to get backwards, and the winner is named by school anyway.
+    const match = matches.find(
+      (m) =>
+        m.round === round &&
+        ((m.homeSchoolId === home.id && m.awaySchoolId === away.id) || (m.homeSchoolId === away.id && m.awaySchoolId === home.id))
+    );
+    if (!match) {
+      rowErrors.push({ row, message: `No round ${record.round} match between ${record.home} and ${record.away} in the team draw.` });
+      continue;
+    }
+    const pair = match.pairs.find((p) => p.flight === flight);
+    if (!pair) {
+      rowErrors.push({ row, message: `That match has no Flight ${record.flight} pairs match.` });
+      continue;
+    }
+    const winnerId = parseWinner(record.winner ?? "", findSchool, home.id, away.id);
+    const winner =
+      winnerId === undefined || winnerId === null || winnerId === "HALVED"
+        ? winnerId
+        : winnerId === match.homeSchoolId
+          ? ("HOME" as const)
+          : ("AWAY" as const);
+    if (winner === undefined) {
+      rowErrors.push({ row, message: `Winner "${record.winner}" should be ${record.home}, ${record.away}, or "halved".` });
+      continue;
+    }
+    if (updates.has(pair.id)) {
+      rowErrors.push({ row, message: "This pairs match appears more than once." });
+      continue;
+    }
+    const margin = winner === null ? null : winner === "HALVED" ? "AS" : normalizeMargin(record.margin ?? "");
+    updates.set(pair.id, { winner, margin });
+  }
+  if (rowErrors.length > 0) return failed(rowErrors);
+
+  await prisma.$transaction([...updates].map(([id, data]) => prisma.golfPairsMatch.update({ where: { id }, data })));
+  await recordAudit({
+    actorId: admin.id,
+    actorLabel: admin.name,
+    action: "GOLF_TEAM_RESULTS_IMPORT",
+    entityType: "Tournament",
+    entityId: tournament.id,
+    summary: `${admin.name} imported ${updates.size} golf pairs result(s) for ${tournament.name}`,
+  });
+  refresh(tournament);
+  return { ok: true, summary: `Saved ${updates.size} pairs result${updates.size === 1 ? "" : "s"}.` };
+}
+
+// The dashboard's per-match form: winner and margin for each of its pairs.
+export async function saveGolfMatchResultsAction(_prev: GolfImportResult | null, formData: FormData): Promise<GolfImportResult> {
+  const admin = await requireAdmin();
+  const match = await prisma.golfTeamMatch.findUnique({
+    where: { id: String(formData.get("matchId") ?? "") },
+    include: { pairs: true, homeSchool: true, awaySchool: true, tournament: { include: { activity: true } } },
+  });
+  if (!match) return { ok: false, error: "Match not found." };
+
+  const updates = match.pairs.map((pair) => {
+    const raw = String(formData.get(`winner-${pair.id}`) ?? "");
+    const winner = raw === "HOME" || raw === "AWAY" || raw === "HALVED" ? raw : null;
+    const margin = winner === null ? null : winner === "HALVED" ? "AS" : normalizeMargin(String(formData.get(`margin-${pair.id}`) ?? ""));
+    return prisma.golfPairsMatch.update({ where: { id: pair.id }, data: { winner, margin } });
+  });
+  await prisma.$transaction(updates);
+
+  await recordAudit({
+    actorId: admin.id,
+    actorLabel: admin.name,
+    action: "GOLF_MATCH_RESULTS",
+    entityType: "GolfTeamMatch",
+    entityId: match.id,
+    summary: `${admin.name} saved round ${match.round} results for ${match.homeSchool.name} vs ${match.awaySchool.name}`,
+  });
+  refresh(match.tournament);
   return { ok: true, summary: "Saved." };
 }
