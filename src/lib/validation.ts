@@ -93,6 +93,8 @@ export const activityInputSchema = z.object({
   usesMeetResults: z.boolean(),
   // Gates the tournament-level "Live results" link/text/photo.
   usesLiveResults: z.boolean(),
+  // Golf's own individual-then-match-play format (see lib/golf.ts).
+  usesGolfFormat: z.boolean(),
 });
 
 export const meetResultRowSchema = z.object({

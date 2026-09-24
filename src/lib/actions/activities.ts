@@ -50,6 +50,7 @@ export async function createActivityAction(
     usesSetScores: formData.get("usesSetScores") === "on",
     usesMeetResults: formData.get("usesMeetResults") === "on",
     usesLiveResults: formData.get("usesLiveResults") === "on",
+    usesGolfFormat: formData.get("usesGolfFormat") === "on",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -85,6 +86,7 @@ export async function createActivityAction(
       usesSetScores: parsed.data.usesSetScores,
       usesMeetResults: parsed.data.usesMeetResults,
       usesLiveResults: parsed.data.usesLiveResults,
+      usesGolfFormat: parsed.data.usesGolfFormat,
     },
   });
 
@@ -167,6 +169,7 @@ export async function updateActivityAction(
       usesSetScores: formData.get("usesSetScores") === "on",
       usesMeetResults: formData.get("usesMeetResults") === "on",
       usesLiveResults: formData.get("usesLiveResults") === "on",
+      usesGolfFormat: formData.get("usesGolfFormat") === "on",
     });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };

@@ -34,6 +34,7 @@ type ExistingActivity = {
   usesSetScores: boolean;
   usesMeetResults: boolean;
   usesLiveResults: boolean;
+  usesGolfFormat: boolean;
 };
 
 export function ActivityForm({
@@ -131,6 +132,20 @@ export function ActivityForm({
           most team sports just use the regular schedule/results tables instead.
         </p>
       </div>
+
+      {scoringType === "LOW_SCORE" && (
+        <div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="usesGolfFormat" defaultChecked={existing?.usesGolfFormat ?? false} />
+            Golf format (individual day by flight, then team match play)
+          </label>
+          <p className="mt-1 text-xs text-muted">
+            Replaces the regular schedule and results with golf&apos;s own: a Day 1 individual round scored in
+            points by flight, whose school totals seed the team event. Set up the roster, draw and scores from the
+            tournament&apos;s Golf page.
+          </p>
+        </div>
+      )}
 
       {scoringType === "NONE" && (
         <div>

@@ -67,7 +67,7 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
         <div>
           <h1 className="text-3xl font-bold">{activity.name}</h1>
           <p className="mt-1 text-sm text-muted">
-            {activity.sport} · {SCORING_LABELS[activity.scoringType]}
+            {activity.sport} · {activity.usesGolfFormat ? "individual points by flight, then team match play" : SCORING_LABELS[activity.scoringType]}
             {activity.divisions.length > 0 && ` · ${activity.divisions.map((d) => d.name).join(" & ")}`}
           </p>
         </div>
@@ -104,7 +104,12 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
               <Link href={`/seasons/${current.slug}`} className="btn btn-secondary">
                 View public page
               </Link>
-              {!activity.usesMeetResults && (
+              {isAdmin && activity.usesGolfFormat && (
+                <Link href={`/dashboard/admin/golf?tournament=${current.id}`} className="btn btn-primary">
+                  Golf roster, draw &amp; scores
+                </Link>
+              )}
+              {!activity.usesMeetResults && !activity.usesGolfFormat && (
                 <>
                   <Link href={`/dashboard/admin/events/import?tournament=${current.id}`} className="btn btn-secondary">
                     Upload schedule (CSV)
@@ -230,6 +235,7 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
                   usesSetScores: activity.usesSetScores,
                   usesMeetResults: activity.usesMeetResults,
                   usesLiveResults: activity.usesLiveResults,
+                  usesGolfFormat: activity.usesGolfFormat,
                 }}
               />
             </Panel>

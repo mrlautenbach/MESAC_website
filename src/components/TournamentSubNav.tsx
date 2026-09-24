@@ -13,12 +13,16 @@ export function TournamentSubNav({
   usesMeetResults,
   currentDivisionSlug = null,
   active,
+  golfView,
 }: {
   tournamentSlug: string;
   divisions: { name: string; slug: string }[];
   usesMeetResults: boolean;
   currentDivisionSlug?: string | null;
   active?: Tab;
+  // Golf's Schedule and Results each have an Individual (Day 1) and a Team
+  // (match play) side, switched in the same spot as a division switch.
+  golfView?: "individual" | "team";
 }) {
   const root = `/seasons/${tournamentSlug}`;
   const hasDivisions = divisions.length > 0;
@@ -26,10 +30,12 @@ export function TournamentSubNav({
   // division to land on when none is chosen yet.
   const divisionSlug = currentDivisionSlug ?? (hasDivisions && !usesMeetResults ? divisions[0].slug : null);
   const splitBase = divisionSlug ? `${root}/${divisionSlug}` : root;
+  // Moving between Schedule and Results keeps golf's Team side selected.
+  const viewQuery = golfView === "team" ? "?view=team" : "";
 
   const tabs: { key: Tab; label: string; href: string; icon?: boolean }[] = [
-    { key: "schedule", label: "Schedule", href: `${splitBase}/schedule` },
-    { key: "results", label: "Results", href: `${splitBase}/results` },
+    { key: "schedule", label: "Schedule", href: `${splitBase}/schedule${viewQuery}` },
+    { key: "results", label: "Results", href: `${splitBase}/results${viewQuery}` },
     { key: "watch-live", label: "Watch live", href: `${root}/watch-live`, icon: true },
     { key: "team-photos", label: "Team photos", href: `${root}/team-photos` },
   ];
@@ -56,6 +62,21 @@ export function TournamentSubNav({
             </Link>
           ))}
         </nav>
+
+        {divisionScoped && golfView && (
+          <div role="group" aria-label="Competition" className="mb-2 inline-flex border border-border sm:mb-0 sm:ml-auto">
+            {(["individual", "team"] as const).map((view) => (
+              <Link
+                key={view}
+                href={`${root}/${active}${view === "team" ? "?view=team" : ""}`}
+                aria-current={view === golfView ? "page" : undefined}
+                className={`px-3 py-1.5 text-sm font-semibold ${view === golfView ? "bg-primary text-background" : "text-muted hover:text-foreground"}`}
+              >
+                {view === "individual" ? "Individual" : "Team"}
+              </Link>
+            ))}
+          </div>
+        )}
 
         {divisionScoped && hasDivisions && divisionChoices.length > 1 && (
           <div role="group" aria-label="Division" className="mb-2 inline-flex border border-border sm:mb-0 sm:ml-auto">

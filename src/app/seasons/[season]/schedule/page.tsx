@@ -2,12 +2,20 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
+import { GolfIndividualSchedule, GolfTeamComingSoon } from "@/components/GolfViews";
 import { TournamentSchedule } from "@/components/TournamentGames";
 
 export const dynamic = "force-dynamic";
 
-export default async function TournamentSchedulePage({ params }: { params: Promise<{ season: string }> }) {
+export default async function TournamentSchedulePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ season: string }>;
+  searchParams: Promise<{ view?: string }>;
+}) {
   const { season: slug } = await params;
+  const { view } = await searchParams;
   const tournament = await prisma.tournament.findUnique({
     where: { slug },
     include: { activity: true, divisions: true, hostSchool: true },
@@ -18,6 +26,7 @@ export default async function TournamentSchedulePage({ params }: { params: Promi
   // use this page as the "Overall" view across every division instead.
   const hasDivisions = tournament.divisions.length > 0;
   if (hasDivisions && !tournament.activity.usesMeetResults) notFound();
+  const golfView = tournament.activity.usesGolfFormat ? (view === "team" ? "team" : "individual") : undefined;
 
   return (
     <div>
@@ -39,10 +48,17 @@ export default async function TournamentSchedulePage({ params }: { params: Promi
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
         active="schedule"
+        golfView={golfView}
       />
       <div className="page-wrap py-8">
         <h4 className="mb-3">Schedule</h4>
-        <TournamentSchedule tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
+        {golfView === "individual" ? (
+          <GolfIndividualSchedule tournamentId={tournament.id} />
+        ) : golfView === "team" ? (
+          <GolfTeamComingSoon />
+        ) : (
+          <TournamentSchedule tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
+        )}
       </div>
     </div>
   );

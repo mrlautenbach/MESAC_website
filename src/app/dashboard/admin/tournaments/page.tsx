@@ -69,7 +69,7 @@ export default async function TournamentsAdminPage() {
                         <span className="min-w-0 flex-1">
                           <span className="block font-semibold">{activity.name}</span>
                           <span className="block text-xs text-muted">
-                            {activity.sport} · {SCORING_LABELS[activity.scoringType]}
+                            {activity.sport} · {activity.usesGolfFormat ? "individual points by flight, then team match play" : SCORING_LABELS[activity.scoringType]}
                           </span>
                         </span>
                         <span className="text-right text-sm">
