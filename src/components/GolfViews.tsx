@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { SchoolBadge } from "@/components/SchoolBadge";
@@ -388,6 +389,104 @@ export async function GolfTeamResults({
       ) : (
         <Rounds matches={played} event={event} />
       )}
+    </div>
+  );
+}
+
+// The tournament's front page: each flight's leader (or champion) and the
+// top of the team standings, with the next team round - each linking to the
+// full Individual or Team page.
+export async function GolfOverview({
+  tournamentId,
+  tournamentSlug,
+  scoring,
+}: {
+  tournamentId: string;
+  tournamentSlug: string;
+  scoring: { winPoints: number; drawPoints: number; lossPoints: number };
+}) {
+  const [event, groups] = await Promise.all([
+    loadTeamEvent(tournamentId),
+    prisma.golfGroup.findFirst({ where: { tournamentId }, orderBy: { teeTime: "asc" }, select: { teeTime: true } }),
+  ]);
+  const root = `/seasons/${tournamentSlug}`;
+  const now = new Date();
+  const nextMatch = event.matches.find((m) => m.startTime > now);
+  const schools = [
+    ...new Map(event.matches.flatMap((m) => [[m.homeSchoolId, m.homeSchool] as const, [m.awaySchoolId, m.awaySchool] as const])).values(),
+  ];
+  const standings = teamStandings(schools, event.matches, scoring).filter((r) => r.played > 0).slice(0, 3);
+
+  return (
+    <div className="grid gap-8 sm:grid-cols-2">
+      <section>
+        <h5 className="mb-2">Individual Championship</h5>
+        {event.players.every((p) => p.points === null) ? (
+          <p className="text-sm text-muted">
+            {groups ? `Tees off ${format(groups.teeTime, "EEEE d MMMM, h:mm a")}.` : "Tee times haven't been posted yet."}{" "}
+            <Link href={`${root}/schedule`} className="font-semibold text-primary hover:underline">
+              Tee times →
+            </Link>
+          </p>
+        ) : (
+          <>
+            <ul className="divide-y divide-divider border-y border-divider">
+              {GOLF_FLIGHTS.map((flight) => {
+                const own = event.players.filter((p) => flightOf(p.seed) === flight);
+                const top = flightLeaderboard(own).filter((r) => r.place === 1);
+                if (top.length === 0) return null;
+                const complete = own.every((p) => p.points !== null);
+                return (
+                  <li key={flight} className="flex items-baseline justify-between gap-3 py-2 text-sm">
+                    <span>
+                      <span className="text-xs text-muted">
+                        Flight {flight} {complete ? "champion" : "leader"}
+                        {top.length > 1 ? "s" : ""}
+                      </span>
+                      <br />
+                      <span className="font-semibold">
+                        {top.map((r) => `${r.player.name} (${schoolLabel(r.player.school)})`).join(", ")}
+                      </span>
+                    </span>
+                    <span className="text-lg font-extrabold tabular-nums">{top[0].player.points}</span>
+                  </li>
+                );
+              })}
+            </ul>
+            <Link href={`${root}/results`} className="mt-2 inline-block text-sm font-semibold text-primary hover:underline">
+              Full leaderboards →
+            </Link>
+          </>
+        )}
+      </section>
+
+      <section>
+        <h5 className="mb-2">Team Championship</h5>
+        {standings.length > 0 && (
+          <ul className="mb-2 divide-y divide-divider border-y border-divider">
+            {standings.map((row) => (
+              <li key={row.school.id} className="flex items-baseline justify-between gap-3 py-2 text-sm">
+                <span className="font-semibold">
+                  {row.place}. {row.school.name}
+                </span>
+                <span className="text-xs tabular-nums text-muted">
+                  {row.wins}W {row.draws}D {row.losses}L · {formatGolfPoints(row.flightPoints)} flight pts
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-sm text-muted">
+          {nextMatch
+            ? `Round ${nextMatch.round} starts ${format(nextMatch.startTime, "EEEE d MMMM, h:mm a")}. `
+            : event.matches.length === 0
+              ? "The match play draw appears once the schools are seeded. "
+              : "All rounds are scheduled or played. "}
+          <Link href={`${root}/${standings.length > 0 ? "results" : "schedule"}?view=team`} className="font-semibold text-primary hover:underline">
+            {standings.length > 0 ? "Standings and results →" : "Team draw →"}
+          </Link>
+        </p>
+      </section>
     </div>
   );
 }

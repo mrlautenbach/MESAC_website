@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
-import { LATEST_FIRST } from "@/lib/eventOrder";
+import { loadLatestResults, type LatestResult } from "@/lib/latestResults";
 import { SeasonBrowser } from "@/components/SeasonBrowser";
 import { PhotoSlider } from "@/components/PhotoSlider";
 import { NextUpGallery } from "@/components/NextUpGallery";
@@ -43,23 +43,7 @@ export default async function HomePage() {
         },
       },
     }),
-    // Site-wide, not scoped to isCurrent tournaments - isCurrent only picks
-    // which edition an activity page defaults to, and can legitimately be
-    // wrong or unset for a while, which would otherwise make this look
-    // empty even with real completed games on the schedule.
-    prisma.event.findMany({
-      // A meet-style session (no home/away pair) doesn't fit this score
-      // ticker - it has its own results display, not a two-team score.
-      where: { status: "COMPLETED", participants: { some: {} } },
-      orderBy: LATEST_FIRST,
-      take: 5,
-      include: {
-        participants: { include: { school: true } },
-        results: true,
-        division: { select: { name: true } },
-        tournament: { include: { activity: true, hostSchool: true } },
-      },
-    }),
+    loadLatestResults(5),
     // Upcoming tournaments (editions), not individual games - driven purely
     // by each tournament's own dates, so it doesn't depend on isCurrent
     // either, and surfaces what's coming up across every activity at once.
@@ -136,23 +120,17 @@ export default async function HomePage() {
             {recentResults.length === 0 ? (
               <p className="mt-3 text-sm text-muted">Results will appear here once the season kicks off.</p>
             ) : (
-              recentResults.map((event) => {
-                const home = event.participants.find((p) => p.isHome);
-                const away = event.participants.find((p) => !p.isHome);
-                const homeScore = event.results.find((r) => r.schoolId === home?.school.id)?.score;
-                const awayScore = event.results.find((r) => r.schoolId === away?.school.id)?.score;
+              recentResults.map((result) => {
+                const [home, away] = result.sides;
                 return (
-                  <div key={event.id} className="flex items-baseline justify-between gap-3 border-b border-divider py-1.5 last:border-0">
+                  <div key={result.key} className="flex items-baseline justify-between gap-3 border-b border-divider py-1.5 last:border-0">
                     <span className="text-[13px] leading-tight">
-                      <b>{home?.school.code || home?.school.name}</b> v {away?.school.code || away?.school.name}
+                      <b>{home?.code || home?.name}</b> v {away?.code || away?.name}
                       <br />
-                      <span className="text-[11.5px] text-muted">
-                        {event.division ? `${event.division.name} ` : ""}
-                        {event.tournament.activity.name}
-                      </span>
+                      <span className="text-[11.5px] text-muted">{result.label}</span>
                     </span>
                     <span className="text-2xl font-extrabold tracking-tight tabular-nums">
-                      {homeScore ?? "–"}–{awayScore ?? "–"}
+                      {home?.display ?? "–"}–{away?.display ?? "–"}
                     </span>
                   </div>
                 );
@@ -199,11 +177,11 @@ export default async function HomePage() {
                   {currentTerm} is underway. Check back after the first whistle
                 </span>
               ) : (
-                recentResults.map((event, j) => (
+                recentResults.map((result, j) => (
                   <span key={j} className="whitespace-nowrap border-r border-white/20 px-6 py-2.5">
                     <span className="mr-2.5 font-extrabold text-accent">●</span>
-                    {event.tournament.activity.sport.toUpperCase()} · {event.participants.map((p) => p.school.name).join(" v ")}{" "}
-                    {event.results.map((r) => r.score).join("–")}
+                    {result.sport.toUpperCase()} · {result.sides.map((s) => s.name).join(" v ")}{" "}
+                    {result.sides.map((s) => s.display).join("–")}
                   </span>
                 ))
               )}
@@ -216,11 +194,11 @@ export default async function HomePage() {
       <div className="border-b-2 border-divider">
       <div className="page-wrap grid sm:grid-cols-3">
         {[0, 1].map((i) => {
-          const event = scoreCells[i];
+          const result = scoreCells[i];
           return (
             <div key={i} className="border-b border-divider py-7 sm:border-b-0 sm:border-r-2 sm:border-divider sm:pr-7 sm:[&:nth-child(2)]:pl-7">
-              {event ? (
-                <ScoreCell event={event} />
+              {result ? (
+                <ScoreCell result={result} />
               ) : upcomingTournaments[i] ? (
                 <UpcomingTournamentCell tournament={upcomingTournaments[i]} />
               ) : (
@@ -305,41 +283,25 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-type ResultEvent = {
-  id: string;
-  participants: { isHome: boolean; school: { id: string; name: string; code: string | null } }[];
-  results: { schoolId: string; score: number | null; outcome: string | null }[];
-  date: Date;
-  division: { name: string } | null;
-  tournament: { activity: { name: string }; hostSchool: { name: string } | null };
-};
-
-function ScoreCell({ event }: { event: ResultEvent }) {
-  const pairs = event.participants.map((p) => ({
-    name: p.school.name,
-    score: event.results.find((r) => r.schoolId === p.school.id)?.score ?? null,
-  }));
-  const sorted = [...pairs].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+function ScoreCell({ result }: { result: LatestResult }) {
+  const sorted = [...result.sides].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   return (
     <div>
-      <h6 className="text-primary-dark">
-        Final · {event.division ? `${event.division.name} ` : ""}
-        {event.tournament.activity.name}
-      </h6>
+      <h6 className="text-primary-dark">Final · {result.label}</h6>
       {sorted.map((r, i) => (
         <div key={i}>
           <div className="mt-3.5 flex items-baseline justify-between">
             <span className={`text-[19px] font-extrabold ${i > 0 ? "text-muted" : ""}`}>{r.name ?? "—"}</span>
             <span className={`text-6xl font-extrabold leading-[.9] tracking-tight tabular-nums ${i > 0 ? "text-muted" : ""}`}>
-              {r.score ?? "—"}
+              {r.score === null ? "—" : r.display}
             </span>
           </div>
           {i === 0 && <div className="mhr my-2.5" />}
         </div>
       ))}
       <p className="mt-3.5 text-xs text-muted">
-        {format(event.date, "EEE d MMM")}
-        {event.tournament.hostSchool ? ` · Hosted by ${event.tournament.hostSchool.name}` : ""}
+        {format(result.date, "EEE d MMM")}
+        {result.hostSchoolName ? ` · Hosted by ${result.hostSchoolName}` : ""}
       </p>
     </div>
   );

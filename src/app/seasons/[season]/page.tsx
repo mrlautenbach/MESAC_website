@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { LATEST_FIRST, SCHEDULE_ORDER } from "@/lib/eventOrder";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
+import { GolfOverview } from "@/components/GolfViews";
 import { LiveIcon } from "@/components/icons/LiveIcon";
 import { sideLabel } from "@/lib/eventDisplay";
 import { loadRoster } from "@/lib/tournamentRoster";
@@ -108,11 +109,17 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
 
       {tournament.activity.usesLiveResults && <LiveResultsBand tournament={tournament} />}
 
-      {!tournament.activity.usesMeetResults && (
+      {tournament.activity.usesGolfFormat ? (
         <div className="page-wrap py-8">
-          <h4 className="mb-3">Coming up</h4>
-          <UpcomingGames tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
+          <GolfOverview tournamentId={tournament.id} tournamentSlug={tournament.slug} scoring={tournament.activity} />
         </div>
+      ) : (
+        !tournament.activity.usesMeetResults && (
+          <div className="page-wrap py-8">
+            <h4 className="mb-3">Coming up</h4>
+            <UpcomingGames tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
+          </div>
+        )
       )}
       {roster.length > 0 && (
         <div className="border-b-2 border-divider bg-surface py-6">

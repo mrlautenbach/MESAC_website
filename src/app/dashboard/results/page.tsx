@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { EARLIEST_FIRST } from "@/lib/eventOrder";
 import { getCurrentUser } from "@/lib/session";
 import { sideLabel } from "@/lib/eventDisplay";
+import { formatGolfPoints, matchScore } from "@/lib/golf";
 
 // Everything needed to group events by tournament and show a quick
 // needs-result/entered badge per row - same shape as the dashboard's own
@@ -47,11 +48,28 @@ export default async function ResultsDashboardPage() {
   // importMeetResultsAction).
   const scope = user.role === "ADMIN" ? {} : { participants: { some: { schoolId: user.schoolId ?? "" } } };
 
-  const events = await prisma.event.findMany({
-    where: { ...scope, tournament: { isCurrent: true } },
-    orderBy: EARLIEST_FIRST,
-    select: RESULT_EVENT_ROW,
-  });
+  const [events, golfTournaments] = await Promise.all([
+    prisma.event.findMany({
+      where: { ...scope, tournament: { isCurrent: true } },
+      orderBy: EARLIEST_FIRST,
+      select: RESULT_EVENT_ROW,
+    }),
+    // Golf's results live in their own tables (Day 1 scores, team matches),
+    // not in events, and only admins enter them.
+    user.role === "ADMIN"
+      ? prisma.tournament.findMany({
+          where: { isCurrent: true, activity: { usesGolfFormat: true } },
+          include: {
+            activity: true,
+            golfGroups: { orderBy: { number: "asc" }, include: { players: { select: { points: true } } } },
+            golfMatches: {
+              orderBy: [{ round: "asc" }, { startTime: "asc" }],
+              include: { homeSchool: true, awaySchool: true, pairs: { select: { winner: true } } },
+            },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
 
   const tournamentOrder: string[] = [];
   const byTournament = new Map<string, { tournament: ResultEvent["tournament"]; events: ResultEvent[] }>();
@@ -74,7 +92,11 @@ export default async function ResultsDashboardPage() {
         </p>
       </div>
 
-      {tournamentOrder.length === 0 ? (
+      {golfTournaments.map((t) => (
+        <GolfTournamentSection key={t.id} tournament={t} />
+      ))}
+
+      {tournamentOrder.length === 0 && golfTournaments.length === 0 ? (
         <p className="text-muted">No current tournaments have any games scheduled yet.</p>
       ) : (
         tournamentOrder.map((id) => {
@@ -238,5 +260,145 @@ function MeetTournamentSection({ group }: { group: TournamentGroup }) {
         </ul>
       )}
     </section>
+  );
+}
+
+type GolfTournament = Prisma.TournamentGetPayload<{
+  include: {
+    activity: true;
+    golfGroups: { include: { players: { select: { points: true } } } };
+    golfMatches: { include: { homeSchool: true; awaySchool: true; pairs: { select: { winner: true } } } };
+  };
+}>;
+
+// Golf: Day 1 groups still missing scores, and team matches that have been
+// played (their start time has passed) without every pairs result in. Each
+// links straight to its spot on the Golf page, where results are entered.
+function GolfTournamentSection({ tournament }: { tournament: GolfTournament }) {
+  const now = new Date();
+  const golfPage = `/dashboard/admin/golf?tournament=${tournament.id}`;
+  const label = (s: { code: string | null; name: string }) => s.code || s.name;
+  const groupsMissing = tournament.golfGroups.filter((g) => g.teeTime <= now && g.players.some((p) => p.points === null));
+  const matches = tournament.golfMatches.map((m) => ({ ...m, score: matchScore(m.pairs) }));
+  const needsResult = matches.filter((m) => m.startTime <= now && !m.score.complete);
+  const upcoming = matches.filter((m) => m.startTime > now && !m.score.complete);
+  const done = matches.filter((m) => m.score.complete);
+  const scored = tournament.golfGroups.reduce((n, g) => n + g.players.filter((p) => p.points !== null).length, 0);
+  const players = tournament.golfGroups.reduce((n, g) => n + g.players.length, 0);
+
+  return (
+    <section className="card p-4">
+      <SectionHeader tournament={{ id: tournament.id, name: tournament.name, slug: tournament.slug, activity: tournament.activity }} />
+      <div className="space-y-5">
+        <div>
+          <h3 className={`mb-1.5 text-xs font-bold uppercase tracking-wide ${groupsMissing.length ? "text-danger" : "text-muted"}`}>
+            Day 1 scores ({scored} of {players})
+          </h3>
+          {tournament.golfGroups.length === 0 ? (
+            <p className="text-sm text-muted">
+              No Day 1 draw yet.{" "}
+              <Link href={golfPage} className="font-semibold text-primary hover:underline">
+                Set up the roster and draw →
+              </Link>
+            </p>
+          ) : groupsMissing.length === 0 ? (
+            <p className="text-sm text-muted">
+              {scored === players ? "All scores are in." : "Nothing overdue."}{" "}
+              <Link href={`${golfPage}#scores`} className="font-semibold text-primary hover:underline">
+                Edit scores
+              </Link>
+            </p>
+          ) : (
+            <ul className="divide-y divide-border border-y border-border">
+              {groupsMissing.map((g) => (
+                <li key={g.id} className="flex flex-wrap items-center justify-between gap-3 py-2">
+                  <div>
+                    <div className="text-sm font-semibold">
+                      Flight {g.flight} · Group {g.number}
+                    </div>
+                    <div className="text-xs text-muted">
+                      {format(g.teeTime, "EEE, MMM d · h:mm a")} · {g.players.filter((p) => p.points === null).length} score
+                      {g.players.filter((p) => p.points === null).length === 1 ? "" : "s"} missing
+                    </div>
+                  </div>
+                  <Link href={`${golfPage}#group-${g.id}`} className="btn btn-primary px-3 py-1 text-xs">
+                    Enter scores
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {matches.length > 0 && (
+          <>
+            {needsResult.length > 0 && (
+              <GolfMatchList title={`Team matches needing a result (${needsResult.length})`} matches={needsResult} golfPage={golfPage} label={label} urgent />
+            )}
+            {upcoming.length > 0 && (
+              <GolfMatchList title={`Upcoming team matches (${upcoming.length})`} matches={upcoming} golfPage={golfPage} label={label} />
+            )}
+            {done.length > 0 && (
+              <details>
+                <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-muted">
+                  Completed team matches ({done.length})
+                </summary>
+                <div className="mt-2">
+                  <GolfMatchList matches={done} golfPage={golfPage} label={label} />
+                </div>
+              </details>
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function GolfMatchList({
+  title,
+  matches,
+  golfPage,
+  label,
+  urgent = false,
+}: {
+  title?: string;
+  matches: (GolfTournament["golfMatches"][number] & { score: ReturnType<typeof matchScore> })[];
+  golfPage: string;
+  label: (s: { code: string | null; name: string }) => string;
+  urgent?: boolean;
+}) {
+  return (
+    <div>
+      {title && (
+        <h3 className={`mb-1.5 text-xs font-bold uppercase tracking-wide ${urgent ? "text-danger" : "text-muted"}`}>{title}</h3>
+      )}
+      <ul className="divide-y divide-border border-y border-border">
+        {matches.map((m) => (
+          <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 py-2">
+            <div>
+              <div className="text-sm font-semibold">
+                {label(m.homeSchool)} vs {label(m.awaySchool)}
+                {m.score.decided > 0 && (
+                  <span className="ml-2 tabular-nums">
+                    {formatGolfPoints(m.score.home)}–{formatGolfPoints(m.score.away)}
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-muted">
+                Round {m.round} · {format(m.startTime, "EEE, MMM d · h:mm a")}
+                {!m.score.complete && m.score.decided > 0 && ` · ${m.score.decided} of ${m.score.total} in`}
+              </div>
+            </div>
+            <Link
+              href={`${golfPage}#match-${m.id}`}
+              className={urgent ? "btn btn-primary px-3 py-1 text-xs" : "text-sm font-semibold text-primary hover:underline"}
+            >
+              {m.score.complete ? "Edit result" : urgent ? "Enter result" : "Edit"}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
