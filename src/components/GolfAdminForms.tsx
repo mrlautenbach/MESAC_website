@@ -45,18 +45,18 @@ function Outcome({ state }: { state: GolfImportResult | null }) {
   );
 }
 
-// One CSV upload (roster, Day 1 draw or scores): file or pasted text, plus
-// a template to start from.
+// One CSV upload: file or pasted text, plus an example file to start from
+// (see lib/golfExamples - complete, and filled in from what's already set up).
 export function GolfCsvForm({
   kind,
   tournamentId,
-  template,
-  templateName,
+  placeholder,
+  exampleHref,
 }: {
   kind: keyof typeof IMPORTS;
   tournamentId: string;
-  template: string;
-  templateName: string;
+  placeholder: string;
+  exampleHref: string;
 }) {
   const { action, submit } = IMPORTS[kind];
   const [state, formAction, pending] = useActionState<GolfImportResult | null, FormData>(action, null);
@@ -75,19 +75,15 @@ export function GolfCsvForm({
         <label htmlFor={`${id}-text`} className="field-label">
           Or paste CSV text
         </label>
-        <textarea id={`${id}-text`} name="csvText" rows={5} className="field-input font-mono text-xs" placeholder={template} />
+        <textarea id={`${id}-text`} name="csvText" rows={5} className="field-input font-mono text-xs" placeholder={placeholder} />
       </div>
       <Outcome state={state} />
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending} className="btn btn-primary">
           {pending ? "Uploading…" : submit}
         </button>
-        <a
-          href={`data:text/csv;charset=utf-8,${encodeURIComponent(template)}`}
-          download={templateName}
-          className="text-sm font-semibold text-primary hover:underline"
-        >
-          Download template
+        <a href={exampleHref} download className="text-sm font-semibold text-primary hover:underline">
+          Download example CSV
         </a>
       </div>
     </form>

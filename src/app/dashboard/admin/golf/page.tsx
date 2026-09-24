@@ -55,7 +55,6 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
 
   const schoolCodes = (await prisma.school.findMany({ where: { isLeagueMember: true }, orderBy: { name: "asc" } })).map(label);
   const [a = "ABA", b = "ACS"] = schoolCodes;
-  const year = tournament.startDate.getFullYear();
   const day = format(tournament.startDate, "yyyy-MM-dd");
   const templates = {
     roster: `school,seed,name,grade,gender\n${a},1,First Player,11,M\n${a},2,Second Player,11,F\n${b},1,First Player,12,M\n`,
@@ -68,7 +67,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
   const rounds = [...new Set(matches.map((m) => m.round))];
   const pairsIn = matches.reduce((n, m) => n + m.pairs.filter((p) => p.winner).length, 0);
   const pairsTotal = matches.reduce((n, m) => n + m.pairs.length, 0);
-  const fileSlug = `golf-${year}`;
+  const example = (file: string) => `/dashboard/admin/golf/examples?tournament=${tournament.id}&file=${file}`;
 
   return (
     <div className="page-wrap space-y-10 py-8 [&>*]:max-w-3xl">
@@ -102,6 +101,15 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
             1, 3–4 Flight 2 and 5–6 Flight 3. Players are matched by school and seed, so re-uploading a corrected
             file fixes names instead of adding players.
           </p>
+          <p className="mt-1 text-sm text-muted">
+            The{" "}
+            <a href={example("roster")} download className="font-semibold text-primary hover:underline">
+              example CSV
+            </a>{" "}
+            {players.length
+              ? "is today's roster - download it, correct it, and upload it again."
+              : "has six sample players per school with the site's school codes - replace the names and keep the layout."}
+          </p>
         </div>
         {players.length > 0 && (
           <div className="card grid gap-x-6 gap-y-4 p-4 sm:grid-cols-2">
@@ -128,7 +136,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
         <details className="card p-4" open={players.length === 0}>
           <summary className="cursor-pointer font-semibold text-primary">{players.length ? "Upload a new roster" : "Upload the roster"}</summary>
           <div className="mt-4">
-            <GolfCsvForm kind="roster" tournamentId={tournament.id} template={templates.roster} templateName={`${fileSlug}-roster.csv`} />
+            <GolfCsvForm kind="roster" tournamentId={tournament.id} placeholder={templates.roster} exampleHref={example("roster")} />
           </div>
         </details>
       </section>
@@ -142,6 +150,15 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
             <code>marshal</code> and <code>course</code> (once per group is enough). Uploading replaces the whole
             draw; scores already entered are kept. Marshals only show here, not on the public site.
           </p>
+          <p className="mt-1 text-sm text-muted">
+            The{" "}
+            <a href={example("draw")} download className="font-semibold text-primary hover:underline">
+              example CSV
+            </a>{" "}
+            {tournament.golfGroups.length
+              ? "is the current draw, ready to edit and re-upload."
+              : "is a complete draw for the roster: groups of four from four schools, tee times 10 minutes apart from 8:30. Change the times and groups to match the day. The name column is only there to help - it's ignored."}
+          </p>
         </div>
         {ungrouped.length > 0 && tournament.golfGroups.length > 0 && (
           <p className="text-sm text-danger">
@@ -153,7 +170,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
             {tournament.golfGroups.length ? "Upload a new draw" : "Upload the draw"}
           </summary>
           <div className="mt-4">
-            <GolfCsvForm kind="draw" tournamentId={tournament.id} template={templates.draw} templateName={`${fileSlug}-day1-draw.csv`} />
+            <GolfCsvForm kind="draw" tournamentId={tournament.id} placeholder={templates.draw} exampleHref={example("draw")} />
           </div>
         </details>
       </section>
@@ -167,6 +184,14 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
             Points per player, higher is better. Enter them group by group below, or upload a CSV with{" "}
             <code>school</code>, <code>seed</code> and <code>points</code> (a blank points cell clears that score).
           </p>
+          <p className="mt-1 text-sm text-muted">
+            The{" "}
+            <a href={example("scores")} download className="font-semibold text-primary hover:underline">
+              example CSV
+            </a>{" "}
+            lists every player on the roster with the points entered so far - fill in the blanks
+            and upload it.
+          </p>
         </div>
         {tournament.golfGroups.length === 0 ? (
           <p className="text-sm text-muted">Groups appear here once the draw is uploaded.</p>
@@ -179,7 +204,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
                 <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted">Flight {flight}</h3>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {groups.map((g) => (
-                    <div key={g.id} className="card p-3">
+                    <div key={g.id} id={`group-${g.id}`} className="card scroll-mt-20 p-3">
                       <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
                         <span className="font-semibold">
                           Group {g.number} · {format(g.teeTime, "h:mm a")}
@@ -200,7 +225,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
         <details className="card p-4">
           <summary className="cursor-pointer font-semibold text-primary">Upload scores (CSV)</summary>
           <div className="mt-4">
-            <GolfCsvForm kind="scores" tournamentId={tournament.id} template={templates.scores} templateName={`${fileSlug}-day1-scores.csv`} />
+            <GolfCsvForm kind="scores" tournamentId={tournament.id} placeholder={templates.scores} exampleHref={example("scores")} />
           </div>
         </details>
       </section>
@@ -217,11 +242,20 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
             come from the roster (seeds 1&amp;2, 3&amp;4, 5&amp;6), so they aren&apos;t typed in. Uploading replaces
             the draw; results for pairs matches still in the file are kept.
           </p>
+          <p className="mt-1 text-sm text-muted">
+            The{" "}
+            <a href={example("team-draw")} download className="font-semibold text-primary hover:underline">
+              example CSV
+            </a>{" "}
+            {matches.length
+              ? "is the current team draw, ready to edit and re-upload."
+              : "is a full round robin (seeded in order once Day 1 is final), two rounds a day from the day after Day 1. Adjust the dates, times and holes to the real schedule. home_pair and away_pair are only there to check against - they're ignored."}
+          </p>
         </div>
         <details className="card p-4" open={matches.length === 0 && players.length > 0}>
           <summary className="cursor-pointer font-semibold text-primary">{matches.length ? "Upload a new team draw" : "Upload the team draw"}</summary>
           <div className="mt-4">
-            <GolfCsvForm kind="teamDraw" tournamentId={tournament.id} template={templates.teamDraw} templateName={`${fileSlug}-team-draw.csv`} />
+            <GolfCsvForm kind="teamDraw" tournamentId={tournament.id} placeholder={templates.teamDraw} exampleHref={example("team-draw")} />
           </div>
         </details>
       </section>
@@ -236,6 +270,15 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
             Or upload a CSV with <code>round</code>, <code>home</code>, <code>away</code>, <code>flight</code>,{" "}
             <code>winner</code> (either school, or &quot;halved&quot;) and optional <code>margin</code>; a blank
             winner clears that result.
+          </p>
+          <p className="mt-1 text-sm text-muted">
+            The{" "}
+            <a href={example("team-results")} download className="font-semibold text-primary hover:underline">
+              example CSV
+            </a>{" "}
+            {matches.length
+              ? "lists every pairs match in the draw with the results so far - fill in the winner and margin and upload it."
+              : "shows every kind of result (a winning school with its margin, and halved) for a sample draw."}
           </p>
         </div>
         {matches.length === 0 ? (
@@ -252,7 +295,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
                   {own.map((m) => {
                     const score = matchScore(m.pairs);
                     return (
-                      <div key={m.id} className="card p-3">
+                      <div key={m.id} id={`match-${m.id}`} className="card scroll-mt-20 p-3">
                         <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
                           <span className="font-semibold">
                             {label(m.homeSchool)} vs {label(m.awaySchool)}
@@ -288,7 +331,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
         <details className="card p-4">
           <summary className="cursor-pointer font-semibold text-primary">Upload team results (CSV)</summary>
           <div className="mt-4">
-            <GolfCsvForm kind="teamResults" tournamentId={tournament.id} template={templates.teamResults} templateName={`${fileSlug}-team-results.csv`} />
+            <GolfCsvForm kind="teamResults" tournamentId={tournament.id} placeholder={templates.teamResults} exampleHref={example("team-results")} />
           </div>
         </details>
       </section>
