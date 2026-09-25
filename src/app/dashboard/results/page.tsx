@@ -442,7 +442,7 @@ function AcademicBowlSection({ tournament }: { tournament: AcademicTournament })
   return (
     <section className="card p-4">
       <SectionHeader tournament={{ id: tournament.id, name: tournament.name, slug: tournament.slug, activity: tournament.activity }} />
-      <h3 className={`mb-1.5 text-xs font-bold uppercase tracking-wide ${overdue.length ? "text-danger" : "text-muted"}`}>
+      <h3 className={`mb-1.5 text-xs uppercase tracking-wide ${overdue.length ? "text-danger" : "text-muted"}`}>
         Academic Bowl scores ({scored} of {games.length})
       </h3>
       {games.length === 0 ? (
