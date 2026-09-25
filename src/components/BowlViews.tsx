@@ -2,7 +2,17 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { sortDivisions } from "@/lib/academicGames";
-import { FINALS_STAGES, gameCode, sourceLabel, teamLabel, type BowlStage } from "@/lib/bowl";
+import {
+  FINALS_STAGES,
+  bowlStandings,
+  gameCode,
+  gameLabel,
+  gameResult,
+  roundRobinComplete,
+  sourceLabel,
+  teamLabel,
+  type BowlStage,
+} from "@/lib/bowl";
 
 // The Academic Bowl's schedule: each division's games day by day, one card
 // per round-robin round and one per finals stage, every game a row with its
@@ -170,6 +180,217 @@ export async function BowlSchedule({ tournamentId, divisionId }: { tournamentId:
         <section key={division.id} id={division.slug} className="scroll-mt-28 space-y-4">
           <h4>{division.name}</h4>
           <DivisionSchedule games={games.filter((g) => g.divisionId === division.id)} idPrefix={`${division.slug}-`} />
+        </section>
+      ))}
+    </div>
+  );
+}
+
+// ── Results: standings and the finals bracket ──────────────────────────
+
+const SEEDS_THROUGH = 8;
+
+async function loadTeams(tournamentId: string, divisionId?: string | null) {
+  return prisma.bowlTeam.findMany({
+    where: { tournamentId, ...(divisionId ? { divisionId } : {}) },
+    include: { school: true },
+  });
+}
+type Team = Awaited<ReturnType<typeof loadTeams>>[number];
+
+function TeamCell({ team }: { team: Team }) {
+  return (
+    <span className="flex min-w-0 items-center gap-1.5" title={`${team.school.name}${team.name ? ` ${team.name}` : ""}`}>
+      <SchoolBadge size={20} logoUrl={team.school.logoUrl} name={team.school.name} color={team.school.themeColor} secondaryColor={team.school.themeColorSecondary} />
+      <span className="truncate">{teamLabel(team)}</span>
+    </span>
+  );
+}
+
+function BracketGame({ game }: { game: Game | undefined }) {
+  if (!game) return null;
+  const result = gameResult(game);
+  const line = (team: Game["teamA"], source: string | null, score: number | null) => {
+    const won = !!team && result?.winner === team.id;
+    return (
+      <div className={`flex items-center justify-between gap-2 py-1 text-sm ${won ? "font-extrabold" : ""}`}>
+        {team ? (
+          <span className="min-w-0">
+            <TeamCell team={team as Team} />
+          </span>
+        ) : (
+          <span className="truncate text-muted italic">{source ? sourceLabel(source) : "TBD"}</span>
+        )}
+        <span className={`tabular-nums ${won ? "" : "text-muted"}`}>{score ?? ""}</span>
+      </div>
+    );
+  };
+  return (
+    <div className="card px-3 py-2">
+      <div className="flex justify-between gap-2 text-xs text-muted">
+        <span className="font-semibold text-foreground">{gameLabel(game.stage, game.number)}</span>
+        <span className="truncate">
+          {format(game.startTime, "EEE h:mmaaa")}
+          {game.room && ` · ${game.room}`}
+        </span>
+      </div>
+      <div className="divide-y divide-divider/60">
+        {line(game.teamA, game.sourceA, game.scoreA)}
+        {line(game.teamB, game.sourceB, game.scoreB)}
+      </div>
+    </div>
+  );
+}
+
+function DivisionResults({ teams, games }: { teams: Team[]; games: Game[] }) {
+  const table = bowlStandings(
+    teams.map((t) => ({ ...t, label: teamLabel(t) })),
+    games
+  );
+  const complete = roundRobinComplete(games);
+  const robin = games.filter((g) => g.stage === "ROUND_ROBIN");
+  const scored = robin.filter((g) => g.scoreA !== null).length;
+  const anyDraws = table.some((r) => r.draws > 0);
+  const finals = (stage: BowlStage) => games.filter((g) => g.stage === stage).sort((a, b) => a.number - b.number);
+  const final = finals("FINAL")[0];
+  const consolation = finals("CONSOLATION")[0];
+  const champion = final ? gameResult(final) : null;
+  const third = consolation ? gameResult(consolation) : null;
+  const teamById = new Map(teams.map((t) => [t.id, t]));
+  const hasFinals = games.some((g) => g.stage !== "ROUND_ROBIN");
+
+  return (
+    <div className="space-y-8">
+      {champion && (
+        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          <span className="flex items-center gap-2">
+            <span className="tag tag-accent">Champion</span>
+            <span className="font-extrabold">
+              <TeamCell team={teamById.get(champion.winner)!} />
+            </span>
+          </span>
+          <span className="text-muted">Runner-up {teamLabel(teamById.get(champion.loser)!)}</span>
+          {third && <span className="text-muted">Third {teamLabel(teamById.get(third.winner)!)}</span>}
+        </p>
+      )}
+
+      <section>
+        <div className="mb-1 flex flex-wrap items-baseline gap-x-3">
+          <h5>Standings</h5>
+          <span className={`tag ${complete ? "tag-neutral" : "tag-outline"}`}>{complete ? "Final" : "Provisional"}</span>
+        </div>
+        <p className="mb-3 text-sm text-muted">
+          {complete ? "The round robin is complete" : `${scored} of ${robin.length} round-robin games scored`} - ranked by wins,
+          then points scored. The top {SEEDS_THROUGH} go through to the Quarterfinals.
+        </p>
+        {table.length === 0 ? (
+          <p className="text-sm text-muted">No teams yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="mtable">
+              <thead>
+                <tr>
+                  <th style={{ width: 40 }}>#</th>
+                  <th>Team</th>
+                  <th className="text-right">P</th>
+                  <th className="text-right">W</th>
+                  {anyDraws && <th className="text-right">D</th>}
+                  <th className="text-right">L</th>
+                  <th className="text-right">For</th>
+                  <th className="text-right">Ag</th>
+                </tr>
+              </thead>
+              <tbody>
+                {table.map((row, i) => {
+                  const tied = table.filter((r) => r.place === row.place).length > 1;
+                  return (
+                    <tr key={row.team.id} className={i === SEEDS_THROUGH - 1 && table.length > SEEDS_THROUGH ? "border-b-2 border-foreground/40" : undefined}>
+                      <td className="font-extrabold text-primary-deep tabular-nums">
+                        {row.played > 0 ? `${row.place}${tied ? "=" : ""}` : "–"}
+                      </td>
+                      <td className="font-semibold">
+                        <TeamCell team={row.team} />
+                      </td>
+                      <td className="text-right tabular-nums">{row.played}</td>
+                      <td className="text-right font-extrabold tabular-nums">{row.wins}</td>
+                      {anyDraws && <td className="text-right tabular-nums">{row.draws}</td>}
+                      <td className="text-right tabular-nums">{row.losses}</td>
+                      <td className="text-right tabular-nums">{row.pointsFor}</td>
+                      <td className="text-right tabular-nums">{row.pointsAgainst}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {hasFinals && (
+        <section>
+          <h5 className="mb-3">Finals</h5>
+          <div className="grid items-center gap-4 md:grid-cols-3">
+            <div className="space-y-3">
+              <h6 className="text-muted">Quarterfinals</h6>
+              {finals("QUARTERFINAL").map((g) => (
+                <BracketGame key={g.id} game={g} />
+              ))}
+            </div>
+            <div className="space-y-3">
+              <h6 className="text-muted">Semifinals</h6>
+              {finals("SEMIFINAL").map((g) => (
+                <BracketGame key={g.id} game={g} />
+              ))}
+            </div>
+            <div className="space-y-3">
+              <h6 className="text-muted">Final</h6>
+              <BracketGame game={final} />
+              {consolation && (
+                <>
+                  <h6 className="pt-2 text-muted">Consolation</h6>
+                  <BracketGame game={consolation} />
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+export async function BowlResults({ tournamentId, divisionId }: { tournamentId: string; divisionId?: string | null }) {
+  const [games, teams, divisions] = await Promise.all([
+    loadGames(tournamentId, divisionId),
+    loadTeams(tournamentId, divisionId),
+    prisma.division.findMany({ where: { tournamentId } }),
+  ]);
+  if (games.length === 0) return <p className="text-muted">The Academic Bowl hasn&apos;t started yet.</p>;
+  if (divisionId) return <DivisionResults teams={teams} games={games} />;
+
+  const shown = sortDivisions(divisions).filter((d) => games.some((g) => g.divisionId === d.id));
+  return (
+    <div className="space-y-12">
+      {shown.length > 1 && (
+        <p className="text-sm text-muted">
+          Jump to{" "}
+          {shown.map((d, i) => (
+            <span key={d.id}>
+              {i > 0 && " · "}
+              <a href={`#${d.slug}`} className="font-semibold text-primary hover:underline">
+                {d.name}
+              </a>
+            </span>
+          ))}
+        </p>
+      )}
+      {shown.map((division) => (
+        <section key={division.id} id={division.slug} className="scroll-mt-28 space-y-4">
+          <h4>{division.name}</h4>
+          <DivisionResults
+            teams={teams.filter((t) => t.divisionId === division.id)}
+            games={games.filter((g) => g.divisionId === division.id)}
+          />
         </section>
       ))}
     </div>

@@ -7,6 +7,8 @@ import { EARLIEST_FIRST } from "@/lib/eventOrder";
 import { getCurrentUser } from "@/lib/session";
 import { sideLabel } from "@/lib/eventDisplay";
 import { formatGolfPoints, matchScore } from "@/lib/golf";
+import { sortDivisions } from "@/lib/academicGames";
+import { gameLabel } from "@/lib/bowl";
 
 // Everything needed to group events by tournament and show a quick
 // needs-result/entered badge per row - same shape as the dashboard's own
@@ -48,9 +50,11 @@ export default async function ResultsDashboardPage() {
   // importMeetResultsAction).
   const scope = user.role === "ADMIN" ? {} : { participants: { some: { schoolId: user.schoolId ?? "" } } };
 
-  const [events, golfTournaments] = await Promise.all([
+  const [events, golfTournaments, academicTournaments] = await Promise.all([
     prisma.event.findMany({
-      where: { ...scope, tournament: { isCurrent: true } },
+      // Academic Games' timeline items have no result of their own - its
+      // results are the Academic Bowl's, below.
+      where: { ...scope, tournament: { isCurrent: true, activity: { usesAcademicFormat: false } } },
       orderBy: EARLIEST_FIRST,
       select: RESULT_EVENT_ROW,
     }),
@@ -67,6 +71,13 @@ export default async function ResultsDashboardPage() {
               include: { homeSchool: true, awaySchool: true, pairs: { select: { winner: true } } },
             },
           },
+        })
+      : Promise.resolve([]),
+    // The Academic Bowl's games are their own tables too, scored by admins.
+    user.role === "ADMIN"
+      ? prisma.tournament.findMany({
+          where: { isCurrent: true, activity: { usesAcademicFormat: true } },
+          include: { activity: true, divisions: true, bowlGames: { orderBy: [{ startTime: "asc" }, { number: "asc" }] } },
         })
       : Promise.resolve([]),
   ]);
@@ -96,7 +107,11 @@ export default async function ResultsDashboardPage() {
         <GolfTournamentSection key={t.id} tournament={t} />
       ))}
 
-      {tournamentOrder.length === 0 && golfTournaments.length === 0 ? (
+      {academicTournaments.map((t) => (
+        <AcademicBowlSection key={t.id} tournament={t} />
+      ))}
+
+      {tournamentOrder.length === 0 && golfTournaments.length === 0 && academicTournaments.length === 0 ? (
         <p className="text-muted">No current tournaments have any games scheduled yet.</p>
       ) : (
         tournamentOrder.map((id) => {
@@ -400,5 +415,70 @@ function GolfMatchList({
         ))}
       </ul>
     </div>
+  );
+}
+
+type AcademicTournament = Prisma.TournamentGetPayload<{ include: { activity: true; divisions: true; bowlGames: true } }>;
+
+// Academic Games: the Academic Bowl's rounds that have started without
+// every score in, each linking to the round-by-round score entry.
+function AcademicBowlSection({ tournament }: { tournament: AcademicTournament }) {
+  const now = new Date();
+  const page = `/dashboard/admin/academic-games?tournament=${tournament.id}`;
+  const games = tournament.bowlGames;
+  const scored = games.filter((g) => g.scoreA !== null).length;
+  // Rounds (or finals stages) with a game that's started, has both teams
+  // and no score yet.
+  const overdue = sortDivisions(tournament.divisions).flatMap((division) => {
+    const rounds = new Map<string, typeof games>();
+    for (const g of games) {
+      if (g.divisionId !== division.id || g.startTime > now || g.scoreA !== null || !g.teamAId || !g.teamBId) continue;
+      const key = g.stage === "ROUND_ROBIN" ? `Round ${g.number}` : gameLabel(g.stage, g.number).replace(/ \d$/, "s");
+      rounds.set(key, [...(rounds.get(key) ?? []), g]);
+    }
+    return [...rounds.entries()].map(([label, own]) => ({ key: `${division.id}-${label}`, division: division.name, label, games: own }));
+  });
+
+  return (
+    <section className="card p-4">
+      <SectionHeader tournament={{ id: tournament.id, name: tournament.name, slug: tournament.slug, activity: tournament.activity }} />
+      <h3 className={`mb-1.5 text-xs font-bold uppercase tracking-wide ${overdue.length ? "text-danger" : "text-muted"}`}>
+        Academic Bowl scores ({scored} of {games.length})
+      </h3>
+      {games.length === 0 ? (
+        <p className="text-sm text-muted">
+          No bowl schedule yet.{" "}
+          <Link href={`${page}#bowl`} className="font-semibold text-primary hover:underline">
+            Upload it →
+          </Link>
+        </p>
+      ) : overdue.length === 0 ? (
+        <p className="text-sm text-muted">
+          {scored === games.length ? "All scores are in." : "Nothing overdue."}{" "}
+          <Link href={`${page}#bowl-scores`} className="font-semibold text-primary hover:underline">
+            Edit scores
+          </Link>
+        </p>
+      ) : (
+        <ul className="divide-y divide-border border-y border-border">
+          {overdue.map((round) => (
+            <li key={round.key} className="flex flex-wrap items-center justify-between gap-3 py-2">
+              <div>
+                <div className="text-sm font-semibold">
+                  {round.division} · {round.label}
+                </div>
+                <div className="text-xs text-muted">
+                  {format(round.games[0].startTime, "EEE, MMM d · h:mm a")} · {round.games.length} score
+                  {round.games.length === 1 ? "" : "s"} missing
+                </div>
+              </div>
+              <Link href={`${page}#bowl-scores`} className="btn btn-primary px-3 py-1 text-xs">
+                Enter scores
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

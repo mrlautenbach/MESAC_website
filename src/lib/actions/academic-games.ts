@@ -8,7 +8,18 @@ import { recordAudit } from "@/lib/audit";
 import { revalidateTournament } from "@/lib/revalidate";
 import { parseCsv, csvRowsToObjects } from "@/lib/csv";
 import { matchTrack, parseClock, RUN_BY_FIELD, trackNames } from "@/lib/academicGames";
-import { gameCode, gameLabel, parseRound, parseSource, parseTeamName, type BowlStage } from "@/lib/bowl";
+import {
+  bowlStandings,
+  gameCode,
+  gameLabel,
+  parseRound,
+  parseSource,
+  parseTeamName,
+  resolveFinals,
+  roundRobinComplete,
+  teamLabel,
+  type BowlStage,
+} from "@/lib/bowl";
 import type { Prisma } from "@/generated/prisma";
 
 export type AcademicImportResult =
@@ -268,6 +279,30 @@ export async function importAcademicScheduleAction(
 
 // ── The Academic Bowl ──────────────────────────────────────────────────
 
+// Brings every division's finals up to date after its games or scores
+// change: seeds from a finished round robin, then each finals game's winner
+// and loser into the games waiting on them. Returns how many games changed.
+async function resolveBowlFinals(tx: Prisma.TransactionClient, tournamentId: string): Promise<number> {
+  const [teams, games] = await Promise.all([
+    tx.bowlTeam.findMany({ where: { tournamentId }, include: { school: true } }),
+    tx.bowlGame.findMany({ where: { tournamentId } }),
+  ]);
+  let changed = 0;
+  for (const divisionId of new Set(games.map((g) => g.divisionId))) {
+    const own = games.filter((g) => g.divisionId === divisionId);
+    const table = bowlStandings(
+      teams.filter((t) => t.divisionId === divisionId).map((t) => ({ id: t.id, label: teamLabel(t) })),
+      own
+    );
+    const seeds = roundRobinComplete(own) ? table.map((r) => r.team.id) : null;
+    for (const { id, ...data } of resolveFinals(own, seeds)) {
+      await tx.bowlGame.update({ where: { id }, data });
+      changed++;
+    }
+  }
+  return changed;
+}
+
 const BOWL_HEADERS = ["division", "round", "date", "time", "team_a", "team_b"];
 
 // One side of a planned game: a team (its key - see teamKey), or for a
@@ -388,7 +423,9 @@ export async function importBowlScheduleAction(_prev: AcademicImportResult | nul
     const scoreB = parseBowlScore(get("score_b"));
     if (scoreA === "bad" || scoreB === "bad") errors.push("Scores must be whole numbers 0-999.");
     else if ((scoreA === null) !== (scoreB === null)) errors.push("Give both scores, or leave both blank.");
-    else if (scoreA !== null && a && b && !("team" in a && "team" in b)) errors.push("A game needs both teams before it can have a score.");
+    else if (scoreA !== null && [a, b].some((side) => side && "source" in side && !side.source)) {
+      errors.push("A game needs both teams before it can have a score.");
+    }
 
     if (errors.length > 0 || !track || !round || !startTime || !a || !b) {
       rowErrors.push({ row: rowNum, message: errors.join(" ") });
@@ -457,6 +494,9 @@ export async function importBowlScheduleAction(_prev: AcademicImportResult | nul
           : `${g.divisionId}|${g.stage}|${g.number}`;
       const byKey = new Map(existing.map((g) => [existingKey(g), g]));
       const kept = new Set<string>();
+      // Finals scores for slots whose teams aren't known until the bracket
+      // is filled in below - e.g. a whole sheet uploaded at once.
+      const waiting = new Map<string, { scoreA: number; scoreB: number }>();
       let created = 0;
       let updated = 0;
 
@@ -478,6 +518,9 @@ export async function importBowlScheduleAction(_prev: AcademicImportResult | nul
         // flipped if the file lists the two teams the other way round.
         const swapped = match && match.teamAId === (teamB ?? keepB) && match.teamBId === (teamA ?? keepA) && match.teamAId !== match.teamBId;
         const keptScores = match && !game.scores ? (swapped ? { a: match.scoreB, b: match.scoreA } : { a: match.scoreA, b: match.scoreB }) : null;
+        // A score only stands on a game whose two teams are known - a
+        // finals slot still waiting on its source takes its score later.
+        const bothTeams = (teamA ?? keepA) !== null && (teamB ?? keepB) !== null;
         const data = {
           startTime: game.startTime,
           room: game.room,
@@ -485,17 +528,20 @@ export async function importBowlScheduleAction(_prev: AcademicImportResult | nul
           teamBId: teamB ?? keepB,
           sourceA,
           sourceB,
-          scoreA: game.scores ? game.scores.a : (keptScores?.a ?? null),
-          scoreB: game.scores ? game.scores.b : (keptScores?.b ?? null),
+          scoreA: bothTeams ? (game.scores ? game.scores.a : (keptScores?.a ?? null)) : null,
+          scoreB: bothTeams ? (game.scores ? game.scores.b : (keptScores?.b ?? null)) : null,
         };
+        let id: string;
         if (match) {
           await tx.bowlGame.update({ where: { id: match.id }, data });
+          id = match.id;
           kept.add(match.id);
           updated++;
         } else {
-          await tx.bowlGame.create({ data: { ...data, tournamentId: tournament.id, divisionId, stage: game.stage, number: game.number } });
+          id = (await tx.bowlGame.create({ data: { ...data, tournamentId: tournament.id, divisionId, stage: game.stage, number: game.number } })).id;
           created++;
         }
+        if (game.scores && !bothTeams) waiting.set(id, { scoreA: game.scores.a, scoreB: game.scores.b });
       }
 
       const stale = existing.filter((g) => !kept.has(g.id)).map((g) => g.id);
@@ -504,6 +550,19 @@ export async function importBowlScheduleAction(_prev: AcademicImportResult | nul
       await tx.bowlTeam.deleteMany({
         where: { divisionId: { in: divisionIds }, gamesAsA: { none: {} }, gamesAsB: { none: {} } },
       });
+      // Fill the bracket a stage at a time: seeds into the Quarterfinals, then
+      // each stage's scores decide who goes through to the next.
+      for (let pass = 0; pass < 5; pass++) {
+        await resolveBowlFinals(tx, tournament.id);
+        const ready = await tx.bowlGame.findMany({
+          where: { id: { in: [...waiting.keys()] }, teamAId: { not: null }, teamBId: { not: null } },
+        });
+        if (ready.length === 0) break;
+        for (const g of ready) {
+          await tx.bowlGame.update({ where: { id: g.id }, data: waiting.get(g.id)! });
+          waiting.delete(g.id);
+        }
+      }
       const teamCount = await tx.bowlTeam.count({ where: { divisionId: { in: divisionIds } } });
       return { created, updated, removed: stale.length, teams: teamCount, newDivisions: [...newDivisionIds.keys()] };
     },
@@ -552,7 +611,10 @@ export async function saveBowlScoresAction(_prev: AcademicImportResult | null, f
     updates.push({ id: game.id, scoreA: a, scoreB: b });
   }
 
-  await prisma.$transaction(updates.map(({ id, ...scores }) => prisma.bowlGame.update({ where: { id }, data: scores })));
+  const moved = await prisma.$transaction(async (tx) => {
+    for (const { id, ...scores } of updates) await tx.bowlGame.update({ where: { id }, data: scores });
+    return resolveBowlFinals(tx, tournament.id);
+  });
   await recordAudit({
     actorId: admin.id,
     actorLabel: admin.name,
@@ -565,5 +627,5 @@ export async function saveBowlScoresAction(_prev: AcademicImportResult | null, f
 
   revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
   revalidatePath("/dashboard/admin/academic-games");
-  return { ok: true, summary: "Saved." };
+  return { ok: true, summary: moved > 0 ? `Saved - ${plural(moved, "finals game")} updated.` : "Saved." };
 }

@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { LATEST_FIRST } from "@/lib/eventOrder";
 import { formatGolfPoints, matchScore } from "@/lib/golf";
+import { gameLabel, teamLabel } from "@/lib/bowl";
 
 // The home page's latest results: finished two-school games, plus golf's
 // finished team matches (a golf match is three pairs matches scored in
-// halves, so it isn't an Event and has to be read from its own table).
+// halves, so it isn't an Event and has to be read from its own table), and
+// the Academic Bowl's finals - its round robin is 240 games, too many to
+// share this list with everything else.
 // Both come out in one shape, home side first, newest first.
 export type LatestResult = {
   key: string;
@@ -17,7 +20,7 @@ export type LatestResult = {
 };
 
 export async function loadLatestResults(take: number): Promise<LatestResult[]> {
-  const [events, golfMatches] = await Promise.all([
+  const [events, golfMatches, bowlFinals] = await Promise.all([
     // Site-wide, not scoped to isCurrent tournaments - isCurrent only picks
     // which edition an activity page defaults to, and can legitimately be
     // wrong or unset for a while, which would otherwise make this look
@@ -42,6 +45,17 @@ export async function loadLatestResults(take: number): Promise<LatestResult[]> {
       orderBy: { startTime: "desc" },
       take,
       include: { homeSchool: true, awaySchool: true, pairs: true, tournament: { include: { activity: true, hostSchool: true } } },
+    }),
+    prisma.bowlGame.findMany({
+      where: { stage: { not: "ROUND_ROBIN" }, scoreA: { not: null }, scoreB: { not: null }, teamAId: { not: null }, teamBId: { not: null } },
+      orderBy: { startTime: "desc" },
+      take,
+      include: {
+        division: true,
+        teamA: { include: { school: true } },
+        teamB: { include: { school: true } },
+        tournament: { include: { activity: true, hostSchool: true } },
+      },
     }),
   ]);
 
@@ -74,5 +88,22 @@ export async function loadLatestResults(take: number): Promise<LatestResult[]> {
     };
   });
 
-  return [...fromEvents, ...fromGolf].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, take);
+  const fromBowl: LatestResult[] = bowlFinals.map((game) => ({
+    key: game.id,
+    date: game.startTime,
+    label: `${game.division.name} ${game.tournament.activity.name} · ${gameLabel(game.stage, game.number)}`,
+    sport: game.tournament.activity.sport,
+    hostSchoolName: game.tournament.hostSchool?.name ?? null,
+    sides: [
+      { team: game.teamA!, score: game.scoreA! },
+      { team: game.teamB!, score: game.scoreB! },
+    ].map(({ team, score }) => ({
+      name: `${team.school.name}${team.name ? ` ${team.name}` : ""}`,
+      code: teamLabel(team),
+      score,
+      display: String(score),
+    })),
+  }));
+
+  return [...fromEvents, ...fromGolf, ...fromBowl].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, take);
 }

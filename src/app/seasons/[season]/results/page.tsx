@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { pickView } from "@/lib/viewSwitch";
+import { BowlResults } from "@/components/BowlViews";
 import { GolfIndividualResults, GolfTeamResults } from "@/components/GolfViews";
 import { TournamentResults } from "@/components/TournamentGames";
 
@@ -58,7 +59,7 @@ export default async function TournamentResultsPage({
       <div className="page-wrap py-8">
         {academic ? (
           viewSwitch?.current === "bowl" ? (
-            <p className="text-muted">Bowl standings and the finals bracket will appear here once games are scored.</p>
+            <BowlResults tournamentId={tournament.id} />
           ) : (
             <p className="text-muted">Results will be posted here once the competitions begin.</p>
           )
