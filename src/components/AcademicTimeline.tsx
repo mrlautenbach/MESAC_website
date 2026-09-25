@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { bowlAnchor } from "@/components/BowlViews";
 import {
   RUN_BY_FIELD,
   formatTimeRange,
@@ -33,13 +35,19 @@ async function loadItems(tournamentId: string) {
   return { items, divisions: sortDivisions(divisions) };
 }
 
-function Item({ item, tag }: { item: TimelineItem; tag?: string }) {
+function Item({ item, tag, href }: { item: TimelineItem; tag?: string; href?: string | null }) {
   return (
     <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 py-2.5">
       <div className="whitespace-nowrap text-sm font-extrabold tabular-nums">{formatTimeRange(item.start, item.end)}</div>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="font-bold">{item.title}</span>
+          {href ? (
+            <Link href={href} className="font-bold hover:text-primary hover:underline">
+              {item.title}
+            </Link>
+          ) : (
+            <span className="font-bold">{item.title}</span>
+          )}
           {tag && <span className="tag tag-neutral">{tag}</span>}
         </div>
         <div className="text-sm text-muted">
@@ -51,13 +59,31 @@ function Item({ item, tag }: { item: TimelineItem; tag?: string }) {
   );
 }
 
-export async function AcademicTimeline({ tournamentId, divisionId }: { tournamentId: string; divisionId?: string | null }) {
-  const { items, divisions } = await loadItems(tournamentId);
+export async function AcademicTimeline({
+  tournamentId,
+  tournamentSlug,
+  divisionId,
+}: {
+  tournamentId: string;
+  tournamentSlug: string;
+  divisionId?: string | null;
+}) {
+  const [{ items, divisions }, bowlGames] = await Promise.all([
+    loadItems(tournamentId),
+    prisma.bowlGame.count({ where: { tournamentId } }),
+  ]);
   const shown = divisionId ? items.filter((i) => !i.divisionId || i.divisionId === divisionId) : items;
   if (shown.length === 0) return <p className="text-sm text-muted">The schedule hasn&apos;t been posted yet.</p>;
 
   const nameOf = new Map(divisions.map((d) => [d.id, d.name]));
   const days = timelineDays(shown, divisionId ? divisions.filter((d) => d.id === divisionId) : divisions);
+  // An Academic Bowl block ("Academic Bowl Rounds 7-12") opens its rounds
+  // on the Bowl side, once the bowl's games are posted.
+  const slugOf = new Map(divisions.map((d) => [d.id, d.slug]));
+  const bowlHref = (item: TimelineItem) => {
+    const anchor = bowlGames > 0 && item.divisionId ? bowlAnchor(item.title) : null;
+    return anchor ? `/seasons/${tournamentSlug}/${slugOf.get(item.divisionId!)}/schedule?view=bowl#${anchor}` : null;
+  };
 
   return (
     <div className="space-y-8">
@@ -74,7 +100,7 @@ export async function AcademicTimeline({ tournamentId, divisionId }: { tournamen
                 // One track: its items are just rows in the list.
                 block.columns[0].items.map((item) => (
                   <li key={item.id}>
-                    <Item item={item} />
+                    <Item item={item} href={bowlHref(item)} />
                   </li>
                 ))
               ) : (
@@ -89,7 +115,7 @@ export async function AcademicTimeline({ tournamentId, divisionId }: { tournamen
                         <ul className="divide-y divide-divider/60">
                           {column.items.map((item) => (
                             <li key={item.id}>
-                              <Item item={item} />
+                              <Item item={item} href={bowlHref(item)} />
                             </li>
                           ))}
                         </ul>

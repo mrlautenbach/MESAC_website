@@ -5,6 +5,8 @@ import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { GolfIndividualSchedule, GolfTeamSchedule } from "@/components/GolfViews";
 import { TournamentSchedule } from "@/components/TournamentGames";
 import { AcademicTimeline } from "@/components/AcademicTimeline";
+import { BowlSchedule } from "@/components/BowlViews";
+import { pickView } from "@/lib/viewSwitch";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +31,8 @@ export default async function TournamentSchedulePage({
   const hasDivisions = tournament.divisions.length > 0;
   const academic = tournament.activity.usesAcademicFormat;
   if (hasDivisions && !tournament.activity.usesMeetResults && !academic) notFound();
-  const golfView = tournament.activity.usesGolfFormat ? (view === "team" ? "team" : "individual") : undefined;
+  const viewSwitch = pickView(tournament.activity, view);
+  const golfView = tournament.activity.usesGolfFormat ? viewSwitch?.current : undefined;
 
   return (
     <div>
@@ -52,12 +55,16 @@ export default async function TournamentSchedulePage({
         usesMeetResults={tournament.activity.usesMeetResults}
         usesAcademicFormat={tournament.activity.usesAcademicFormat}
         active="schedule"
-        golfView={golfView}
+        viewSwitch={viewSwitch}
       />
       <div className="page-wrap py-8">
         <h4 className="mb-3">Schedule</h4>
         {academic ? (
-          <AcademicTimeline tournamentId={tournament.id} />
+          viewSwitch?.current === "bowl" ? (
+            <BowlSchedule tournamentId={tournament.id} />
+          ) : (
+            <AcademicTimeline tournamentId={tournament.id} tournamentSlug={tournament.slug} />
+          )
         ) : golfView === "individual" ? (
           <GolfIndividualSchedule tournamentId={tournament.id} />
         ) : golfView === "team" ? (

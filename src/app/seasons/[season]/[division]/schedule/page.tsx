@@ -2,17 +2,22 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
+import { pickView } from "@/lib/viewSwitch";
 import { TournamentSchedule } from "@/components/TournamentGames";
 import { AcademicTimeline } from "@/components/AcademicTimeline";
+import { BowlSchedule } from "@/components/BowlViews";
 
 export const dynamic = "force-dynamic";
 
 export default async function DivisionSchedulePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ season: string; division: string }>;
+  searchParams: Promise<{ view?: string }>;
 }) {
   const { season: tournamentSlug, division: divisionSlug } = await params;
+  const { view } = await searchParams;
   const tournament = await prisma.tournament.findUnique({
     where: { slug: tournamentSlug },
     include: { activity: true, divisions: true, hostSchool: true },
@@ -21,6 +26,7 @@ export default async function DivisionSchedulePage({
 
   const division = tournament.divisions.find((d) => d.slug === divisionSlug);
   if (!division) notFound();
+  const viewSwitch = pickView(tournament.activity, view);
 
   return (
     <div>
@@ -44,11 +50,16 @@ export default async function DivisionSchedulePage({
         usesAcademicFormat={tournament.activity.usesAcademicFormat}
         currentDivisionSlug={division.slug}
         active="schedule"
+        viewSwitch={viewSwitch}
       />
       <div className="page-wrap py-8">
         <h4 className="mb-3">Schedule</h4>
         {tournament.activity.usesAcademicFormat ? (
-          <AcademicTimeline tournamentId={tournament.id} divisionId={division.id} />
+          viewSwitch?.current === "bowl" ? (
+            <BowlSchedule tournamentId={tournament.id} divisionId={division.id} />
+          ) : (
+            <AcademicTimeline tournamentId={tournament.id} tournamentSlug={tournament.slug} divisionId={division.id} />
+          )
         ) : (
           <TournamentSchedule
             tournamentId={tournament.id}

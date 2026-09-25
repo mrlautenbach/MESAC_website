@@ -95,6 +95,7 @@ model School {
   golfPlayers              GolfPlayer[]
   golfHomeMatches          GolfTeamMatch[] @relation("GolfHome")
   golfAwayMatches          GolfTeamMatch[] @relation("GolfAway")
+  bowlTeams                BowlTeam[]
 }
 
 model User {
@@ -243,6 +244,8 @@ model Division {
   // separate, independent axis on those same rows.
   programEntries MeetProgramEntry[]
   meetResults    MeetResult[]
+  bowlTeams      BowlTeam[]
+  bowlGames      BowlGame[]
 
   @@unique([activityId, tournamentId, slug])
 }
@@ -296,6 +299,8 @@ model Tournament {
   golfPlayers    GolfPlayer[]
   golfGroups     GolfGroup[]
   golfMatches    GolfTeamMatch[]
+  bowlTeams      BowlTeam[]
+  bowlGames      BowlGame[]
 
   @@index([activityId])
 }
@@ -801,4 +806,65 @@ model GolfPairsMatch {
   margin    String?
 
   @@unique([matchId, flight])
+}
+
+// ── Academic Games: the Academic Bowl ─────────────────────────────────
+// A round robin between teams - each school can field more than one per
+// division ("ASDubai Red", "ASDubai Blue") - then seeded finals. Its own
+// tables rather than Events, because site games are between schools and
+// two teams from one school can meet here.
+
+model BowlTeam {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  divisionId   String
+  division     Division   @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  schoolId     String
+  school       School     @relation(fields: [schoolId], references: [id])
+  // What tells a school's teams apart, usually a colour ("Red"); blank for
+  // a school with just the one team.
+  name         String     @default("")
+  createdAt    DateTime   @default(now())
+
+  gamesAsA BowlGame[] @relation("BowlTeamA")
+  gamesAsB BowlGame[] @relation("BowlTeamB")
+
+  @@unique([divisionId, schoolId, name])
+}
+
+enum BowlStage {
+  ROUND_ROBIN
+  QUARTERFINAL
+  SEMIFINAL
+  CONSOLATION
+  FINAL
+}
+
+model BowlGame {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  divisionId   String
+  division     Division   @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  stage        BowlStage  @default(ROUND_ROBIN)
+  // The round (1-24) in the round robin; which game of its stage for the
+  // finals (Quarterfinal 1-4, Semifinal 1-2, the one Consolation and Final).
+  number       Int
+  startTime    DateTime
+  room         String?
+  // Blank until known - a finals slot waits on its source below.
+  teamAId      String?
+  teamA        BowlTeam?  @relation("BowlTeamA", fields: [teamAId], references: [id], onDelete: SetNull)
+  teamBId      String?
+  teamB        BowlTeam?  @relation("BowlTeamB", fields: [teamBId], references: [id], onDelete: SetNull)
+  // Where a finals slot's team comes from: "seed 1", "winner QF1", "loser SF2".
+  sourceA      String?
+  sourceB      String?
+  scoreA       Int?
+  scoreB       Int?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([tournamentId, divisionId, stage, number])
 }

@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { normalizeDivisionName } from "@/lib/divisionAlias";
+import { findDivision, normalizeDivisionName } from "@/lib/divisionAlias";
 
 // Academic Games' schedule is a day-by-day timeline of competitions. Some
 // are for every team (the Current Events Olympiad, the finals in the
@@ -10,6 +10,25 @@ import { normalizeDivisionName } from "@/lib/divisionAlias";
 // The activity field that holds who runs a competition ("Math Challenge -
 // run by AS Dubai"), created by the schedule upload the first time it's used.
 export const RUN_BY_FIELD = { key: "run_by", label: "Run by" } as const;
+
+// The two tracks an upload can add on its own if the tournament doesn't
+// have them yet - anything else has to be set up as a division first.
+const TRACK_NAMES: Record<string, string> = { varsity: "Varsity", "junior varsity": "Junior Varsity" };
+
+// Which track a CSV's team/division cell means: one of the tournament's
+// divisions ("JV" matches "Junior Varsity"), or Varsity / Junior Varsity
+// still to be added. `undefined` when it's neither.
+export function matchTrack(divisions: { id: string; name: string }[], raw: string): { id: string } | { newName: string } | undefined {
+  const existing = findDivision(divisions, raw);
+  if (existing) return { id: existing.id };
+  const newName = TRACK_NAMES[normalizeDivisionName(raw)];
+  return newName ? { newName } : undefined;
+}
+
+// "Varsity, Junior Varsity" - for an error message listing what's allowed.
+export function trackNames(divisions: { name: string }[]): string {
+  return [...new Set([...divisions.map((d) => d.name), ...Object.values(TRACK_NAMES)])].join(", ");
+}
 
 // Varsity first, then Junior Varsity, then anything else by name - the
 // order the two tracks sit side by side.

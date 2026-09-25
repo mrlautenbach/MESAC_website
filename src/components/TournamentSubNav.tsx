@@ -14,7 +14,7 @@ export function TournamentSubNav({
   usesAcademicFormat = false,
   currentDivisionSlug = null,
   active,
-  golfView,
+  viewSwitch,
 }: {
   tournamentSlug: string;
   divisions: { name: string; slug: string }[];
@@ -24,9 +24,10 @@ export function TournamentSubNav({
   usesAcademicFormat?: boolean;
   currentDivisionSlug?: string | null;
   active?: Tab;
-  // Golf's Schedule and Results each have an Individual (Day 1) and a Team
-  // (match play) side, switched in the same spot as a division switch.
-  golfView?: "individual" | "team";
+  // Two sides to Schedule and Results, switched beside the division switch:
+  // golf's Individual (Day 1) and Team (match play), Academic Games' Events
+  // and Bowl. The first option is the default; the others are ?view=<key>.
+  viewSwitch?: { options: { key: string; label: string }[]; current: string };
 }) {
   const root = `/seasons/${tournamentSlug}`;
   const hasDivisions = divisions.length > 0;
@@ -35,8 +36,9 @@ export function TournamentSubNav({
   const hasCombined = usesMeetResults || usesAcademicFormat;
   const divisionSlug = currentDivisionSlug ?? (hasDivisions && !hasCombined ? divisions[0].slug : null);
   const splitBase = divisionSlug ? `${root}/${divisionSlug}` : root;
-  // Moving between Schedule and Results keeps golf's Team side selected.
-  const viewQuery = golfView === "team" ? "?view=team" : "";
+  // Moving between Schedule and Results, or divisions, keeps the side selected.
+  const queryFor = (key: string) => (viewSwitch && key !== viewSwitch.options[0].key ? `?view=${key}` : "");
+  const viewQuery = viewSwitch ? queryFor(viewSwitch.current) : "";
 
   const tabs: { key: Tab; label: string; href: string; icon?: boolean }[] = [
     { key: "schedule", label: "Schedule", href: `${splitBase}/schedule${viewQuery}` },
@@ -50,6 +52,8 @@ export function TournamentSubNav({
     ...(hasCombined ? [{ name: usesMeetResults ? "Overall" : "Both", slug: null as string | null }] : []),
     ...divisions.map((d) => ({ name: d.name, slug: d.slug as string | null })),
   ];
+
+  const showDivisions = hasDivisions && divisionChoices.length > 1;
 
   return (
     <div className="sticky top-0 z-20 border-b-2 border-divider bg-background">
@@ -68,36 +72,40 @@ export function TournamentSubNav({
           ))}
         </nav>
 
-        {divisionScoped && golfView && (
-          <div role="group" aria-label="Competition" className="mb-2 inline-flex border border-border sm:mb-0 sm:ml-auto">
-            {(["individual", "team"] as const).map((view) => (
-              <Link
-                key={view}
-                href={`${root}/${active}${view === "team" ? "?view=team" : ""}`}
-                aria-current={view === golfView ? "page" : undefined}
-                className={`px-3 py-1.5 text-sm font-semibold ${view === golfView ? "bg-primary text-background" : "text-muted hover:text-foreground"}`}
-              >
-                {view === "individual" ? "Individual" : "Team"}
-              </Link>
-            ))}
-          </div>
-        )}
+        {divisionScoped && (viewSwitch || showDivisions) && (
+          <div className="mb-2 flex flex-wrap gap-2 sm:mb-0 sm:ml-auto">
+            {viewSwitch && (
+              <div role="group" aria-label="Competition" className="inline-flex border border-border">
+                {viewSwitch.options.map((view) => (
+                  <Link
+                    key={view.key}
+                    href={`${currentDivisionSlug ? `${root}/${currentDivisionSlug}` : root}/${active}${queryFor(view.key)}`}
+                    aria-current={view.key === viewSwitch.current ? "page" : undefined}
+                    className={`px-3 py-1.5 text-sm font-semibold ${view.key === viewSwitch.current ? "bg-primary text-background" : "text-muted hover:text-foreground"}`}
+                  >
+                    {view.label}
+                  </Link>
+                ))}
+              </div>
+            )}
 
-        {divisionScoped && hasDivisions && divisionChoices.length > 1 && (
-          <div role="group" aria-label="Division" className="mb-2 inline-flex border border-border sm:mb-0 sm:ml-auto">
-            {divisionChoices.map((d) => {
-              const isCurrent = d.slug === currentDivisionSlug;
-              return (
-                <Link
-                  key={d.slug ?? "overall"}
-                  href={`${d.slug ? `${root}/${d.slug}` : root}/${active}`}
-                  aria-current={isCurrent ? "page" : undefined}
-                  className={`px-3 py-1.5 text-sm font-semibold ${isCurrent ? "bg-primary text-background" : "text-muted hover:text-foreground"}`}
-                >
-                  {d.name}
-                </Link>
-              );
-            })}
+            {showDivisions && (
+              <div role="group" aria-label="Division" className="inline-flex border border-border">
+                {divisionChoices.map((d) => {
+                  const isCurrent = d.slug === currentDivisionSlug;
+                  return (
+                    <Link
+                      key={d.slug ?? "overall"}
+                      href={`${d.slug ? `${root}/${d.slug}` : root}/${active}${viewQuery}`}
+                      aria-current={isCurrent ? "page" : undefined}
+                      className={`px-3 py-1.5 text-sm font-semibold ${isCurrent ? "bg-primary text-background" : "text-muted hover:text-foreground"}`}
+                    >
+                      {d.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

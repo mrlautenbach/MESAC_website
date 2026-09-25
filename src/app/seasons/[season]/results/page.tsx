@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
+import { pickView } from "@/lib/viewSwitch";
 import { GolfIndividualResults, GolfTeamResults } from "@/components/GolfViews";
 import { TournamentResults } from "@/components/TournamentGames";
 
@@ -28,7 +29,8 @@ export default async function TournamentResultsPage({
   const hasDivisions = tournament.divisions.length > 0;
   const academic = tournament.activity.usesAcademicFormat;
   if (hasDivisions && !tournament.activity.usesMeetResults && !academic) notFound();
-  const golfView = tournament.activity.usesGolfFormat ? (view === "team" ? "team" : "individual") : undefined;
+  const viewSwitch = pickView(tournament.activity, view);
+  const golfView = tournament.activity.usesGolfFormat ? viewSwitch?.current : undefined;
 
   return (
     <div>
@@ -51,11 +53,15 @@ export default async function TournamentResultsPage({
         usesMeetResults={tournament.activity.usesMeetResults}
         usesAcademicFormat={tournament.activity.usesAcademicFormat}
         active="results"
-        golfView={golfView}
+        viewSwitch={viewSwitch}
       />
       <div className="page-wrap py-8">
         {academic ? (
-          <p className="text-muted">Results will be posted here once the competitions begin.</p>
+          viewSwitch?.current === "bowl" ? (
+            <p className="text-muted">Bowl standings and the finals bracket will appear here once games are scored.</p>
+          ) : (
+            <p className="text-muted">Results will be posted here once the competitions begin.</p>
+          )
         ) : golfView === "individual" ? (
           <GolfIndividualResults tournamentId={tournament.id} />
         ) : golfView === "team" ? (

@@ -7,19 +7,58 @@ import { requireAdmin } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import { revalidateTournament } from "@/lib/revalidate";
 import { parseCsv, csvRowsToObjects } from "@/lib/csv";
-import { findDivision, normalizeDivisionName } from "@/lib/divisionAlias";
-import { parseClock, RUN_BY_FIELD } from "@/lib/academicGames";
+import { matchTrack, parseClock, RUN_BY_FIELD, trackNames } from "@/lib/academicGames";
+import { gameCode, gameLabel, parseRound, parseSource, parseTeamName, type BowlStage } from "@/lib/bowl";
+import type { Prisma } from "@/generated/prisma";
 
-export type ImportAcademicScheduleResult =
-  | { ok: true; created: number; updated: number; removed: number; newDivisions: string[] }
+export type AcademicImportResult =
+  | { ok: true; summary: string }
   | { ok: false; error: string; rowErrors?: { row: number; message: string }[] };
+
+type RowError = { row: number; message: string };
+
+async function readCsvText(formData: FormData): Promise<string> {
+  const file = formData.get("csvFile");
+  const pasted = formData.get("csvText");
+  return file instanceof File && file.size > 0 ? await file.text() : typeof pasted === "string" ? pasted : "";
+}
+
+async function loadAcademicTournament(tournamentId: string) {
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    include: { activity: true, divisions: true },
+  });
+  if (!tournament) return { ok: false as const, error: "Tournament not found." };
+  if (!tournament.activity.usesAcademicFormat) {
+    return { ok: false as const, error: "This activity doesn't use the Academic Games format." };
+  }
+  return { ok: true as const, tournament };
+}
+
+// Adds Varsity / Junior Varsity the first time an upload uses them, and
+// returns each new one's id by name.
+async function createTracks(
+  tx: Prisma.TransactionClient,
+  tournament: { id: string; activityId: string },
+  names: string[]
+): Promise<Map<string, string>> {
+  const ids = new Map<string, string>();
+  for (const name of new Set(names)) {
+    const created = await tx.division.create({
+      data: { activityId: tournament.activityId, tournamentId: tournament.id, name, slug: slugify(name) },
+    });
+    ids.set(name, created.id);
+  }
+  return ids;
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const addedTracks = (names: string[]) =>
+  names.length > 0 ? ` Added the ${names.join(" and ")} division${names.length === 1 ? "" : "s"}.` : "";
 
 const REQUIRED_HEADERS = ["date", "start", "title"];
 // A blank team cell means every team; so do these.
 const EVERYONE = new Set(["all", "both", "everyone", "all teams"]);
-// The two tracks the upload can add on its own if the tournament doesn't
-// have them yet - anything else has to be set up as a division first.
-const TRACK_NAMES: Record<string, string> = { varsity: "Varsity", "junior varsity": "Junior Varsity" };
 
 function slugify(s: string): string {
   return s
@@ -50,9 +89,9 @@ const itemKey = (day: string, title: string, division: string | null) => `${day}
 // checked before anything is saved, and the file is the full schedule -
 // items not in it are removed.
 export async function importAcademicScheduleAction(
-  _prev: ImportAcademicScheduleResult | null,
+  _prev: AcademicImportResult | null,
   formData: FormData
-): Promise<ImportAcademicScheduleResult> {
+): Promise<AcademicImportResult> {
   const admin = await requireAdmin();
 
   const tournamentId = String(formData.get("tournamentId") ?? "");
@@ -65,9 +104,7 @@ export async function importAcademicScheduleAction(
     return { ok: false, error: "This activity doesn't use the Academic Games format." };
   }
 
-  const file = formData.get("csvFile");
-  const pasted = formData.get("csvText");
-  const text = file instanceof File && file.size > 0 ? await file.text() : typeof pasted === "string" ? pasted : "";
+  const text = await readCsvText(formData);
   if (!text.trim()) return { ok: false, error: "Upload a .csv file or paste CSV text." };
 
   const rows = parseCsv(text);
@@ -77,10 +114,9 @@ export async function importAcademicScheduleAction(
     return { ok: false, error: "The header row needs at least: date, start, title (plus optional end, team, venue, run_by)." };
   }
 
-  const rowErrors: { row: number; message: string }[] = [];
+  const rowErrors: RowError[] = [];
   const planned: PlannedItem[] = [];
   const keyRows = new Map<string, number>();
-  const trackNames = [...tournament.divisions.map((d) => d.name), ...Object.values(TRACK_NAMES)];
 
   records.forEach((record, i) => {
     const rowNum = i + 2; // header is row 1
@@ -116,11 +152,8 @@ export async function importAcademicScheduleAction(
     const teamRaw = get("team");
     let division: PlannedItem["division"] = null;
     if (teamRaw && !EVERYONE.has(teamRaw.toLowerCase())) {
-      const existing = findDivision(tournament.divisions, teamRaw);
-      const trackName = TRACK_NAMES[normalizeDivisionName(teamRaw)];
-      if (existing) division = { id: existing.id };
-      else if (trackName) division = { newName: trackName };
-      else errors.push(`Unknown team "${teamRaw}" (use ${[...new Set(trackNames)].join(", ")}, or leave it blank for every team).`);
+      division = matchTrack(tournament.divisions, teamRaw) ?? null;
+      if (!division) errors.push(`Unknown team "${teamRaw}" (use ${trackNames(tournament.divisions)}, or leave it blank for every team).`);
     }
 
     if (errors.length > 0) {
@@ -152,17 +185,12 @@ export async function importAcademicScheduleAction(
   if (planned.length === 0) return { ok: false, error: "No schedule rows found in the file." };
 
   const result = await prisma.$transaction(async (tx) => {
-    // Varsity / Junior Varsity, when this is the first upload to use them.
-    const newDivisionNames = [
-      ...new Set(planned.flatMap((p) => (p.division && "newName" in p.division ? [p.division.newName] : []))),
-    ];
-    const newDivisionIds = new Map<string, string>();
-    for (const name of newDivisionNames) {
-      const created = await tx.division.create({
-        data: { activityId: tournament.activityId, tournamentId: tournament.id, name, slug: slugify(name) },
-      });
-      newDivisionIds.set(name, created.id);
-    }
+    const newDivisionIds = await createTracks(
+      tx,
+      tournament,
+      planned.flatMap((p) => (p.division && "newName" in p.division ? [p.division.newName] : []))
+    );
+    const newDivisionNames = [...newDivisionIds.keys()];
     const divisionIdOf = (p: PlannedItem) =>
       p.division ? ("id" in p.division ? p.division.id : newDivisionIds.get(p.division.newName)!) : null;
 
@@ -232,5 +260,310 @@ export async function importAcademicScheduleAction(
 
   revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
   revalidatePath("/dashboard/admin/academic-games");
-  return { ok: true, ...result };
+  return {
+    ok: true,
+    summary: `Schedule saved: ${result.created} added, ${result.updated} updated, ${result.removed} removed.${addedTracks(result.newDivisions)}`,
+  };
+}
+
+// ── The Academic Bowl ──────────────────────────────────────────────────
+
+const BOWL_HEADERS = ["division", "round", "date", "time", "team_a", "team_b"];
+
+// One side of a planned game: a team (its key - see teamKey), or for a
+// finals slot a source ("seed 1", "winner QF1") or nothing yet.
+type PlannedSide = { team: string } | { source: string | null };
+
+type PlannedGame = {
+  rowNum: number;
+  divisionKey: string;
+  stage: BowlStage;
+  number: number;
+  startTime: Date;
+  room: string | null;
+  a: PlannedSide;
+  b: PlannedSide;
+  scores: { a: number; b: number } | null;
+};
+
+const teamKey = (divisionKey: string, schoolId: string, name: string) => `${divisionKey}|${schoolId}|${name.toLowerCase()}`;
+
+function parseBowlScore(raw: string): number | null | "bad" {
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 && n <= 999 ? n : "bad";
+}
+
+// The Academic Bowl's games from one CSV, in the shape of the league's
+// bowl sheet: division, round (1-24, or QF1-QF4, SF1-SF2, Consolation,
+// Final), date, time, team_a, team_b, room, score_a, score_b. Teams are
+// written as the sheet does ("ASDubai Blue") and added as they appear. A
+// finals slot can name its team, or where it comes from ("seed 1",
+// "winner QF1"). For each division in the file, the file is its whole bowl
+// schedule: games are matched by round and teams (finals by their code) and
+// updated in place, and games no longer in the file are removed. A blank
+// score leaves any score already entered alone.
+export async function importBowlScheduleAction(_prev: AcademicImportResult | null, formData: FormData): Promise<AcademicImportResult> {
+  const admin = await requireAdmin();
+  const loaded = await loadAcademicTournament(String(formData.get("tournamentId") ?? ""));
+  if (!loaded.ok) return loaded;
+  const { tournament } = loaded;
+
+  const text = await readCsvText(formData);
+  if (!text.trim()) return { ok: false, error: "Upload a .csv file or paste CSV text." };
+  const rows = parseCsv(text);
+  if (rows.length < 2) return { ok: false, error: "The file needs a header row plus at least one game row." };
+  const { header, records } = csvRowsToObjects(rows);
+  if (BOWL_HEADERS.some((h) => !header.includes(h))) {
+    return {
+      ok: false,
+      error: "The header row needs: division, round, date, time, team_a, team_b (plus optional room, score_a, score_b).",
+    };
+  }
+
+  const schools = await prisma.school.findMany();
+  const schoolByKey = new Map<string, (typeof schools)[number]>();
+  for (const s of schools) {
+    schoolByKey.set(s.name.trim().toLowerCase(), s);
+    if (s.code) schoolByKey.set(s.code.trim().toLowerCase(), s);
+  }
+
+  const rowErrors: RowError[] = [];
+  const planned: PlannedGame[] = [];
+  // New teams by key, and which divisions still need adding.
+  const teams = new Map<string, { divisionKey: string; schoolId: string; name: string }>();
+  const newTracks = new Set<string>();
+  const gameRows = new Map<string, number>();
+  const busyRows = new Map<string, number>(); // a team's slot in a round -> row
+
+  records.forEach((record, i) => {
+    const rowNum = i + 2;
+    if (Object.values(record).every((v) => !v.trim())) return;
+    const get = (name: string) => (record[name] ?? "").trim();
+    const errors: string[] = [];
+
+    const divisionRaw = get("division");
+    const track = divisionRaw ? matchTrack(tournament.divisions, divisionRaw) : undefined;
+    if (!divisionRaw) errors.push("Missing division.");
+    else if (!track) errors.push(`Unknown division "${divisionRaw}" (use ${trackNames(tournament.divisions)}).`);
+    const divisionKey = track ? ("id" in track ? track.id : `new:${track.newName}`) : "";
+
+    const round = parseRound(get("round"));
+    if (!round) errors.push(`Round "${get("round")}" isn't a round number or a finals game (QF1-QF4, SF1-SF2, Consolation, Final).`);
+
+    const dateRaw = get("date");
+    const time = parseClock(get("time"));
+    const startTime = /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) && time ? new Date(`${dateRaw}T00:00:00`) : null;
+    if (!startTime || Number.isNaN(startTime.getTime())) errors.push(`Date "${dateRaw}" and time "${get("time")}" must be YYYY-MM-DD and 13:45 or 1:45pm.`);
+    else startTime.setHours(time!.hours, time!.minutes, 0, 0);
+
+    const finals = round !== null && round.stage !== "ROUND_ROBIN";
+    const side = (column: string): PlannedSide | null => {
+      const raw = get(column);
+      if (!raw) {
+        if (finals) return { source: null };
+        errors.push(`Missing ${column}.`);
+        return null;
+      }
+      const team = parseTeamName(raw, schoolByKey);
+      if (team) {
+        const key = teamKey(divisionKey, team.school.id, team.name);
+        teams.set(key, { divisionKey, schoolId: team.school.id, name: team.name });
+        return { team: key };
+      }
+      const source = finals ? parseSource(raw) : null;
+      if (source) return { source };
+      errors.push(
+        finals
+          ? `${column} "${raw}" isn't a team, a seed ("seed 1") or a game ("winner QF1").`
+          : `Unknown team "${raw}" (write it as the school and its colour, e.g. "ASDubai Blue").`
+      );
+      return null;
+    };
+    const a = side("team_a");
+    const b = side("team_b");
+    if (a && b && "team" in a && "team" in b && a.team === b.team) errors.push("team_a and team_b are the same team.");
+
+    const scoreA = parseBowlScore(get("score_a"));
+    const scoreB = parseBowlScore(get("score_b"));
+    if (scoreA === "bad" || scoreB === "bad") errors.push("Scores must be whole numbers 0-999.");
+    else if ((scoreA === null) !== (scoreB === null)) errors.push("Give both scores, or leave both blank.");
+    else if (scoreA !== null && a && b && !("team" in a && "team" in b)) errors.push("A game needs both teams before it can have a score.");
+
+    if (errors.length > 0 || !track || !round || !startTime || !a || !b) {
+      rowErrors.push({ row: rowNum, message: errors.join(" ") });
+      return;
+    }
+    if ("newName" in track) newTracks.add(track.newName);
+
+    // One row per game, and a team plays once per round.
+    const teamsIn = ([["team_a", a], ["team_b", b]] as const).flatMap(([column, s]) => ("team" in s ? [{ column, key: s.team }] : []));
+    const slotOf = (team: string) => `${divisionKey}|${round.stage}|${finals ? "" : round.number}|${team}`;
+    const key = finals
+      ? `${divisionKey}|${round.stage}|${round.number}`
+      : `${divisionKey}|${round.number}|${teamsIn.map((t) => t.key).sort().join("|")}`;
+    const where = finals ? gameLabel(round.stage, round.number) : `round ${round.number}`;
+    if (gameRows.has(key)) {
+      rowErrors.push({ row: rowNum, message: `This game is already in the file (row ${gameRows.get(key)}).` });
+      return;
+    }
+    const busy = teamsIn.find((t) => busyRows.has(slotOf(t.key)));
+    if (busy) {
+      rowErrors.push({ row: rowNum, message: `${get(busy.column)} already plays in ${where} (row ${busyRows.get(slotOf(busy.key))}).` });
+      return;
+    }
+    gameRows.set(key, rowNum);
+    for (const t of teamsIn) busyRows.set(slotOf(t.key), rowNum);
+
+    planned.push({
+      rowNum,
+      divisionKey,
+      stage: round.stage,
+      number: round.number,
+      startTime,
+      room: get("room").slice(0, 100) || null,
+      a,
+      b,
+      scores: scoreA !== null && scoreB !== null ? { a: scoreA as number, b: scoreB as number } : null,
+    });
+  });
+
+  if (rowErrors.length > 0) {
+    return { ok: false, error: `${rowErrors.length} row(s) need fixing before anything is saved.`, rowErrors };
+  }
+  if (planned.length === 0) return { ok: false, error: "No game rows found in the file." };
+
+  const result = await prisma.$transaction(
+    async (tx) => {
+      const newDivisionIds = await createTracks(tx, tournament, [...newTracks]);
+      const divisionIdOf = (key: string) => (key.startsWith("new:") ? newDivisionIds.get(key.slice(4))! : key);
+      const divisionIds = [...new Set(planned.map((g) => divisionIdOf(g.divisionKey)))];
+
+      const teamIds = new Map<string, string>();
+      for (const [key, team] of teams) {
+        const divisionId = divisionIdOf(team.divisionKey);
+        const saved = await tx.bowlTeam.upsert({
+          where: { divisionId_schoolId_name: { divisionId, schoolId: team.schoolId, name: team.name } },
+          create: { tournamentId: tournament.id, divisionId, schoolId: team.schoolId, name: team.name },
+          update: {},
+        });
+        teamIds.set(key, saved.id);
+      }
+
+      const existing = await tx.bowlGame.findMany({ where: { tournamentId: tournament.id, divisionId: { in: divisionIds } } });
+      const existingKey = (g: (typeof existing)[number]) =>
+        g.stage === "ROUND_ROBIN"
+          ? `${g.divisionId}|${g.number}|${[g.teamAId, g.teamBId].sort().join("|")}`
+          : `${g.divisionId}|${g.stage}|${g.number}`;
+      const byKey = new Map(existing.map((g) => [existingKey(g), g]));
+      const kept = new Set<string>();
+      let created = 0;
+      let updated = 0;
+
+      for (const game of planned) {
+        const divisionId = divisionIdOf(game.divisionKey);
+        const teamA = "team" in game.a ? teamIds.get(game.a.team)! : null;
+        const teamB = "team" in game.b ? teamIds.get(game.b.team)! : null;
+        const key =
+          game.stage === "ROUND_ROBIN"
+            ? `${divisionId}|${game.number}|${[teamA, teamB].sort().join("|")}`
+            : `${divisionId}|${game.stage}|${game.number}`;
+        const match = byKey.get(key);
+        const sourceA = "source" in game.a ? game.a.source : null;
+        const sourceB = "source" in game.b ? game.b.source : null;
+        // A finals slot already filled from its source keeps its team.
+        const keepA = !teamA && match && sourceA && match.sourceA === sourceA ? match.teamAId : null;
+        const keepB = !teamB && match && sourceB && match.sourceB === sourceB ? match.teamBId : null;
+        // Scores from the file win; a blank score keeps what was entered,
+        // flipped if the file lists the two teams the other way round.
+        const swapped = match && match.teamAId === (teamB ?? keepB) && match.teamBId === (teamA ?? keepA) && match.teamAId !== match.teamBId;
+        const keptScores = match && !game.scores ? (swapped ? { a: match.scoreB, b: match.scoreA } : { a: match.scoreA, b: match.scoreB }) : null;
+        const data = {
+          startTime: game.startTime,
+          room: game.room,
+          teamAId: teamA ?? keepA,
+          teamBId: teamB ?? keepB,
+          sourceA,
+          sourceB,
+          scoreA: game.scores ? game.scores.a : (keptScores?.a ?? null),
+          scoreB: game.scores ? game.scores.b : (keptScores?.b ?? null),
+        };
+        if (match) {
+          await tx.bowlGame.update({ where: { id: match.id }, data });
+          kept.add(match.id);
+          updated++;
+        } else {
+          await tx.bowlGame.create({ data: { ...data, tournamentId: tournament.id, divisionId, stage: game.stage, number: game.number } });
+          created++;
+        }
+      }
+
+      const stale = existing.filter((g) => !kept.has(g.id)).map((g) => g.id);
+      if (stale.length > 0) await tx.bowlGame.deleteMany({ where: { id: { in: stale } } });
+      // Teams no game mentions any more (a renamed team, a school that pulled out).
+      await tx.bowlTeam.deleteMany({
+        where: { divisionId: { in: divisionIds }, gamesAsA: { none: {} }, gamesAsB: { none: {} } },
+      });
+      const teamCount = await tx.bowlTeam.count({ where: { divisionId: { in: divisionIds } } });
+      return { created, updated, removed: stale.length, teams: teamCount, newDivisions: [...newDivisionIds.keys()] };
+    },
+    { timeout: 60_000 }
+  );
+
+  await recordAudit({
+    actorId: admin.id,
+    actorLabel: admin.name,
+    action: "BOWL_SCHEDULE_IMPORT",
+    entityType: "Tournament",
+    entityId: tournament.id,
+    summary: `${admin.name} uploaded the Academic Bowl schedule (${result.created} added, ${result.updated} updated, ${result.removed} removed)`,
+    after: result,
+  });
+
+  revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
+  revalidatePath("/dashboard/admin/academic-games");
+  return {
+    ok: true,
+    summary: `Bowl schedule saved: ${plural(result.created, "game")} added, ${result.updated} updated, ${result.removed} removed, ${plural(result.teams, "team")}.${addedTracks(result.newDivisions)}`,
+  };
+}
+
+// One round's scores from the admin page: `a-<gameId>` and `b-<gameId>`
+// for each game. Both blank clears a game's score.
+export async function saveBowlScoresAction(_prev: AcademicImportResult | null, formData: FormData): Promise<AcademicImportResult> {
+  const admin = await requireAdmin();
+  const ids = formData.getAll("gameId").map(String);
+  const games = await prisma.bowlGame.findMany({
+    where: { id: { in: ids } },
+    include: { tournament: { include: { activity: true } } },
+  });
+  if (games.length === 0 || games.length !== ids.length) return { ok: false, error: "Game not found." };
+  const tournament = games[0].tournament;
+  if (games.some((g) => g.tournamentId !== tournament.id)) return { ok: false, error: "Those games are from different tournaments." };
+
+  const updates: { id: string; scoreA: number | null; scoreB: number | null }[] = [];
+  for (const game of games) {
+    const a = parseBowlScore(String(formData.get(`a-${game.id}`) ?? "").trim());
+    const b = parseBowlScore(String(formData.get(`b-${game.id}`) ?? "").trim());
+    const label = gameCode(game.stage, game.number);
+    if (a === "bad" || b === "bad") return { ok: false, error: `Scores must be whole numbers 0-999 (${label}).` };
+    if ((a === null) !== (b === null)) return { ok: false, error: "Give both scores for a game, or leave both blank." };
+    if (a !== null && (!game.teamAId || !game.teamBId)) return { ok: false, error: "A game needs both teams before it can have a score." };
+    updates.push({ id: game.id, scoreA: a, scoreB: b });
+  }
+
+  await prisma.$transaction(updates.map(({ id, ...scores }) => prisma.bowlGame.update({ where: { id }, data: scores })));
+  await recordAudit({
+    actorId: admin.id,
+    actorLabel: admin.name,
+    action: "BOWL_SCORES_UPDATE",
+    entityType: "Tournament",
+    entityId: tournament.id,
+    summary: `${admin.name} entered Academic Bowl scores (${gameLabel(games[0].stage, games[0].number)})`,
+    after: { games: updates },
+  });
+
+  revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
+  revalidatePath("/dashboard/admin/academic-games");
+  return { ok: true, summary: "Saved." };
 }
