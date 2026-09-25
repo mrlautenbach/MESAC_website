@@ -934,8 +934,12 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
     const awayScores = formData.getAll("set-away-score").map(String);
     const newSets: { setNumber: number; homeScore: number; awayScore: number }[] = [];
     for (let i = 0; i < homeScores.length; i++) {
+      // A row left blank (or 0-0) isn't a set that was played - skip it
+      // rather than saving it as a real 0-0 set.
+      if (!homeScores[i]?.trim() && !awayScores[i]?.trim()) continue;
+      if (Number(homeScores[i] || 0) === 0 && Number(awayScores[i] || 0) === 0) continue;
       const setParsed = setScoreEntrySchema.safeParse({
-        setNumber: i + 1,
+        setNumber: newSets.length + 1,
         homeScore: homeScores[i],
         awayScore: awayScores[i],
       });
@@ -1020,6 +1024,9 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
   revalidateTournament({ slug: event.tournament.slug, activitySlug: event.tournament.activity.slug });
   revalidatePath(`/seasons/${event.tournament.slug}/events/${event.slug}`);
   revalidatePath("/dashboard");
+  // This edit page too, so the form shows what was just saved - otherwise it
+  // resets to the values it was first loaded with (e.g. still "Completed").
+  revalidatePath(`/dashboard/events/${event.id}`);
   return { ok: true };
 }
 

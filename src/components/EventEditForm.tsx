@@ -94,7 +94,10 @@ export function EventEditForm({
           <label htmlFor="status" className="field-label">
             Status
           </label>
-          <select id="status" name="status" defaultValue={status} className="field-input">
+          {/* Keyed on the saved value: after a save, React resets the form to
+              each field's default, and a dropdown's default only updates when
+              it's remounted - without this it snaps back to the old status. */}
+          <select key={status} id="status" name="status" defaultValue={status} className="field-input">
             <option value="SCHEDULED">Scheduled</option>
             <option value="COMPLETED">Completed</option>
             <option value="CANCELLED">Cancelled</option>
@@ -132,6 +135,7 @@ export function EventEditForm({
                         <label className="flex items-center gap-2 text-sm">
                           {scoringType === "LOW_SCORE" ? "Team score" : usesSetScores ? "Sets won" : "Score"}
                           <input
+                            key={p.score ?? ""}
                             type="number"
                             min={0}
                             max={9999}
@@ -144,6 +148,7 @@ export function EventEditForm({
                           <label className="flex items-center gap-2 text-sm">
                             Outcome
                             <select
+                              key={p.outcome ?? ""}
                               name={`result-${p.schoolId}-outcome`}
                               defaultValue={p.outcome ?? ""}
                               className="field-input w-32"
@@ -187,6 +192,9 @@ export function EventEditForm({
 
           {scoringType === "WIN_LOSS" && usesSetScores && participants.length === 2 && (
             <SetScoresEditor
+              // Remounted when the saved sets change, so the rows match what
+              // was just saved instead of what the page first loaded.
+              key={JSON.stringify(initialSets)}
               homeSchoolName={participants.find((p) => p.schoolId === homeSchoolId)?.schoolName ?? participants[0].schoolName}
               awaySchoolName={participants.find((p) => p.schoolId !== homeSchoolId)?.schoolName ?? participants[1].schoolName}
               editable={isAdmin || participants.some((p) => p.schoolId === viewerSchoolId)}
@@ -300,17 +308,16 @@ function SetScoresEditor({
   initialSets: SetEntry[];
 }) {
   const idPrefix = useId();
-  const [rows, setRows] = useState(
-    initialSets.length > 0
-      ? initialSets.map((s, i) => ({ key: `${idPrefix}-${i}`, homeScore: s.homeScore, awayScore: s.awayScore }))
-      : [{ key: `${idPrefix}-0`, homeScore: 0, awayScore: 0 }]
+  const [rows, setRows] = useState<{ key: string; homeScore: number | null; awayScore: number | null }[]>(
+    initialSets.map((s, i) => ({ key: `${idPrefix}-${i}`, homeScore: s.homeScore, awayScore: s.awayScore }))
   );
 
   function addRow() {
-    setRows((r) => [...r, { key: `${idPrefix}-${r.length}-${Date.now()}`, homeScore: 0, awayScore: 0 }]);
+    setRows((r) => [...r, { key: `${idPrefix}-${r.length}-${Date.now()}`, homeScore: null, awayScore: null }]);
   }
+  // Every row can go, including the last - clearing a game's sets entirely.
   function removeRow(key: string) {
-    setRows((r) => (r.length > 1 ? r.filter((row) => row.key !== key) : r));
+    setRows((r) => r.filter((row) => row.key !== key));
   }
 
   if (!editable) {
@@ -338,6 +345,7 @@ function SetScoresEditor({
       <p className="mb-2 text-xs font-semibold text-muted">
         Set scores ({homeSchoolName} – {awaySchoolName})
       </p>
+      {rows.length === 0 && <p className="text-sm text-muted">No set scores entered.</p>}
       <div className="space-y-2">
         {rows.map((row, i) => (
           <div key={row.key} className="flex items-center gap-2">
@@ -345,7 +353,8 @@ function SetScoresEditor({
             <input
               type="number"
               name="set-home-score"
-              defaultValue={row.homeScore}
+              defaultValue={row.homeScore ?? ""}
+              aria-label={`Set ${i + 1} ${homeSchoolName}`}
               min={0}
               max={999}
               className="field-input w-16 text-sm"
@@ -354,7 +363,8 @@ function SetScoresEditor({
             <input
               type="number"
               name="set-away-score"
-              defaultValue={row.awayScore}
+              defaultValue={row.awayScore ?? ""}
+              aria-label={`Set ${i + 1} ${awaySchoolName}`}
               min={0}
               max={999}
               className="field-input w-16 text-sm"
@@ -374,7 +384,8 @@ function SetScoresEditor({
         + Add set
       </button>
       <p className="mt-1 text-xs text-muted">
-        One row per set played. A match can end in as few as 2 sets or run the full 5.
+        One row per set played. A match can end in as few as 2 sets or run the full 5. Remove every row to clear the
+        set scores.
       </p>
     </div>
   );
