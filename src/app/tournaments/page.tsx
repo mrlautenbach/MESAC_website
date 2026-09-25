@@ -46,7 +46,7 @@ export default async function TournamentsIndexPage() {
           return (
             <section key={season.id}>
               <div className="mb-3 flex items-baseline gap-3">
-                <h2 className="text-xl font-bold text-primary-dark">{season.name}</h2>
+                <h2 className="text-xl text-primary-dark">{season.name}</h2>
                 {dateRange && <span className="text-xl text-primary-dark">{dateRange}</span>}
               </div>
 

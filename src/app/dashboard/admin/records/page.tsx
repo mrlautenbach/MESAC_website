@@ -21,7 +21,7 @@ export default async function RecordsAdminPage() {
   return (
     <div className="page-wrap space-y-12 py-8 [&>*]:max-w-3xl">
       <div>
-        <h2 className="mb-1 text-xl font-bold">Previous years&apos; results</h2>
+        <h2 className="mb-1 text-xl">Previous years&apos; results</h2>
         <p className="mb-4 text-sm text-muted">
           Add a link to each school year&apos;s full results (a PDF, spreadsheet, or page hosted elsewhere). Shown on
           the public History page.
@@ -39,12 +39,12 @@ export default async function RecordsAdminPage() {
       </div>
 
       <div>
-        <h1 className="mb-6 text-2xl font-bold">Add a league record</h1>
+        <h1 className="mb-6 text-2xl">Add a league record</h1>
         <RecordForm schools={schools} />
       </div>
 
       <div>
-        <h2 className="mb-4 text-xl font-bold">Records ({records.length})</h2>
+        <h2 className="mb-4 text-xl">Records ({records.length})</h2>
         <ul className="space-y-2">
           {records.map((r) => (
             <li key={r.id} className="card flex items-center justify-between gap-3 p-3">
@@ -72,12 +72,12 @@ export default async function RecordsAdminPage() {
       </div>
 
       <div>
-        <h1 className="mb-6 text-2xl font-bold">Add a Hall of Fame inductee</h1>
+        <h1 className="mb-6 text-2xl">Add a Hall of Fame inductee</h1>
         <HallOfFameForm schools={schools} />
       </div>
 
       <div>
-        <h2 className="mb-4 text-xl font-bold">Hall of Fame ({hofEntries.length})</h2>
+        <h2 className="mb-4 text-xl">Hall of Fame ({hofEntries.length})</h2>
         <ul className="space-y-2">
           {hofEntries.map((h) => (
             <li key={h.id} className="card flex items-center justify-between gap-3 p-3">

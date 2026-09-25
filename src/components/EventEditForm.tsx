@@ -141,7 +141,7 @@ export function EventEditForm({
 
       {scoringType !== "NONE" && (
         <div>
-          <h3 className="field-label mb-2">Result</h3>
+          <h3 className="field-label mb-2 font-extrabold">Result</h3>
           <div className="space-y-3">
             {participants.map((p) => {
               const editable = isAdmin || p.schoolId === viewerSchoolId;
@@ -273,7 +273,7 @@ function MatchupEditor({
 }) {
   return (
     <div>
-      <h3 className="field-label mb-2">Matchup</h3>
+      <h3 className="field-label mb-2 font-extrabold">Matchup</h3>
       <div className="grid gap-4 sm:grid-cols-2">
         <SideSelect label="Home" name="home-schoolId" schools={schools} side={homeSide} />
         <SideSelect label="Away" name="away-schoolId" schools={schools} side={awaySide} />

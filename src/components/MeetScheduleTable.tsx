@@ -101,7 +101,7 @@ export function MeetScheduleTable({
       ) : (
         sessionGroups.map((group) => (
           <div key={group.sessionId}>
-            <h5 className="mb-2 flex flex-wrap items-baseline gap-x-2 border-b-2 border-divider pb-1.5 text-sm font-bold text-primary-dark">
+            <h5 className="mb-2 flex flex-wrap items-baseline gap-x-2 border-b-2 border-divider pb-1.5 text-sm text-primary-dark">
               <Link
                 href={`/seasons/${tournamentSlug}/events/${group.rows[0].sessionSlug}`}
                 className="hover:underline"

@@ -75,7 +75,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
         <Link href={`/dashboard/admin/tournaments/${tournament.activityId}`} className="text-sm font-semibold text-primary-dark hover:underline">
           ← {tournament.activity.name}
         </Link>
-        <h1 className="mt-2 text-2xl font-bold">
+        <h1 className="mt-2 text-2xl">
           {tournament.activity.name} <span className="font-normal text-muted">· {tournament.name}</span>
         </h1>
         <nav aria-label="Steps" className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
@@ -94,7 +94,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
 
       <section id="roster" className="scroll-mt-20 space-y-4">
         <div>
-          <h2 className="text-xl font-bold">1. Roster ({players.length} players)</h2>
+          <h2 className="text-xl">1. Roster ({players.length} players)</h2>
           <p className="mt-1 text-sm text-muted">
             Columns: <code>school</code> (code or name), <code>seed</code> (1–6 within the school),{" "}
             <code>name</code>, and optional <code>grade</code> and <code>gender</code> (M/F). Seeds 1–2 play Flight
@@ -115,7 +115,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
           <div className="card grid gap-x-6 gap-y-4 p-4 sm:grid-cols-2">
             {[...bySchool.values()].map((own) => (
               <div key={own[0].schoolId}>
-                <h3 className="text-sm font-bold">
+                <h3 className="text-sm">
                   {own[0].school.name} <span className="font-normal text-muted">({own.length})</span>
                 </h3>
                 <ol className="mt-1 space-y-0.5 text-sm">
@@ -143,7 +143,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
 
       <section id="draw" className="scroll-mt-20 space-y-4">
         <div>
-          <h2 className="text-xl font-bold">2. Day 1 draw ({tournament.golfGroups.length} groups)</h2>
+          <h2 className="text-xl">2. Day 1 draw ({tournament.golfGroups.length} groups)</h2>
           <p className="mt-1 text-sm text-muted">
             One row per player: <code>date</code> (YYYY-MM-DD), <code>flight</code>, <code>group</code> (its number
             for the day), <code>tee_time</code> (HH:MM), <code>school</code>, <code>seed</code>, and optional{" "}
@@ -177,7 +177,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
 
       <section id="scores" className="scroll-mt-20 space-y-4">
         <div>
-          <h2 className="text-xl font-bold">
+          <h2 className="text-xl">
             3. Scores ({scored} of {players.length})
           </h2>
           <p className="mt-1 text-sm text-muted">
@@ -201,7 +201,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
             if (groups.length === 0) return null;
             return (
               <div key={flight}>
-                <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted">Flight {flight}</h3>
+                <h3 className="mb-2 text-sm uppercase tracking-wide text-muted">Flight {flight}</h3>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {groups.map((g) => (
                     <div key={g.id} id={`group-${g.id}`} className="card scroll-mt-20 p-3">
@@ -232,7 +232,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
 
       <section id="team-draw" className="scroll-mt-20 space-y-4">
         <div>
-          <h2 className="text-xl font-bold">
+          <h2 className="text-xl">
             4. Team draw ({matches.length} matches, {rounds.length} rounds)
           </h2>
           <p className="mt-1 text-sm text-muted">
@@ -262,7 +262,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
 
       <section id="team-results" className="scroll-mt-20 space-y-4">
         <div>
-          <h2 className="text-xl font-bold">
+          <h2 className="text-xl">
             5. Team results ({pairsIn} of {pairsTotal} pairs matches)
           </h2>
           <p className="mt-1 text-sm text-muted">
@@ -288,7 +288,7 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
             const own = matches.filter((m) => m.round === round);
             return (
               <div key={round}>
-                <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted">
+                <h3 className="mb-2 text-sm uppercase tracking-wide text-muted">
                   Round {round} · {format(own[0].startTime, "EEE d MMM · h:mm a")}
                 </h3>
                 <div className="grid gap-3 sm:grid-cols-2">

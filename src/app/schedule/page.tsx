@@ -99,7 +99,7 @@ export default async function SchedulePage() {
           return (
             <section key={season.id}>
               <div className="mb-3 flex items-baseline gap-3">
-                <h2 className="text-xl font-bold">{season.name}</h2>
+                <h2 className="text-xl">{season.name}</h2>
                 {dateRange && <span className="text-sm text-muted">{dateRange}</span>}
               </div>
 

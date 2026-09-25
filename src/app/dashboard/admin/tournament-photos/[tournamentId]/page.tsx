@@ -39,7 +39,7 @@ export default async function TournamentPhotosAdminPage({
         <Link href="/dashboard/admin/tournaments" className="text-sm font-semibold text-primary-dark hover:underline">
           &larr; Tournaments
         </Link>
-        <h1 className="mt-2 mb-1 text-2xl font-bold">Team photos</h1>
+        <h1 className="mt-2 mb-1 text-2xl">Team photos</h1>
         <p className="text-sm text-muted">
           {tournament.activity.name} · {tournament.name}. Turn off any slot a school isn&apos;t fielding this year.
         </p>
@@ -55,7 +55,7 @@ export default async function TournamentPhotosAdminPage({
 
       {divisions.map((division) => (
         <div key={division?.id ?? "all"}>
-          {division && <h2 className="mb-3 text-lg font-bold">{division.name}</h2>}
+          {division && <h2 className="mb-3 text-lg">{division.name}</h2>}
           <div className="grid gap-3 sm:grid-cols-2">
             {schools.map((school) => {
               const key = `${school.id}:${division?.id ?? "none"}`;

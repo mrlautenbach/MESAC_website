@@ -34,7 +34,7 @@ export default async function TournamentsAdminPage() {
   return (
     <div className="page-wrap space-y-10 py-8 [&>*]:max-w-3xl">
       <div>
-        <h1 className="text-2xl font-bold">Activities ({activityCount})</h1>
+        <h1 className="text-2xl">Activities ({activityCount})</h1>
         <p className="mt-1 text-sm text-muted">
           Pick an activity to manage its current tournament, past tournaments and settings.
         </p>
@@ -47,7 +47,7 @@ export default async function TournamentsAdminPage() {
         );
         return (
           <section key={season.id}>
-            <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted">{season.name}</h2>
+            <h2 className="mb-3 text-sm uppercase tracking-wide text-muted">{season.name}</h2>
             {missing.length > 0 && (
               <p className="mb-3 text-sm text-muted">
                 Not set up yet: {missing.map((e) => e.name).join(", ")}.
@@ -106,7 +106,7 @@ export default async function TournamentsAdminPage() {
 
       {isAdmin && (
         <div className="border-t-2 border-divider pt-8">
-          <h2 className="mb-1 text-xl font-bold">Create an activity</h2>
+          <h2 className="mb-1 text-xl">Create an activity</h2>
           <p className="mb-6 text-sm text-muted">
             For a new sport or division not already listed above. Most years won&apos;t need this.
           </p>

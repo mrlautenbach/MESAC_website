@@ -145,7 +145,7 @@ export function MeetResultsView({ groups }: { groups: MeetResultGroup[] }) {
       ) : (
         visibleGroups.map((group) => (
           <div key={group.key} className="card p-4">
-            <h3 className="mb-3 flex flex-wrap items-center gap-2 text-base font-bold">
+            <h3 className="mb-3 flex flex-wrap items-center gap-2 text-base">
               {group.eventNumber != null && <span className="text-muted">Event {group.eventNumber}</span>}
               {group.eventName}
               {group.gender && <span className={`tag ${GENDER_TAG_CLASS[group.gender]}`}>{GENDER_LABEL[group.gender]}</span>}
@@ -182,7 +182,7 @@ function RoundTable({
   const showRef = rows.some((r) => r[refKey]);
   return (
     <div>
-      {label && <h4 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted">{label}</h4>}
+      {label && <h4 className="mb-1.5 text-xs uppercase tracking-wide text-muted">{label}</h4>}
       {rows.length === 0 ? (
         <p className="text-sm text-muted">Not yet run.</p>
       ) : (

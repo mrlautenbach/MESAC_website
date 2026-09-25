@@ -85,7 +85,7 @@ export default async function ResultsDashboardPage() {
   return (
     <div className="page-wrap space-y-8 py-8">
       <div>
-        <h1 className="text-2xl font-bold">Results</h1>
+        <h1 className="text-2xl">Results</h1>
         <p className="text-muted">
           Every current tournament&apos;s games and sessions in one place - jump straight to entering or fixing a
           result.
@@ -117,7 +117,7 @@ type TournamentGroup = { tournament: ResultEvent["tournament"]; events: ResultEv
 function SectionHeader({ tournament }: { tournament: ResultEvent["tournament"] }) {
   return (
     <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-      <h2 className="text-xl font-bold">
+      <h2 className="text-xl">
         {tournament.activity.name} <span className="font-normal text-muted">· {tournament.name}</span>
       </h2>
       <Link href={`/seasons/${tournament.slug}`} className="text-xs font-semibold text-primary hover:underline">
@@ -167,7 +167,7 @@ function GameList({ title, events, needsResult = false }: { title?: string; even
   return (
     <div>
       {title && (
-        <h3 className={`mb-1.5 text-xs font-bold uppercase tracking-wide ${needsResult ? "text-danger" : "text-muted"}`}>
+        <h3 className={`mb-1.5 text-xs uppercase tracking-wide ${needsResult ? "text-danger" : "text-muted"}`}>
           {title}
         </h3>
       )}
@@ -291,7 +291,7 @@ function GolfTournamentSection({ tournament }: { tournament: GolfTournament }) {
       <SectionHeader tournament={{ id: tournament.id, name: tournament.name, slug: tournament.slug, activity: tournament.activity }} />
       <div className="space-y-5">
         <div>
-          <h3 className={`mb-1.5 text-xs font-bold uppercase tracking-wide ${groupsMissing.length ? "text-danger" : "text-muted"}`}>
+          <h3 className={`mb-1.5 text-xs uppercase tracking-wide ${groupsMissing.length ? "text-danger" : "text-muted"}`}>
             Day 1 scores ({scored} of {players})
           </h3>
           {tournament.golfGroups.length === 0 ? (
@@ -371,7 +371,7 @@ function GolfMatchList({
   return (
     <div>
       {title && (
-        <h3 className={`mb-1.5 text-xs font-bold uppercase tracking-wide ${urgent ? "text-danger" : "text-muted"}`}>{title}</h3>
+        <h3 className={`mb-1.5 text-xs uppercase tracking-wide ${urgent ? "text-danger" : "text-muted"}`}>{title}</h3>
       )}
       <ul className="divide-y divide-border border-y border-border">
         {matches.map((m) => (

@@ -28,7 +28,7 @@ export default async function ImportEventsPage({
   if (tournaments.length === 0) {
     return (
       <div className="page-wrap py-8 [&>*]:max-w-2xl">
-        <h1 className="mb-2 text-2xl font-bold">Bulk import games</h1>
+        <h1 className="mb-2 text-2xl">Bulk import games</h1>
         <p className="text-muted">Create an activity and tournament first before importing a schedule.</p>
       </div>
     );
@@ -44,7 +44,7 @@ export default async function ImportEventsPage({
   return (
     <div className="page-wrap py-8 [&>*]:max-w-2xl">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Bulk import games</h1>
+        <h1 className="text-2xl">Bulk import games</h1>
         <Link
           href={`/dashboard/admin/events/new${defaultTournamentId ? `?tournament=${defaultTournamentId}` : ""}`}
           className="text-sm font-semibold text-primary hover:underline"
