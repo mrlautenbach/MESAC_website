@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { pickView } from "@/lib/viewSwitch";
+import { BowlResults } from "@/components/BowlViews";
 import { TournamentResults } from "@/components/TournamentGames";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +54,7 @@ export default async function DivisionResultsPage({
       <div className="page-wrap py-8">
         {tournament.activity.usesAcademicFormat ? (
           viewSwitch?.current === "bowl" ? (
-            <p className="text-muted">Bowl standings and the finals bracket will appear here once games are scored.</p>
+            <BowlResults tournamentId={tournament.id} divisionId={division.id} />
           ) : (
             <p className="text-muted">Results will be posted here once the competitions begin.</p>
           )

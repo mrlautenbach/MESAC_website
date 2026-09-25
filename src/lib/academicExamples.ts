@@ -163,7 +163,9 @@ export async function buildBowlExample(tournamentId: string): Promise<{ filename
         a.startTime.getTime() - b.startTime.getTime() ||
         (a.room ?? "").localeCompare(b.room ?? "", undefined, { numeric: true })
     );
-    const side = (team: (typeof games)[number]["teamA"], source: string | null) => (team ? teamLabel(team) : (source ?? ""));
+    // A finals slot keeps where it comes from ("winner QF1") rather than the
+    // team it's been filled with, so re-uploading doesn't pin that team.
+    const side = (team: (typeof games)[number]["teamA"], source: string | null) => source ?? (team ? teamLabel(team) : "");
     const rows = games.map((g) => [
       nameOf.get(g.divisionId),
       gameCode(g.stage, g.number),

@@ -134,7 +134,7 @@ export function BowlScoresForm({
         <button type="submit" disabled={pending} className="btn btn-secondary px-3 py-1.5 text-sm">
           {pending ? "Saving…" : "Save scores"}
         </button>
-        {state?.ok && <span className="text-sm text-success">Saved.</span>}
+        {state?.ok && <span className="text-sm text-success">{state.summary}</span>}
         {state && !state.ok && <span className="text-sm text-danger">{state.error}</span>}
       </div>
     </form>
