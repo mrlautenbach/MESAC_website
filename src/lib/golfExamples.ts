@@ -1,5 +1,6 @@
 import { addDays, format } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { toCsv } from "@/lib/csv";
 import { GOLF_FLIGHTS, GOLF_SEEDS_PER_SCHOOL, pairName, seedingIsFinal, teamSeeding } from "@/lib/golf";
 
 // Downloadable example CSVs for each golf upload. Every one is a complete,
@@ -14,15 +15,6 @@ export type GolfExampleFile = (typeof GOLF_EXAMPLE_FILES)[number];
 
 type Player = { id: string; schoolId: string; seed: number; name: string; grade: number | null; gender: string | null; points: number | null };
 type School = { id: string; label: string };
-
-function csvCell(value: string | number | null | undefined): string {
-  const text = value === null || value === undefined ? "" : String(value);
-  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-function toCsv(header: string[], rows: (string | number | null | undefined)[][]): string {
-  return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n") + "\n";
-}
 
 // Round-robin pairings (the circle method): every school plays every other
 // once, one match each per round. An odd number of schools gets a bye each

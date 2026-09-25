@@ -9,6 +9,7 @@ export function MeetResultsImportForm({ eventId, resultCount }: { eventId: strin
     importMeetResultsAction,
     null
   );
+  const exampleHref = `/dashboard/events/${eventId}/results-example`;
 
   return (
     <div className="space-y-4">
@@ -30,6 +31,14 @@ export function MeetResultsImportForm({ eventId, resultCount }: { eventId: strin
         <p className="text-muted">
           Re-uploading replaces every result already imported for this event - there&apos;s no per-row editor, so fix
           a mistake by correcting the file and uploading it again.
+        </p>
+        <p className="text-muted">
+          The{" "}
+          <a href={exampleHref} download className="font-semibold text-primary hover:underline">
+            example CSV
+          </a>{" "}
+          uploads as-is: sample placings for every race in this session&apos;s program to replace with real ones, or,
+          once results are in, the current results to correct and re-upload.
         </p>
       </div>
 
@@ -96,9 +105,14 @@ export function MeetResultsImportForm({ eventId, resultCount }: { eventId: strin
           </p>
         )}
 
-        <button type="submit" disabled={pending} className="btn btn-primary">
-          {pending ? "Importing…" : "Import results"}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="submit" disabled={pending} className="btn btn-primary">
+            {pending ? "Importing…" : "Import results"}
+          </button>
+          <a href={exampleHref} download className="text-sm font-semibold text-primary hover:underline">
+            Download example CSV
+          </a>
+        </div>
       </form>
     </div>
   );

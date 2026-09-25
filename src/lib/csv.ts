@@ -59,3 +59,14 @@ export function csvRowsToObjects(rows: string[][]): { header: string[]; records:
   });
   return { header: normalizedHeader, records };
 }
+
+function csvCell(value: string | number | null | undefined): string {
+  const text = value === null || value === undefined ? "" : String(value);
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+// The reverse of parseCsv, for the downloadable example files: quotes only
+// the cells that need it.
+export function toCsv(header: string[], rows: (string | number | null | undefined)[][]): string {
+  return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n") + "\n";
+}
