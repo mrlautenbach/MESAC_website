@@ -217,8 +217,10 @@ export const eventInputSchema = z.object({
 
 export const resultEntrySchema = z.object({
   schoolId: z.string().cuid(),
+  // "" checked first - z.coerce.number() reads "" as 0, which would save a
+  // blank score box as a real 0.
   score: z
-    .union([z.coerce.number().int().min(0).max(9999), z.literal("")])
+    .union([z.literal(""), z.coerce.number().int().min(0).max(9999)])
     .optional()
     .transform((v) => (v === "" || v === undefined ? null : v)),
   outcome: z.enum(["WIN", "LOSS", "DRAW", ""]).optional().transform((v) => (v === "" || v === undefined ? null : v)),

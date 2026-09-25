@@ -42,6 +42,49 @@ function eventWhere(tournamentId: string, divisionId?: string | null, excludeBra
   };
 }
 
+type Outcome = "WIN" | "LOSS" | "DRAW";
+type DecidedResult = { schoolId: string; score: number | null; outcome: Outcome };
+type StandingsEvent = {
+  status: string;
+  results: { schoolId: string; score: number | null; outcome: Outcome | null }[];
+  participants: { schoolId: string; isHome: boolean }[];
+  sets: { homeScore: number; awayScore: number }[];
+};
+
+const OPPOSITE: Record<Outcome, Outcome> = { WIN: "LOSS", LOSS: "WIN", DRAW: "DRAW" };
+const isDecided = <R extends { outcome: Outcome | null }>(r: R): r is R & { outcome: Outcome } => r.outcome !== null;
+
+// Each school's result in a game that counts for the table. A two-team
+// game counts for both teams as soon as it's decided for either: when only
+// one side's outcome was picked (e.g. the winner's "Win"), the other side
+// gets the opposite, and a completed game with both scores but no outcome
+// picked at all is decided by the scores (for volleyball, sets won - counted
+// from the set scores when "sets won" was left blank). So the loser always
+// appears, with its loss and the points it scored.
+function decidedResults(event: StandingsEvent): DecidedResult[] {
+  if (event.participants.length !== 2) return event.results.filter(isDecided);
+
+  const sides = event.participants.map((p) => {
+    const result = event.results.find((r) => r.schoolId === p.schoolId);
+    const setsWon = event.sets.filter((s) => (p.isHome ? s.homeScore > s.awayScore : s.awayScore > s.homeScore)).length;
+    return {
+      schoolId: p.schoolId,
+      score: result?.score ?? null,
+      outcome: result?.outcome ?? null,
+      // Only for deciding the game - For/Against still use the stored score.
+      decidingScore: result?.score ?? (event.sets.length > 0 ? setsWon : null),
+    };
+  });
+  const [a, b] = sides;
+  if (a.outcome && !b.outcome) b.outcome = OPPOSITE[a.outcome];
+  else if (!a.outcome && b.outcome) a.outcome = OPPOSITE[b.outcome];
+  else if (!a.outcome && !b.outcome && event.status === "COMPLETED" && a.decidingScore !== null && b.decidingScore !== null) {
+    a.outcome = a.decidingScore === b.decidingScore ? "DRAW" : a.decidingScore > b.decidingScore ? "WIN" : "LOSS";
+    b.outcome = OPPOSITE[a.outcome];
+  }
+  return sides.filter(isDecided).map(({ schoolId, score, outcome }) => ({ schoolId, score, outcome }));
+}
+
 const FORM_LETTER: Record<string, "W" | "L" | "D"> = { WIN: "W", LOSS: "L", DRAW: "D" };
 
 // Standings are always derived from the Results table at read time (there is
@@ -61,8 +104,9 @@ export async function computeStandings(
     where: eventWhere(tournamentId, divisionId, excludeBracketGames),
     orderBy: { date: "asc" },
     select: {
-      results: { select: { schoolId: true, score: true, outcome: true, school: { select: { name: true, logoUrl: true } } } },
-      participants: { select: { schoolId: true, isHome: true } },
+      status: true,
+      results: { select: { schoolId: true, score: true, outcome: true } },
+      participants: { select: { schoolId: true, isHome: true, school: { select: { name: true, logoUrl: true } } } },
       sets: { select: { homeScore: true, awayScore: true } },
     },
   });
@@ -82,14 +126,16 @@ export async function computeStandings(
       if (away) pointsBySchoolId.set(away.schoolId, event.sets.reduce((sum, s) => sum + s.awayScore, 0));
     }
 
-    const decided = event.results.filter((r) => r.outcome !== null);
+    const decided = decidedResults(event);
     for (const result of decided) {
       let row = table.get(result.schoolId);
       if (!row) {
+        const school = event.participants.find((p) => p.schoolId === result.schoolId)?.school;
+        if (!school) continue;
         row = {
           schoolId: result.schoolId,
-          schoolName: result.school.name,
-          logoUrl: result.school.logoUrl,
+          schoolName: school.name,
+          logoUrl: school.logoUrl,
           played: 0,
           wins: 0,
           draws: 0,
