@@ -35,6 +35,7 @@ type ExistingActivity = {
   usesMeetResults: boolean;
   usesLiveResults: boolean;
   usesGolfFormat: boolean;
+  usesAcademicFormat: boolean;
 };
 
 export function ActivityForm({
@@ -173,6 +174,19 @@ export function ActivityForm({
               </a>
             </div>
           )}
+        </div>
+      )}
+
+      {scoringType === "NONE" && (
+        <div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="usesAcademicFormat" defaultChecked={existing?.usesAcademicFormat ?? false} />
+            Academic Games format (a day-by-day timeline, Varsity and JV side by side)
+          </label>
+          <p className="mt-1 text-xs text-muted">
+            Replaces the regular schedule with a timeline of competitions, each with a start and end time. Upload it
+            from the tournament&apos;s Academic Games page.
+          </p>
         </div>
       )}
 

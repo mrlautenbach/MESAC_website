@@ -61,7 +61,8 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
 
   const homeParticipant = event.participants.find((p) => p.isHome) ?? null;
   const awayParticipant = event.participants.find((p) => !p.isHome) ?? null;
-  const canEditMatchup = isAdmin && event.participants.length <= 2;
+  const isTimelineItem = event.tournament.activity.usesAcademicFormat;
+  const canEditMatchup = isAdmin && event.participants.length <= 2 && !isTimelineItem;
   const pendingLabel = (
     outcome: "WINNER" | "LOSER" | null,
     externalId: string | null | undefined,
@@ -119,7 +120,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
           &larr; View public event page
         </Link>
         <h1 className="mt-1 text-2xl font-bold">
-          {event.participants.map((p) => p.school.name).join(" vs ")}
+          {event.participants.length > 0 ? event.participants.map((p) => p.school.name).join(" vs ") : event.title}
         </h1>
         <p className="text-muted">
           {event.tournament.activity.name}
@@ -146,6 +147,11 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
           initialSets={event.sets.map((s) => ({ setNumber: s.setNumber, homeScore: s.homeScore, awayScore: s.awayScore }))}
           schools={schools}
           canEditMatchup={canEditMatchup}
+          timeline={
+            isTimelineItem && isAdmin
+              ? { title: event.title ?? "", endTime: event.endDate ? format(event.endDate, "HH:mm") : "" }
+              : null
+          }
           homeSide={homeSide}
           awaySide={awaySide}
         />

@@ -87,6 +87,7 @@ export default async function TeamPhotosPage({ params }: { params: Promise<{ sea
         tournamentSlug={tournament.slug}
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
+        usesAcademicFormat={tournament.activity.usesAcademicFormat}
         active="team-photos"
       />
       <div className="page-wrap py-8">

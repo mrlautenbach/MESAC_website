@@ -23,9 +23,11 @@ export default async function TournamentResultsPage({
   if (!tournament) notFound();
   // Non-meet activities with divisions have no combined page - each division
   // gets its own results. Meet-style activities (Swimming, Track & Field)
-  // use this page as the "Overall" view across every division instead.
+  // use this page as the "Overall" view across every division instead, and
+  // Academic Games as both tracks together.
   const hasDivisions = tournament.divisions.length > 0;
-  if (hasDivisions && !tournament.activity.usesMeetResults) notFound();
+  const academic = tournament.activity.usesAcademicFormat;
+  if (hasDivisions && !tournament.activity.usesMeetResults && !academic) notFound();
   const golfView = tournament.activity.usesGolfFormat ? (view === "team" ? "team" : "individual") : undefined;
 
   return (
@@ -35,7 +37,7 @@ export default async function TournamentResultsPage({
         activitySport={tournament.activity.sport}
         activitySlug={tournament.activity.slug}
         tournamentName={tournament.name}
-        divisionName={hasDivisions ? "Overall" : undefined}
+        divisionName={hasDivisions && !academic ? "Overall" : undefined}
         startDate={tournament.startDate}
         endDate={tournament.endDate}
         hostSchoolName={tournament.hostSchool?.name}
@@ -47,11 +49,14 @@ export default async function TournamentResultsPage({
         tournamentSlug={tournament.slug}
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
+        usesAcademicFormat={tournament.activity.usesAcademicFormat}
         active="results"
         golfView={golfView}
       />
       <div className="page-wrap py-8">
-        {golfView === "individual" ? (
+        {academic ? (
+          <p className="text-muted">Results will be posted here once the competitions begin.</p>
+        ) : golfView === "individual" ? (
           <GolfIndividualResults tournamentId={tournament.id} />
         ) : golfView === "team" ? (
           <GolfTeamResults tournamentId={tournament.id} scoring={tournament.activity} />

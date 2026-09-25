@@ -40,16 +40,21 @@ export default async function DivisionResultsPage({
         tournamentSlug={tournament.slug}
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
+        usesAcademicFormat={tournament.activity.usesAcademicFormat}
         currentDivisionSlug={division.slug}
         active="results"
       />
       <div className="page-wrap py-8">
-        <TournamentResults
-          tournamentId={tournament.id}
-          tournamentSlug={tournament.slug}
-          divisionId={division.id}
-          activity={tournament.activity}
-        />
+        {tournament.activity.usesAcademicFormat ? (
+          <p className="text-muted">Results will be posted here once the competitions begin.</p>
+        ) : (
+          <TournamentResults
+            tournamentId={tournament.id}
+            tournamentSlug={tournament.slug}
+            divisionId={division.id}
+            activity={tournament.activity}
+          />
+        )}
       </div>
     </div>
   );

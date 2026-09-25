@@ -772,8 +772,29 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
     recap: parsed.data.recap || null,
     streamUrl: parsed.data.streamUrl || null,
   };
+  // An Academic Games timeline item also has a title and an end time (on
+  // the same day as its start) - only sent by that form.
+  const timeline: { title?: string; endDate?: Date | null } = {};
+  const titleRaw = formData.get("title");
+  if (typeof titleRaw === "string" && isAdmin) {
+    if (!titleRaw.trim()) return { ok: false, error: "Give it a title." };
+    timeline.title = titleRaw.trim().slice(0, 200);
+  }
+  const endRaw = formData.get("endTime");
+  if (typeof endRaw === "string" && isAdmin) {
+    const time = endRaw.match(/^(\d{2}):(\d{2})$/);
+    if (endRaw && !time) return { ok: false, error: "The end time isn't a time." };
+    if (time) {
+      const end = new Date(parsed.data.date);
+      end.setHours(Number(time[1]), Number(time[2]), 0, 0);
+      if (end <= parsed.data.date) return { ok: false, error: "The end time is before the start." };
+      timeline.endDate = end;
+    } else {
+      timeline.endDate = null;
+    }
+  }
 
-  await prisma.event.update({ where: { id: event.id }, data: after });
+  await prisma.event.update({ where: { id: event.id }, data: { ...after, ...timeline } });
 
   await recordAudit({
     actorId: user.id,

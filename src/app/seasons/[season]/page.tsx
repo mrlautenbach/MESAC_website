@@ -7,6 +7,7 @@ import { LATEST_FIRST, SCHEDULE_ORDER } from "@/lib/eventOrder";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { GolfOverview } from "@/components/GolfViews";
+import { AcademicUpNext } from "@/components/AcademicTimeline";
 import { LiveIcon } from "@/components/icons/LiveIcon";
 import { sideLabel } from "@/lib/eventDisplay";
 import { loadRoster } from "@/lib/tournamentRoster";
@@ -78,6 +79,7 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
         tournamentSlug={tournament.slug}
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
+        usesAcademicFormat={tournament.activity.usesAcademicFormat}
       />
 
       {(nextEvent || lastEvent) && (
@@ -109,7 +111,12 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
 
       {tournament.activity.usesLiveResults && <LiveResultsBand tournament={tournament} />}
 
-      {tournament.activity.usesGolfFormat ? (
+      {tournament.activity.usesAcademicFormat ? (
+        <div className="page-wrap py-8">
+          <h4 className="mb-3">Coming up</h4>
+          <AcademicUpNext tournamentId={tournament.id} />
+        </div>
+      ) : tournament.activity.usesGolfFormat ? (
         <div className="page-wrap py-8">
           <GolfOverview tournamentId={tournament.id} tournamentSlug={tournament.slug} scoring={tournament.activity} />
         </div>

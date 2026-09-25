@@ -95,6 +95,7 @@ export const activityInputSchema = z.object({
   usesLiveResults: z.boolean(),
   // Golf's own individual-then-match-play format (see lib/golf.ts).
   usesGolfFormat: z.boolean(),
+  usesAcademicFormat: z.boolean(),
 });
 
 export const meetResultRowSchema = z.object({

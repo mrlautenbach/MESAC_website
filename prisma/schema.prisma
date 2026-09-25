@@ -180,6 +180,9 @@ model Activity {
   // individual round scored in points (higher is better) by flight, whose
   // school totals seed a team match-play event - see GolfPlayer/GolfGroup.
   usesGolfFormat    Boolean  @default(false)
+  // Academic Games' own schedule: a day-by-day timeline of competitions, with
+  // Varsity and Junior Varsity running side by side - see AcademicTimeline.
+  usesAcademicFormat Boolean @default(false)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -347,6 +350,9 @@ model Event {
   slug         String
   title        String?
   date         DateTime
+  // When it finishes, for schedules shown as time ranges (Academic Games'
+  // "9:25am - 10:15am"). Games leave it blank.
+  endDate      DateTime?
   location     String?
   status       EventStatus @default(SCHEDULED)
   recap        String?

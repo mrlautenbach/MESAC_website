@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { TournamentSchedule } from "@/components/TournamentGames";
+import { AcademicTimeline } from "@/components/AcademicTimeline";
 
 export const dynamic = "force-dynamic";
 
@@ -40,17 +41,22 @@ export default async function DivisionSchedulePage({
         tournamentSlug={tournament.slug}
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
+        usesAcademicFormat={tournament.activity.usesAcademicFormat}
         currentDivisionSlug={division.slug}
         active="schedule"
       />
       <div className="page-wrap py-8">
         <h4 className="mb-3">Schedule</h4>
-        <TournamentSchedule
-          tournamentId={tournament.id}
-          tournamentSlug={tournament.slug}
-          divisionId={division.id}
-          activity={tournament.activity}
-        />
+        {tournament.activity.usesAcademicFormat ? (
+          <AcademicTimeline tournamentId={tournament.id} divisionId={division.id} />
+        ) : (
+          <TournamentSchedule
+            tournamentId={tournament.id}
+            tournamentSlug={tournament.slug}
+            divisionId={division.id}
+            activity={tournament.activity}
+          />
+        )}
       </div>
     </div>
   );

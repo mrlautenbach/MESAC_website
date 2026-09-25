@@ -42,6 +42,8 @@ type Props = {
   canEditMatchup: boolean;
   homeSide: SideAssignment;
   awaySide: SideAssignment;
+  // An Academic Games timeline item: a title and end time instead of a matchup.
+  timeline?: { title: string; endTime: string } | null;
 };
 
 export function EventEditForm({
@@ -63,6 +65,7 @@ export function EventEditForm({
   canEditMatchup,
   homeSide,
   awaySide,
+  timeline,
 }: Props) {
   const [state, formAction, pending] = useActionState(updateEventAction, null);
 
@@ -71,9 +74,17 @@ export function EventEditForm({
       <input type="hidden" name="eventId" value={eventId} />
 
       <div className="grid gap-4 sm:grid-cols-2">
+        {timeline && (
+          <div className="sm:col-span-2">
+            <label htmlFor="title" className="field-label">
+              Title
+            </label>
+            <input id="title" name="title" type="text" required maxLength={200} defaultValue={timeline.title} className="field-input" />
+          </div>
+        )}
         <div>
           <label htmlFor="date" className="field-label">
-            Date &amp; time
+            {timeline ? "Date & start time" : "Date & time"}
           </label>
           <input
             id="date"
@@ -84,9 +95,17 @@ export function EventEditForm({
             className="field-input"
           />
         </div>
+        {timeline && (
+          <div>
+            <label htmlFor="endTime" className="field-label">
+              End time
+            </label>
+            <input id="endTime" name="endTime" type="time" defaultValue={timeline.endTime} className="field-input" />
+          </div>
+        )}
         <div>
           <label htmlFor="location" className="field-label">
-            Location
+            {timeline ? "Venue" : "Location"}
           </label>
           <input id="location" name="location" type="text" defaultValue={location} className="field-input" />
         </div>

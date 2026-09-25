@@ -67,7 +67,11 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
         <div>
           <h1 className="text-3xl font-bold">{activity.name}</h1>
           <p className="mt-1 text-sm text-muted">
-            {activity.sport} · {activity.usesGolfFormat ? "individual points by flight, then team match play" : SCORING_LABELS[activity.scoringType]}
+            {activity.sport} · {activity.usesGolfFormat
+              ? "individual points by flight, then team match play"
+              : activity.usesAcademicFormat
+                ? "a day-by-day timeline, Varsity and JV side by side"
+                : SCORING_LABELS[activity.scoringType]}
             {activity.divisions.length > 0 && ` · ${activity.divisions.map((d) => d.name).join(" & ")}`}
           </p>
         </div>
@@ -109,7 +113,12 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
                   Golf roster, draw &amp; scores
                 </Link>
               )}
-              {!activity.usesMeetResults && !activity.usesGolfFormat && (
+              {isAdmin && activity.usesAcademicFormat && (
+                <Link href={`/dashboard/admin/academic-games?tournament=${current.id}`} className="btn btn-primary">
+                  Academic Games schedule
+                </Link>
+              )}
+              {!activity.usesMeetResults && !activity.usesGolfFormat && !activity.usesAcademicFormat && (
                 <>
                   <Link href={`/dashboard/admin/events/import?tournament=${current.id}`} className="btn btn-secondary">
                     Upload schedule (CSV)
@@ -236,6 +245,7 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
                   usesMeetResults: activity.usesMeetResults,
                   usesLiveResults: activity.usesLiveResults,
                   usesGolfFormat: activity.usesGolfFormat,
+                  usesAcademicFormat: activity.usesAcademicFormat,
                 }}
               />
             </Panel>

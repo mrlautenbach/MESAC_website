@@ -53,6 +53,7 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
         tournamentSlug={tournament.slug}
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
+        usesAcademicFormat={tournament.activity.usesAcademicFormat}
         active="watch-live"
       />
       <div className="page-wrap py-8">
