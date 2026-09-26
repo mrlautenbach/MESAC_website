@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { SchoolsMap } from "@/components/SchoolsMap";
 import { SchoolBadge } from "@/components/SchoolBadge";
 
+export const metadata = { title: "Schools" };
+
 export const dynamic = "force-dynamic";
 
 export default async function SchoolsPage() {
@@ -36,8 +38,8 @@ export default async function SchoolsPage() {
     <div>
       <div className="page-wrap grid gap-0 sm:grid-cols-[1fr_1.5fr]">
         <div className="border-b-2 border-divider py-8 sm:border-b-0 sm:border-r-2 sm:pr-8">
-          <h6 className="text-primary-dark">Member schools</h6>
-          <h2 className="mt-3 mb-3">Six schools, one league table.</h2>
+          <p className="eyebrow text-primary-dark">Member schools</p>
+          <h1 className="mt-3 mb-3 text-3xl sm:text-4xl">Six schools, one league table.</h1>
           <p className="text-muted">
             MESAC schools are spread across the Middle East and South Asia, coming together for the highest level
             International School Tournaments in the region.

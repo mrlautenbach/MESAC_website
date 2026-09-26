@@ -25,13 +25,13 @@ function Outcome({ state }: { state: GolfImportResult | null }) {
   if (!state) return null;
   if (state.ok) {
     return (
-      <p role="status" className="bg-green-50 px-3 py-2 text-sm text-success">
+      <p role="status" className="bg-success-tint px-3 py-2 text-sm text-success">
         {state.summary}
       </p>
     );
   }
   return (
-    <div role="alert" className="space-y-2 bg-red-50 px-4 py-3 text-sm text-danger">
+    <div role="alert" className="space-y-2 bg-danger-tint px-4 py-3 text-sm text-danger">
       <p className="font-semibold">{state.error}</p>
       {state.rowErrors && state.rowErrors.length > 0 && (
         <ul className="list-inside list-disc space-y-1">

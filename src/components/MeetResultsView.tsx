@@ -79,6 +79,7 @@ export function MeetResultsView({ groups }: { groups: MeetResultGroup[] }) {
             <button
               type="button"
               onClick={() => setRound("prelim")}
+              aria-pressed={round === "prelim"}
               className={`px-3 py-1.5 text-sm font-semibold ${round === "prelim" ? "bg-primary text-background" : "text-muted"}`}
             >
               Preliminary
@@ -86,6 +87,7 @@ export function MeetResultsView({ groups }: { groups: MeetResultGroup[] }) {
             <button
               type="button"
               onClick={() => setRound("final")}
+              aria-pressed={round === "final"}
               className={`px-3 py-1.5 text-sm font-semibold ${round === "final" ? "bg-primary text-background" : "text-muted"}`}
             >
               Final
@@ -93,6 +95,7 @@ export function MeetResultsView({ groups }: { groups: MeetResultGroup[] }) {
             <button
               type="button"
               onClick={() => setRound("all")}
+              aria-pressed={round === "all"}
               className={`px-3 py-1.5 text-sm font-semibold ${round === "all" ? "bg-primary text-background" : "text-muted"}`}
             >
               All
@@ -105,6 +108,7 @@ export function MeetResultsView({ groups }: { groups: MeetResultGroup[] }) {
             <button
               type="button"
               onClick={() => setGender("")}
+              aria-pressed={gender === ""}
               className={`px-3 py-1.5 text-sm font-semibold ${gender === "" ? "bg-primary text-background" : "text-muted"}`}
             >
               All
@@ -114,6 +118,7 @@ export function MeetResultsView({ groups }: { groups: MeetResultGroup[] }) {
                 key={g}
                 type="button"
                 onClick={() => setGender(g)}
+                aria-pressed={gender === g}
                 className={`px-3 py-1.5 text-sm font-semibold ${gender === g ? "bg-primary text-background" : "text-muted"}`}
               >
                 {GENDER_LABEL[g]}
@@ -126,6 +131,7 @@ export function MeetResultsView({ groups }: { groups: MeetResultGroup[] }) {
           <select
             value={divisionSlug}
             onChange={(e) => setDivisionSlug(e.target.value)}
+            aria-label="Division"
             className="field-input w-auto py-1.5 text-sm"
           >
             <option value="">All divisions</option>

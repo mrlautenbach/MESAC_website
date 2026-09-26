@@ -4,6 +4,7 @@ import { Suspense, useActionState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginAction } from "@/lib/actions/auth";
 
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -46,7 +47,7 @@ function LoginForm() {
         </div>
 
         {state && !state.ok && (
-          <p role="alert" className="bg-red-50 px-3 py-2 text-sm text-danger">
+          <p role="alert" className="bg-danger-tint px-3 py-2 text-sm text-danger">
             {state.error}
           </p>
         )}

@@ -12,6 +12,7 @@ export function SchoolYearResultsForm({ id, resultsUrl }: { id: string; resultsU
       <input
         name="resultsUrl"
         type="url"
+        aria-label="Results link"
         placeholder="https://…"
         defaultValue={resultsUrl ?? ""}
         className="field-input flex-1"

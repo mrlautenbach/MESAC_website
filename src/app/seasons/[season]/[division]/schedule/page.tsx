@@ -6,6 +6,12 @@ import { pickView } from "@/lib/viewSwitch";
 import { TournamentSchedule } from "@/components/TournamentGames";
 import { AcademicTimeline } from "@/components/AcademicTimeline";
 import { BowlSchedule } from "@/components/BowlViews";
+import { tournamentPageTitle } from "@/lib/pageTitles";
+
+export async function generateMetadata({ params }: { params: Promise<{ season: string; division: string }> }) {
+  const { season, division } = await params;
+  return { title: await tournamentPageTitle(season, "schedule", division) };
+}
 
 export const dynamic = "force-dynamic";
 

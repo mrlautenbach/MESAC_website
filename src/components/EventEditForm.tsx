@@ -249,12 +249,12 @@ export function EventEditForm({
       </div>
 
       {state && !state.ok && (
-        <p role="alert" className="bg-red-50 px-3 py-2 text-sm text-danger">
+        <p role="alert" className="bg-danger-tint px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}
       {state?.ok && (
-        <p role="status" className="bg-green-50 px-3 py-2 text-sm text-success">
+        <p role="status" className="bg-success-tint px-3 py-2 text-sm text-success">
           Saved!
         </p>
       )}
@@ -449,6 +449,7 @@ function IndividualScoresEditor({
               name={`individual-${schoolId}-name`}
               defaultValue={row.athleteName}
               placeholder="Athlete name"
+              aria-label="Athlete name"
               maxLength={120}
               className="field-input flex-1 text-sm"
             />
@@ -459,6 +460,7 @@ function IndividualScoresEditor({
               min={0}
               max={999}
               placeholder="Score"
+              aria-label="Athlete score"
               className="field-input w-24 text-sm"
             />
             <button

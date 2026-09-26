@@ -417,11 +417,11 @@ export function ActivityForm({
       )}
 
       {state && !state.ok && (
-        <p role="alert" className="bg-red-50 px-3 py-2 text-sm text-danger">
+        <p role="alert" className="bg-danger-tint px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}
-      {state?.ok && <p className="bg-green-50 px-3 py-2 text-sm text-success">Saved!</p>}
+      {state?.ok && <p className="bg-success-tint px-3 py-2 text-sm text-success">Saved!</p>}
 
       <button type="submit" disabled={pending} className="btn btn-primary">
         {pending ? "Saving…" : existing ? "Save changes" : "Create activity"}

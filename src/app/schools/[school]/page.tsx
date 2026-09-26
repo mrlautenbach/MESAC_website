@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ school: string }> }) {
   const { school: slug } = await params;
   const school = await prisma.school.findUnique({ where: { slug }, select: { name: true } });
-  return { title: school ? `${school.name} · MESAC` : "School · MESAC" };
+  return { title: school?.name ?? "School" };
 }
 
 const GAME_INCLUDE = {
@@ -128,7 +128,7 @@ export default async function SchoolPage({ params }: { params: Promise<{ school:
 
   return (
     <div>
-      <div className="relative overflow-hidden bg-foreground py-8 text-background sm:py-10">
+      <div className="relative overflow-hidden bg-ink py-8 text-on-ink sm:py-10">
         <div className="lattice-panel absolute inset-0 text-accent opacity-[.16]" />
         <div className="page-wrap relative">
           <Link href="/schools" className="text-sm font-semibold text-accent hover:underline">

@@ -10,6 +10,17 @@ import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { SchoolBadge } from "@/components/SchoolBadge";
 
+export async function generateMetadata({ params }: { params: Promise<{ season: string; event: string }> }) {
+  const { season, event: eventSlug } = await params;
+  const event = await prisma.event.findFirst({
+    where: { slug: eventSlug, tournament: { slug: season } },
+    select: { title: true, participants: { orderBy: { isHome: "desc" }, select: { school: { select: { code: true, name: true } } } }, tournament: { select: { activity: { select: { name: true } } } } },
+  });
+  if (!event) return { title: "Game" };
+  const matchup = event.participants.map((p) => p.school.code || p.school.name).join(" v ");
+  return { title: `${matchup || event.title || "Game"} · ${event.tournament.activity.name}` };
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function EventPage({
@@ -222,6 +233,7 @@ export default async function EventPage({
         hostSchoolName={tournament.hostSchool?.name}
         hostSchoolLogoUrl={tournament.hostSchool?.logoUrl}
         archived={tournament.archived}
+        titleAs="div"
       />
       <TournamentSubNav
         tournamentSlug={tournament.slug}
@@ -375,7 +387,7 @@ export default async function EventPage({
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {event.photos.map((photo) => (
-              <figure key={photo.id} className="overflow-hidden border border-border bg-white">
+              <figure key={photo.id} className="overflow-hidden border border-border bg-card">
                 <div className="relative aspect-square">
                   <Image
                     src={photo.url}
@@ -434,9 +446,9 @@ function ScoreboardSide({ participant, label, winnerId }: { participant: Scorebo
 
 function OutcomeBadge({ outcome }: { outcome: string }) {
   const styles: Record<string, string> = {
-    WIN: "bg-green-100 text-green-800",
-    LOSS: "bg-red-100 text-red-800",
-    DRAW: "bg-gray-100 text-gray-800",
+    WIN: "bg-success-tint text-success",
+    LOSS: "bg-danger-tint text-danger",
+    DRAW: "bg-surface text-foreground",
   };
   return <span className={`badge ${styles[outcome] ?? ""}`}>{outcome}</span>;
 }

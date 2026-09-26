@@ -20,7 +20,7 @@ export function MeetScheduleImportForm({ tournamentId, divisions }: Props) {
 
   if (state?.ok) {
     return (
-      <div className="bg-green-50 px-4 py-3 text-sm text-success">
+      <div className="bg-success-tint px-4 py-3 text-sm text-success">
         Imported {state.rounds} round{state.rounds === 1 ? "" : "s"} across {state.sessions} session
         {state.sessions === 1 ? "" : "s"} ({state.newSessions} new). Refresh the schedule to see them, or{" "}
         <button type="button" className="underline" onClick={() => window.location.reload()}>
@@ -101,7 +101,7 @@ export function MeetScheduleImportForm({ tournamentId, divisions }: Props) {
       </div>
 
       {state && !state.ok && (
-        <div role="alert" className="space-y-2 bg-red-50 px-4 py-3 text-sm text-danger">
+        <div role="alert" className="space-y-2 bg-danger-tint px-4 py-3 text-sm text-danger">
           <p className="font-semibold">{state.error}</p>
           {state.rowErrors && state.rowErrors.length > 0 && (
             <ul className="list-inside list-disc space-y-1">

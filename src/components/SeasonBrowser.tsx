@@ -32,13 +32,8 @@ export function SeasonBrowser({ seasons }: { seasons: SeasonCard[] }) {
               key={s.id}
               type="button"
               onClick={() => setIndex(i)}
-              className="btn"
-              style={{
-                border: "1px solid var(--divider)",
-                marginRight: -1,
-                background: i === index ? "var(--primary)" : "transparent",
-                color: i === index ? "var(--background)" : "var(--foreground)",
-              }}
+              aria-pressed={i === index}
+              className={`btn -mr-px min-h-10 border border-divider ${i === index ? "bg-primary text-background" : "bg-transparent text-foreground"}`}
             >
               {s.name}
             </button>
@@ -49,7 +44,7 @@ export function SeasonBrowser({ seasons }: { seasons: SeasonCard[] }) {
             type="button"
             aria-label="Previous season"
             onClick={() => setIndex((i) => (i - 1 + seasons.length) % seasons.length)}
-            className="btn btn-secondary px-2.5 py-1 text-xs"
+            className="btn btn-secondary h-10 w-10 p-0"
           >
             &larr;
           </button>
@@ -57,7 +52,7 @@ export function SeasonBrowser({ seasons }: { seasons: SeasonCard[] }) {
             type="button"
             aria-label="Next season"
             onClick={() => setIndex((i) => (i + 1) % seasons.length)}
-            className="btn btn-secondary px-2.5 py-1 text-xs"
+            className="btn btn-secondary h-10 w-10 p-0"
           >
             &rarr;
           </button>

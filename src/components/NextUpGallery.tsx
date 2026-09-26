@@ -34,7 +34,7 @@ export function NextUpGallery({ tournaments }: { tournaments: UpcomingCard[] }) 
               type="button"
               aria-label="Previous upcoming tournament"
               onClick={() => setIndex((i) => (i - 1 + tournaments.length) % tournaments.length)}
-              className="flex h-6 w-6 items-center justify-center bg-white/10 text-sm hover:bg-white/20"
+              className="flex h-10 w-10 items-center justify-center bg-white/10 text-sm hover:bg-white/20 sm:h-8 sm:w-8"
             >
               &lsaquo;
             </button>
@@ -42,7 +42,7 @@ export function NextUpGallery({ tournaments }: { tournaments: UpcomingCard[] }) 
               type="button"
               aria-label="Next upcoming tournament"
               onClick={() => setIndex((i) => (i + 1) % tournaments.length)}
-              className="flex h-6 w-6 items-center justify-center bg-white/10 text-sm hover:bg-white/20"
+              className="flex h-10 w-10 items-center justify-center bg-white/10 text-sm hover:bg-white/20 sm:h-8 sm:w-8"
             >
               &rsaquo;
             </button>
@@ -67,9 +67,12 @@ export function NextUpGallery({ tournaments }: { tournaments: UpcomingCard[] }) 
               key={t.slug}
               type="button"
               aria-label={`Show upcoming tournament ${i + 1}`}
+              aria-current={i === index ? "true" : undefined}
               onClick={() => setIndex(i)}
-              className={`h-1.5 w-1.5 ${i === index ? "bg-accent" : "bg-white/30"}`}
-            />
+              className="-m-2 flex h-6 w-6 items-center justify-center"
+            >
+              <span className={`h-1.5 w-1.5 ${i === index ? "bg-accent" : "bg-white/30"}`} />
+            </button>
           ))}
         </div>
       )}

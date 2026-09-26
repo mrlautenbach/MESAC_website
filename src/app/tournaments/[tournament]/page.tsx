@@ -3,6 +3,12 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatDateRange } from "@/lib/dates";
 
+export async function generateMetadata({ params }: { params: Promise<{ tournament: string }> }) {
+  const { tournament } = await params;
+  const activity = await prisma.activity.findUnique({ where: { slug: tournament }, select: { name: true } });
+  return { title: activity?.name ?? "Tournament" };
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function TournamentPage({ params }: { params: Promise<{ tournament: string }> }) {
@@ -25,7 +31,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ tou
   return (
     <div className="page-wrap space-y-10 py-8 [&>*]:max-w-4xl">
       <div>
-        <h6 className="text-primary-dark">{activity.sport}</h6>
+        <p className="eyebrow text-primary-dark">{activity.sport}</p>
         <h1 className="mt-2 text-4xl sm:text-5xl">{activity.name}</h1>
       </div>
 

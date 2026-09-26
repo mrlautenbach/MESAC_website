@@ -10,6 +10,8 @@ import { LiveIcon } from "@/components/icons/LiveIcon";
 import { SportIcon } from "@/components/icons/SportIcon";
 import { divisionTagClass } from "@/lib/divisionTagClass";
 
+export const metadata = { title: "Schedule" };
+
 export const dynamic = "force-dynamic";
 
 const PREVIEW_COUNT = 3;
@@ -70,7 +72,7 @@ export default async function SchedulePage() {
 
   return (
     <div className="page-wrap py-8">
-      <h6 className="text-primary-dark">Live &amp; upcoming</h6>
+      <p className="eyebrow text-primary-dark">Live &amp; upcoming</p>
       <h1 className="mt-2 mb-8 text-4xl sm:text-5xl">Every activity, its own schedule.</h1>
 
       <div className="space-y-10">
@@ -168,9 +170,18 @@ export default async function SchedulePage() {
                                           event.awaySourceLabel
                                       );
                                     const isDual = event.participants.length <= 2;
-                                    const href = event.division
-                                      ? `/seasons/${current.slug}/${event.division.slug}/schedule`
-                                      : `/seasons/${current.slug}/schedule`;
+                                    const href = `/seasons/${current.slug}/events/${event.slug}`;
+                                    // Codes on a phone, where two full school names wrap
+                                    // into four lines around the "v".
+                                    const name = (side: typeof home, label: string) =>
+                                      side?.school.code ? (
+                                        <>
+                                          <span className="sm:hidden">{side.school.code}</span>
+                                          <span className="hidden sm:inline">{label}</span>
+                                        </>
+                                      ) : (
+                                        label
+                                      );
                                     return (
                                       <li key={event.id} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-sm">
                                         <Link href={href} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 hover:text-primary">
@@ -184,23 +195,29 @@ export default async function SchedulePage() {
                                             <span className="inline-flex items-center gap-3">
                                               <span className="inline-flex items-center gap-1">
                                                 <SchoolColorDot color={home?.school.themeColor} secondaryColor={home?.school.themeColorSecondary} />
-                                                {sideLabel(
+                                                {name(
                                                   home,
-                                                  event.homeSourceOutcome,
-                                                  event.homeSourceEvent?.externalId,
-                                                  event.homeSourceStanding,
-                                                  event.homeSourceLabel
+                                                  sideLabel(
+                                                    home,
+                                                    event.homeSourceOutcome,
+                                                    event.homeSourceEvent?.externalId,
+                                                    event.homeSourceStanding,
+                                                    event.homeSourceLabel
+                                                  )
                                                 )}
                                               </span>
                                               <span className="text-muted">v</span>
                                               <span className="inline-flex items-center gap-1">
                                                 <SchoolColorDot color={away?.school.themeColor} secondaryColor={away?.school.themeColorSecondary} />
-                                                {sideLabel(
+                                                {name(
                                                   away,
-                                                  event.awaySourceOutcome,
-                                                  event.awaySourceEvent?.externalId,
-                                                  event.awaySourceStanding,
-                                                  event.awaySourceLabel
+                                                  sideLabel(
+                                                    away,
+                                                    event.awaySourceOutcome,
+                                                    event.awaySourceEvent?.externalId,
+                                                    event.awaySourceStanding,
+                                                    event.awaySourceLabel
+                                                  )
                                                 )}
                                               </span>
                                             </span>

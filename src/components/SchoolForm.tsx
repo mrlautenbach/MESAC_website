@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useId } from "react";
 import { createSchoolAction, updateSchoolAction } from "@/lib/actions/schools";
 
 const DEFAULT_THEME_COLOR = "#2a6a8a";
@@ -23,6 +23,7 @@ type ExistingSchool = {
 };
 
 export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
+  const fid = useId();
   const action = existing ? updateSchoolAction : createSchoolAction;
   const [state, formAction, pending] = useActionState(action, null);
   const [themeColor, setThemeColor] = useState(existing?.themeColor ?? DEFAULT_THEME_COLOR);
@@ -35,35 +36,35 @@ export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
     <form action={formAction} className="space-y-3">
       {existing && <input type="hidden" name="schoolId" value={existing.id} />}
       <div>
-        <label className="field-label">School name</label>
-        <input name="name" required defaultValue={existing?.name} className="field-input" />
+        <label htmlFor={`${fid}-name`} className="field-label">School name</label>
+        <input id={`${fid}-name`} name="name" required defaultValue={existing?.name} className="field-input" />
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
-          <label className="field-label">Contact name</label>
-          <input name="contactName" defaultValue={existing?.contactName ?? ""} className="field-input" />
+          <label htmlFor={`${fid}-contactName`} className="field-label">Contact name</label>
+          <input id={`${fid}-contactName`} name="contactName" defaultValue={existing?.contactName ?? ""} className="field-input" />
         </div>
         <div>
-          <label className="field-label">Contact email</label>
-          <input name="contactEmail" type="email" defaultValue={existing?.contactEmail ?? ""} className="field-input" />
+          <label htmlFor={`${fid}-contactEmail`} className="field-label">Contact email</label>
+          <input id={`${fid}-contactEmail`} name="contactEmail" type="email" defaultValue={existing?.contactEmail ?? ""} className="field-input" />
         </div>
         <div>
-          <label className="field-label">Contact phone</label>
-          <input name="contactPhone" defaultValue={existing?.contactPhone ?? ""} className="field-input" />
+          <label htmlFor={`${fid}-contactPhone`} className="field-label">Contact phone</label>
+          <input id={`${fid}-contactPhone`} name="contactPhone" defaultValue={existing?.contactPhone ?? ""} className="field-input" />
         </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-5">
         <div>
-          <label className="field-label">Short code</label>
-          <input name="code" placeholder="ASD-DO" maxLength={12} defaultValue={existing?.code ?? ""} className="field-input" />
+          <label htmlFor={`${fid}-code`} className="field-label">Short code</label>
+          <input id={`${fid}-code`} name="code" placeholder="ASD-DO" maxLength={12} defaultValue={existing?.code ?? ""} className="field-input" />
         </div>
         <div>
-          <label className="field-label">City</label>
-          <input name="city" placeholder="Doha, Qatar" defaultValue={existing?.city ?? ""} className="field-input" />
+          <label htmlFor={`${fid}-city`} className="field-label">City</label>
+          <input id={`${fid}-city`} name="city" placeholder="Doha, Qatar" defaultValue={existing?.city ?? ""} className="field-input" />
         </div>
         <div>
-          <label className="field-label">Latitude</label>
-          <input
+          <label htmlFor={`${fid}-lat`} className="field-label">Latitude</label>
+          <input id={`${fid}-lat`}
             name="lat"
             type="number"
             step="any"
@@ -73,8 +74,8 @@ export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
           />
         </div>
         <div>
-          <label className="field-label">Longitude</label>
-          <input
+          <label htmlFor={`${fid}-lon`} className="field-label">Longitude</label>
+          <input id={`${fid}-lon`}
             name="lon"
             type="number"
             step="any"
@@ -84,8 +85,8 @@ export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
           />
         </div>
         <div>
-          <label className="field-label">Teams</label>
-          <input
+          <label htmlFor={`${fid}-teamCount`} className="field-label">Teams</label>
+          <input id={`${fid}-teamCount`}
             name="teamCount"
             type="number"
             min={0}
@@ -117,12 +118,14 @@ export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
         </p>
       </div>
       <div>
-        <label className="field-label">Logo (optional)</label>
-        <input name="logo" type="file" accept="image/*" className="field-input" />
+        <label htmlFor={`${fid}-logo`} className="field-label">Logo (optional)</label>
+        <input id={`${fid}-logo`} name="logo" type="file" accept="image/*" className="field-input" />
       </div>
 
       <div>
-        <label className="field-label">Primary brand color (optional)</label>
+        <label htmlFor={`${fid}-themeColor`} className="field-label">
+          Primary brand color (optional)
+        </label>
         <div className="flex items-center gap-2">
           <input
             type="color"
@@ -132,6 +135,7 @@ export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
             aria-label="Primary brand color"
           />
           <input
+            id={`${fid}-themeColor`}
             name="themeColor"
             value={themeColor}
             onChange={(e) => setThemeColor(e.target.value)}
@@ -147,7 +151,9 @@ export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
 
       {hasSecondary ? (
         <div>
-          <label className="field-label">Secondary brand color</label>
+          <label htmlFor={`${fid}-themeColorSecondary`} className="field-label">
+            Secondary brand color
+          </label>
           <div className="flex items-center gap-2">
             <input
               type="color"
@@ -157,6 +163,7 @@ export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
               aria-label="Secondary brand color"
             />
             <input
+              id={`${fid}-themeColorSecondary`}
               name="themeColorSecondary"
               value={themeColorSecondary}
               onChange={(e) => setThemeColorSecondary(e.target.value)}
@@ -183,8 +190,8 @@ export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
         </>
       )}
 
-      {state && !state.ok && <p className="bg-red-50 px-3 py-2 text-sm text-danger">{state.error}</p>}
-      {state?.ok && <p className="bg-green-50 px-3 py-2 text-sm text-success">Saved!</p>}
+      {state && !state.ok && <p className="bg-danger-tint px-3 py-2 text-sm text-danger">{state.error}</p>}
+      {state?.ok && <p className="bg-success-tint px-3 py-2 text-sm text-success">Saved!</p>}
 
       <button type="submit" disabled={pending} className="btn btn-primary">
         {pending ? "Saving…" : existing ? "Save changes" : "Add school"}

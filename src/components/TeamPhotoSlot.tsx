@@ -62,7 +62,7 @@ export function TeamPhotoSlot({
 
       <form action={uploadAction} className="flex items-center gap-2">
         {hiddenFields}
-        <input name="photo" type="file" accept="image/*" className="field-input flex-1 text-xs" />
+        <input name="photo" type="file" accept="image/*" aria-label="Team photo" className="field-input flex-1 text-xs" />
         <button type="submit" disabled={uploadPending} className="btn btn-secondary shrink-0 px-2 py-1 text-xs">
           {uploadPending ? "Uploading…" : photoUrl ? "Replace" : "Upload"}
         </button>

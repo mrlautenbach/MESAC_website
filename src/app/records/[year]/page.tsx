@@ -2,6 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
+export async function generateMetadata({ params }: { params: Promise<{ year: string }> }) {
+  const { year } = await params;
+  return { title: `History ${year}` };
+}
+
 export const dynamic = "force-dynamic";
 
 function parseYearParam(param: string): number | null {

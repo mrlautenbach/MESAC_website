@@ -27,7 +27,7 @@ export async function SiteHeader() {
             </span>
           </span>
         </Link>
-        <nav className="hidden items-center gap-5 sm:flex">
+        <nav aria-label="Main" className="hidden items-center gap-5 sm:flex">
           <NavLinks />
         </nav>
         <div className="ml-2 hidden items-center gap-4 sm:flex">

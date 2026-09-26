@@ -106,24 +106,24 @@ export default async function HomePage() {
   return (
     <div>
       {/* Poster hero */}
-      <div className="relative overflow-hidden bg-primary pb-10 pt-20 text-background sm:pt-24">
+      <div className="relative overflow-hidden bg-brand pb-10 pt-20 text-on-ink sm:pt-24">
         <div className="lattice-band absolute inset-x-0 top-0 h-[72px] border-b-2 border-accent/70 text-accent opacity-50" />
         <div className="page-wrap relative grid gap-10 sm:grid-cols-[1.35fr_1fr] sm:items-end">
           <div>
-            <h6 className="text-background opacity-85">
+            <p className="eyebrow text-on-ink opacity-85">
               {schools.length} schools · {tournamentCount} tournaments
-            </h6>
-            <div className="mt-4 text-6xl font-extrabold leading-[.9] tracking-[-.045em] text-accent sm:text-8xl">
+            </p>
+            <h1 className="mt-4 text-6xl font-extrabold leading-[.9] tracking-[-.045em] text-accent sm:text-8xl">
               Play the
               <br />
               region.
-            </div>
+            </h1>
             <p className="mt-4 max-w-[46ch] text-base">MESAC is what our student-athletes plan their year around.</p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Link href="/today" className="btn btn-accent">
                 Today&apos;s games
               </Link>
-              <Link href="/tournaments" className="btn border border-background/60 text-background hover:bg-background/10">
+              <Link href="/tournaments" className="btn border border-on-ink/60 text-on-ink hover:bg-on-ink/10">
                 Season calendar
               </Link>
             </div>
@@ -170,7 +170,7 @@ export default async function HomePage() {
                     <Image src={school.logoUrl} alt="" width={64} height={64} className="max-h-full w-auto object-contain" />
                   </span>
                 )}
-                <span className="text-[12px] font-bold tracking-[0.1em] text-background/85">
+                <span className="text-[12px] font-bold tracking-[0.1em] text-on-ink/85">
                   {school.code ?? school.name.slice(0, 3).toUpperCase()}
                 </span>
               </Link>
@@ -180,7 +180,7 @@ export default async function HomePage() {
       </div>
 
       {/* Ticker */}
-      <div className="overflow-hidden border-b-2 border-divider bg-foreground text-background">
+      <div className="overflow-hidden border-b-2 border-divider bg-ink text-on-ink">
         <div className="ticker-track">
           {[0, 1].map((i) => (
             <div key={i} className="flex text-[12.5px] tracking-[0.04em]">
@@ -224,7 +224,7 @@ export default async function HomePage() {
             </div>
           );
         })}
-        <div className="relative my-4 overflow-hidden bg-foreground p-7 text-background sm:my-0 sm:ml-7">
+        <div className="relative my-4 overflow-hidden bg-ink p-7 text-on-ink sm:my-0 sm:ml-7">
           <div className="lattice-panel absolute inset-0 text-accent opacity-[.16]" />
           <NextUpGallery tournaments={upcomingCards} />
         </div>

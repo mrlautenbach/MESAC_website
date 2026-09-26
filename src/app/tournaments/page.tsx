@@ -24,7 +24,7 @@ function loadSeasons() {
   });
 }
 
-export const metadata = { title: "Tournaments · MESAC" };
+export const metadata = { title: "Tournaments" };
 
 export default async function TournamentsIndexPage() {
   const seasons = await loadSeasons();
@@ -35,7 +35,7 @@ export default async function TournamentsIndexPage() {
 
   return (
     <div className="page-wrap py-8">
-      <h6 className="text-primary-dark">Tournaments</h6>
+      <p className="eyebrow text-primary-dark">Tournaments</p>
       <h1 className="mt-2 mb-8 text-4xl sm:text-5xl">Every activity, every season.</h1>
 
       <div className="space-y-10">

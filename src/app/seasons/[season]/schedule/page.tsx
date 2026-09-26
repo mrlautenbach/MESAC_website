@@ -7,6 +7,12 @@ import { TournamentSchedule } from "@/components/TournamentGames";
 import { AcademicTimeline } from "@/components/AcademicTimeline";
 import { BowlSchedule } from "@/components/BowlViews";
 import { pickView } from "@/lib/viewSwitch";
+import { tournamentPageTitle } from "@/lib/pageTitles";
+
+export async function generateMetadata({ params }: { params: Promise<{ season: string }> }) {
+  const { season } = await params;
+  return { title: await tournamentPageTitle(season, "schedule") };
+}
 
 export const dynamic = "force-dynamic";
 

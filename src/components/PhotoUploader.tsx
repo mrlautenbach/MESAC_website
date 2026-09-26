@@ -19,19 +19,22 @@ export function PhotoUploader({ eventId }: { eventId: string }) {
     if (inputRef.current) inputRef.current.files = dt.files;
   }
 
+  // Each photo keeps the same preview URL (and so the same card, with
+  // whatever caption is typed in it) while others are added or removed.
   function addFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
     const incoming = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
-    const merged = [...previews.map((p) => p.file), ...incoming].slice(0, 10);
-    syncInputFiles(merged);
-    setPreviews(merged.map((file) => ({ file, url: URL.createObjectURL(file) })));
+    const added = incoming.slice(0, Math.max(0, 10 - previews.length)).map((file) => ({ file, url: URL.createObjectURL(file) }));
+    const next = [...previews, ...added];
+    syncInputFiles(next.map((p) => p.file));
+    setPreviews(next);
   }
 
   function removeAt(index: number) {
     URL.revokeObjectURL(previews[index].url);
-    const remaining = previews.filter((_, i) => i !== index).map((p) => p.file);
-    syncInputFiles(remaining);
-    setPreviews(remaining.map((file) => ({ file, url: URL.createObjectURL(file) })));
+    const next = previews.filter((_, i) => i !== index);
+    syncInputFiles(next.map((p) => p.file));
+    setPreviews(next);
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -68,7 +71,7 @@ export function PhotoUploader({ eventId }: { eventId: string }) {
         }`}
       >
         <p className="mb-3 text-sm text-muted">Drag and drop photos here, or</p>
-        <label className="btn btn-secondary inline-block cursor-pointer">
+        <label className="btn btn-secondary inline-block cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary">
           Choose photos
           <input
             ref={inputRef}
@@ -76,7 +79,7 @@ export function PhotoUploader({ eventId }: { eventId: string }) {
             name="photos"
             accept="image/*"
             multiple
-            className="hidden"
+            className="sr-only"
             onChange={(e) => addFiles(e.target.files)}
           />
         </label>
@@ -103,6 +106,7 @@ export function PhotoUploader({ eventId }: { eventId: string }) {
                 type="text"
                 name="captions"
                 placeholder="Caption (optional), e.g. &quot;Varsity team after the win&quot;"
+                aria-label={`Caption for photo ${i + 1}`}
                 maxLength={300}
                 className="field-input border-0 border-t border-border text-sm"
               />
@@ -110,6 +114,7 @@ export function PhotoUploader({ eventId }: { eventId: string }) {
                 type="text"
                 name="altTexts"
                 placeholder="Photo description for accessibility (optional)"
+                aria-label={`Description of photo ${i + 1}`}
                 maxLength={300}
                 className="field-input border-0 border-t border-border text-xs"
               />
@@ -119,12 +124,12 @@ export function PhotoUploader({ eventId }: { eventId: string }) {
       )}
 
       {result && !result.ok && (
-        <p role="alert" className="bg-red-50 px-3 py-2 text-sm text-danger">
+        <p role="alert" className="bg-danger-tint px-3 py-2 text-sm text-danger">
           {result.error}
         </p>
       )}
       {result?.ok && (
-        <p role="status" className="bg-green-50 px-3 py-2 text-sm text-success">
+        <p role="status" className="bg-success-tint px-3 py-2 text-sm text-success">
           Photos uploaded!
         </p>
       )}

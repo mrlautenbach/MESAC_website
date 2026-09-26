@@ -14,6 +14,7 @@ export function SeasonHero({
   hostSchoolName,
   hostSchoolLogoUrl,
   archived,
+  titleAs: Title = "h1",
 }: {
   activityName: string;
   activitySport: string;
@@ -25,6 +26,8 @@ export function SeasonHero({
   hostSchoolName?: string | null;
   hostSchoolLogoUrl?: string | null;
   archived: boolean;
+  // The page's h1 - except where the page has its own (a game's matchup).
+  titleAs?: "h1" | "div";
 }) {
   // The tournament's own dates decide the year shown here - never today's
   // date or which edition happens to be "current" - so an archived tag
@@ -34,7 +37,7 @@ export function SeasonHero({
   const archivedYearLabel = startYear === endYear ? startYear : `${startYear}–${endYear.slice(2)}`;
 
   return (
-    <div className="relative overflow-hidden bg-foreground py-7 text-background sm:py-10">
+    <div className="relative overflow-hidden bg-ink py-7 text-on-ink sm:py-10">
       <div className="lattice-panel absolute inset-0 text-accent opacity-[.16]" />
       <div className="page-wrap relative">
         <Link href={`/tournaments/${activitySlug}`} className="text-sm font-semibold text-accent hover:underline">
@@ -42,14 +45,14 @@ export function SeasonHero({
         </Link>
         <div className="mt-3 grid gap-8 sm:grid-cols-[1.4fr_1fr] sm:items-end">
           <div>
-            <h6 className="flex items-center gap-1.5 text-accent opacity-90">
+            <p className="eyebrow flex items-center gap-1.5 text-accent opacity-90">
               <SportIcon sport={activitySport} size={18} />
               {activitySport} · {tournamentName}
               {archived && ` · Archived (${archivedYearLabel})`}
-            </h6>
-            <div className="mt-3 text-4xl font-extrabold leading-[.95] tracking-tight sm:text-6xl">
+            </p>
+            <Title className="mt-3 text-4xl font-extrabold leading-[.95] tracking-tight sm:text-6xl">
               {divisionName ? `${divisionName} ${activityName}` : activityName}
-            </div>
+            </Title>
           </div>
           <div className="grid border border-accent/40 text-sm">
             <div className={`px-4 py-3 ${hostSchoolName ? "border-b border-accent/40" : ""}`}>

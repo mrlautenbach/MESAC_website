@@ -30,7 +30,7 @@ export async function SiteFooter() {
   }
 
   return (
-    <footer className="relative overflow-hidden border-t-2 border-divider bg-foreground text-background">
+    <footer className="relative overflow-hidden border-t-2 border-divider bg-ink text-on-ink">
       <div className="lattice-panel absolute inset-0 text-accent opacity-[.1]" />
       <h2 className="sr-only">Site footer</h2>
 
@@ -40,7 +40,7 @@ export async function SiteFooter() {
             <Image src="/mesac-logo.png" alt="" width={36} height={36} className="h-9 w-9 object-contain" />
             <span className="text-lg font-extrabold tracking-tight">MESAC</span>
           </Link>
-          <p className="mt-3 max-w-[34ch] text-[13px] leading-relaxed text-background/70">
+          <p className="mt-3 max-w-[34ch] text-[13px] leading-relaxed text-on-ink/70">
             The Middle East South Asian Conference: six international schools, three seasons, one calendar.
           </p>
         </div>
@@ -65,7 +65,7 @@ export async function SiteFooter() {
               on a white chip, the same treatment the host school gets in
               SeasonHero, since school marks are drawn for light grounds and
               would otherwise disappear into the navy. */}
-          <ul className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px] text-background/70">
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px] text-on-ink/70">
             {schools.map((school) => (
               <li key={school.id}>
                 <Link href={`/schools/${school.slug}`} className="flex items-center gap-2.5 hover:text-accent">
@@ -80,7 +80,7 @@ export async function SiteFooter() {
                       className="h-full w-full object-contain"
                     />
                   ) : (
-                    <span className="text-[7px] font-bold leading-none text-primary-deep">
+                    <span className="text-[7px] font-bold leading-none text-[#0b2e42]">
                       {school.code ?? school.name.slice(0, 3).toUpperCase()}
                     </span>
                   )}
@@ -94,7 +94,7 @@ export async function SiteFooter() {
       </div>
 
       <div className="page-wrap relative">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-accent/25 py-5 text-[12px] text-background/60">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-accent/25 py-5 text-[12px] text-on-ink/60">
           <span>&copy; {new Date().getFullYear()} Middle East South Asian Conference</span>
           <Link href="/login" className="hover:text-accent">
             Admin login

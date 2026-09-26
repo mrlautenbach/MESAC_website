@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+export const metadata = { title: "History" };
+
 export const dynamic = "force-dynamic";
 
 export default async function RecordsPage() {
@@ -21,7 +23,7 @@ export default async function RecordsPage() {
       <div className="border-b-2 border-divider">
       <div className={`page-wrap grid gap-0 ${longestStanding ? "sm:grid-cols-2" : ""}`}>
         <div className={`py-8 ${longestStanding ? "sm:border-r-2 sm:border-divider sm:pr-8" : ""}`}>
-          <h6 className="text-primary-dark">{earliestYear ? `Since ${earliestYear}` : "League records"}</h6>
+          <p className="eyebrow text-primary-dark">{earliestYear ? `Since ${earliestYear}` : "League records"}</p>
           <h1 className="mt-3 text-4xl sm:text-5xl">History</h1>
           <p className="mt-3 text-muted">
             Marks stand until a MESAC championship beats them. Every entry is verified by the host school&apos;s

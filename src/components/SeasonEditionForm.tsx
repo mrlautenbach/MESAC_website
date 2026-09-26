@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useId } from "react";
 import { createTournamentAction, updateTournamentAction } from "@/lib/actions/tournaments";
 
 type ExistingSeason = {
@@ -27,6 +27,9 @@ export function SeasonEditionForm({
   isFirstEdition?: boolean;
   showLiveResults?: boolean;
 }) {
+  // Prefixed ids: this form shares a page with the activity form, which
+  // has its own "name" and "slug" fields.
+  const fid = useId();
   const action = existing ? updateTournamentAction : createTournamentAction;
   const [state, formAction, pending] = useActionState(action, null);
 
@@ -36,33 +39,33 @@ export function SeasonEditionForm({
       {existing && <input type="hidden" name="tournamentId" value={existing.id} />}
 
       {!existing && !isFirstEdition && (
-        <p className="bg-blue-50 px-3 py-2 text-sm text-primary">
+        <p className="bg-primary-tint px-3 py-2 text-sm text-primary">
           Starting a new tournament archives the current one. Its schedule, results, and photos stay exactly as
           they are, just no longer shown as the active tournament.
         </p>
       )}
 
       <div>
-        <label htmlFor="name" className="field-label">
+        <label htmlFor={`${fid}-name`} className="field-label">
           Tournament name
         </label>
-        <input id="name" name="name" required placeholder="Fall 2026" defaultValue={existing?.name} className="field-input" />
+        <input id={`${fid}-name`} name="name" required placeholder="Fall 2026" defaultValue={existing?.name} className="field-input" />
       </div>
       {!existing && (
         <div>
-          <label htmlFor="slug" className="field-label">
+          <label htmlFor={`${fid}-slug`} className="field-label">
             URL slug
           </label>
-          <input id="slug" name="slug" required placeholder="jv-volleyball-fall-2026" pattern="[a-z0-9-]+" className="field-input" />
+          <input id={`${fid}-slug`} name="slug" required placeholder="jv-volleyball-fall-2026" pattern="[a-z0-9-]+" className="field-input" />
         </div>
       )}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="startDate" className="field-label">
+          <label htmlFor={`${fid}-startDate`} className="field-label">
             Start date
           </label>
           <input
-            id="startDate"
+            id={`${fid}-startDate`}
             name="startDate"
             type="date"
             required
@@ -71,19 +74,19 @@ export function SeasonEditionForm({
           />
         </div>
         <div>
-          <label htmlFor="endDate" className="field-label">
+          <label htmlFor={`${fid}-endDate`} className="field-label">
             End date
           </label>
-          <input id="endDate" name="endDate" type="date" required defaultValue={existing?.endDate} className="field-input" />
+          <input id={`${fid}-endDate`} name="endDate" type="date" required defaultValue={existing?.endDate} className="field-input" />
         </div>
       </div>
       <div>
-        <label htmlFor="hostSchoolId" className="field-label">
+        <label htmlFor={`${fid}-hostSchoolId`} className="field-label">
           Host school (optional)
         </label>
         <select
           key={existing?.hostSchoolId ?? ""}
-          id="hostSchoolId"
+          id={`${fid}-hostSchoolId`}
           name="hostSchoolId"
           defaultValue={existing?.hostSchoolId ?? ""}
           className="field-input"
@@ -118,11 +121,11 @@ export function SeasonEditionForm({
             the admin list.
           </p>
           <div className="mt-2">
-            <label htmlFor="liveResultsUrl" className="field-label">
+            <label htmlFor={`${fid}-liveResultsUrl`} className="field-label">
               Link
             </label>
             <input
-              id="liveResultsUrl"
+              id={`${fid}-liveResultsUrl`}
               name="liveResultsUrl"
               type="url"
               placeholder="https://results.example.com/meet-123"
@@ -131,11 +134,11 @@ export function SeasonEditionForm({
             />
           </div>
           <div className="mt-3">
-            <label htmlFor="liveResultsText" className="field-label">
+            <label htmlFor={`${fid}-liveResultsText`} className="field-label">
               Text
             </label>
             <textarea
-              id="liveResultsText"
+              id={`${fid}-liveResultsText`}
               name="liveResultsText"
               rows={3}
               placeholder="Girls 200 Free Relay: 1. ICS, 2. ABA, 3. AES..."
@@ -147,11 +150,11 @@ export function SeasonEditionForm({
       )}
 
       {state && !state.ok && (
-        <p role="alert" className="bg-red-50 px-3 py-2 text-sm text-danger">
+        <p role="alert" className="bg-danger-tint px-3 py-2 text-sm text-danger">
           {state.error}
         </p>
       )}
-      {state?.ok && <p className="bg-green-50 px-3 py-2 text-sm text-success">Saved!</p>}
+      {state?.ok && <p className="bg-success-tint px-3 py-2 text-sm text-success">Saved!</p>}
 
       <button type="submit" disabled={pending} className="btn btn-primary">
         {pending ? "Saving…" : existing ? "Save changes" : "Start this tournament"}

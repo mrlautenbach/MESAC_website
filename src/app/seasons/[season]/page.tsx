@@ -13,6 +13,12 @@ import { formatWhen, sideLabel } from "@/lib/eventDisplay";
 import { loadRoster } from "@/lib/tournamentRoster";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { UpcomingGames } from "@/components/TournamentGames";
+import { tournamentPageTitle } from "@/lib/pageTitles";
+
+export async function generateMetadata({ params }: { params: Promise<{ season: string }> }) {
+  const { season } = await params;
+  return { title: await tournamentPageTitle(season) };
+}
 
 export const dynamic = "force-dynamic";
 

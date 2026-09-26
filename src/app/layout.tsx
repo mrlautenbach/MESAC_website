@@ -21,7 +21,7 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "MESAC",
+  title: { default: "MESAC", template: "%s · MESAC" },
   description: "Fixtures and results for the Middle East South Asia Conference.",
 };
 

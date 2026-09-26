@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useId } from "react";
 import { createUserAction } from "@/lib/actions/users";
 
 export function CreateUserForm({ schools }: { schools: { id: string; name: string }[] }) {
+  const fid = useId();
   const [state, formAction, pending] = useActionState(createUserAction, null);
   const [role, setRole] = useState<"EDITOR" | "ADMIN">("EDITOR");
 
@@ -11,16 +12,16 @@ export function CreateUserForm({ schools }: { schools: { id: string; name: strin
     <div className="space-y-3">
       <form action={formAction} className="max-w-md space-y-3">
         <div>
-          <label className="field-label">Name</label>
-          <input name="name" required className="field-input" />
+          <label htmlFor={`${fid}-name`} className="field-label">Name</label>
+          <input id={`${fid}-name`} name="name" required className="field-input" />
         </div>
         <div>
-          <label className="field-label">Email</label>
-          <input name="email" type="email" required className="field-input" />
+          <label htmlFor={`${fid}-email`} className="field-label">Email</label>
+          <input id={`${fid}-email`} name="email" type="email" required className="field-input" />
         </div>
         <div>
-          <label className="field-label">Role</label>
-          <select
+          <label htmlFor={`${fid}-role`} className="field-label">Role</label>
+          <select id={`${fid}-role`}
             name="role"
             className="field-input"
             value={role}
@@ -32,8 +33,8 @@ export function CreateUserForm({ schools }: { schools: { id: string; name: strin
         </div>
         {role === "EDITOR" && (
           <div>
-            <label className="field-label">School</label>
-            <select name="schoolId" required className="field-input">
+            <label htmlFor={`${fid}-schoolId`} className="field-label">School</label>
+            <select id={`${fid}-schoolId`} name="schoolId" required className="field-input">
               <option value="">Select a school…</option>
               {schools.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -44,7 +45,7 @@ export function CreateUserForm({ schools }: { schools: { id: string; name: strin
           </div>
         )}
 
-        {state && !state.ok && <p className="bg-red-50 px-3 py-2 text-sm text-danger">{state.error}</p>}
+        {state && !state.ok && <p className="bg-danger-tint px-3 py-2 text-sm text-danger">{state.error}</p>}
 
         <button type="submit" disabled={pending} className="btn btn-primary">
           {pending ? "Creating…" : "Create account"}
@@ -52,10 +53,10 @@ export function CreateUserForm({ schools }: { schools: { id: string; name: strin
       </form>
 
       {state?.ok && state.tempPassword && (
-        <div className="max-w-md bg-green-50 px-3 py-3 text-sm text-success">
+        <div className="max-w-md bg-success-tint px-3 py-3 text-sm text-success">
           <p className="font-semibold">Account created.</p>
           <p className="mt-1">
-            Temporary password: <code className="bg-white px-2 py-1 font-mono text-foreground">{state.tempPassword}</code>
+            Temporary password: <code className="bg-card px-2 py-1 font-mono text-foreground">{state.tempPassword}</code>
           </p>
           <p className="mt-1 text-xs">
             Share this with the school directly (phone or in person, not email if possible). They&apos;ll be asked to set

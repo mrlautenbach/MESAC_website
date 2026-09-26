@@ -41,7 +41,7 @@ export function MobileMenu({ signedIn }: { signedIn: boolean }) {
       </button>
 
       <div id={panelId} hidden={!open} className="basis-full sm:hidden">
-        <nav className="flex flex-col border-t border-divider pt-2 [&>a]:py-2.5 [&>a]:text-base">
+        <nav aria-label="Main" className="flex flex-col border-t border-divider pt-2 [&>a]:py-2.5 [&>a]:text-base">
           <NavLinks />
           {signedIn ? (
             <>

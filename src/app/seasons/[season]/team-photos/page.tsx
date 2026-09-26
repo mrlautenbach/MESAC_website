@@ -5,6 +5,12 @@ import { SchoolBadge } from "@/components/SchoolBadge";
 import { loadRoster } from "@/lib/tournamentRoster";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
+import { tournamentPageTitle } from "@/lib/pageTitles";
+
+export async function generateMetadata({ params }: { params: Promise<{ season: string }> }) {
+  const { season } = await params;
+  return { title: await tournamentPageTitle(season, "team photos") };
+}
 
 export const dynamic = "force-dynamic";
 

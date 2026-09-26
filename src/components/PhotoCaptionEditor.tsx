@@ -25,6 +25,7 @@ export function PhotoCaptionEditor({ photo, canDelete }: Props) {
           name="caption"
           defaultValue={photo.caption ?? ""}
           placeholder="Caption"
+          aria-label="Caption"
           maxLength={300}
           className="field-input text-sm"
         />
@@ -33,6 +34,7 @@ export function PhotoCaptionEditor({ photo, canDelete }: Props) {
           name="altText"
           defaultValue={photo.altText ?? ""}
           placeholder="Accessibility description"
+          aria-label="Accessibility description"
           maxLength={300}
           className="field-input text-xs"
         />

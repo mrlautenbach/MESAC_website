@@ -4,6 +4,12 @@ import { EARLIEST_FIRST } from "@/lib/eventOrder";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { EventRows } from "@/components/EventRows";
+import { tournamentPageTitle } from "@/lib/pageTitles";
+
+export async function generateMetadata({ params }: { params: Promise<{ season: string }> }) {
+  const { season } = await params;
+  return { title: await tournamentPageTitle(season, "live streams") };
+}
 
 export const dynamic = "force-dynamic";
 

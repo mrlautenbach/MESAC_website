@@ -347,7 +347,7 @@ export function EventRows(props: EventRowsProps) {
                               href={event.streamUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="tag tag-accent inline-flex gap-1"
+                              className="tag tag-accent inline-flex min-h-10 items-center gap-1 px-3 sm:min-h-0 sm:px-2"
                             >
                               <LiveIcon />
                               Watch live

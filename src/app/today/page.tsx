@@ -10,7 +10,7 @@ import { dayBounds, formatDay, formatDayWithYear, formatShortDay, isDayKey, leag
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Today · MESAC" };
+export const metadata = { title: "Today" };
 
 // Every sport's games on one day, on one page - today by default, any
 // other day with ?date=yyyy-MM-dd - grouped by tournament. Team games and
@@ -177,7 +177,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
   const dayDate = bounds.gte;
   return (
     <div className="page-wrap py-8">
-      <h6 className="text-primary-dark">{isToday ? formatDayWithYear(dayDate) : "Games on"}</h6>
+      <p className="eyebrow text-primary-dark">{isToday ? formatDayWithYear(dayDate) : "Games on"}</p>
       <h1 className="mt-2 text-4xl sm:text-5xl">{isToday ? "Today" : formatDay(dayDate)}</h1>
 
       <nav aria-label="Other days" className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">

@@ -37,7 +37,7 @@ function FieldRow({ field }: { field: Field }) {
       <code className="bg-surface px-1.5 py-0.5 text-xs text-muted">{field.key}</code>
       <form action={formAction} className="flex items-center gap-2">
         <input type="hidden" name="fieldId" value={field.id} />
-        <input name="label" defaultValue={field.label} className="field-input w-40 py-1 text-sm" />
+        <input name="label" defaultValue={field.label} aria-label={`Label for ${field.key}`} className="field-input w-40 py-1 text-sm" />
         <button type="submit" disabled={pending} className="btn btn-secondary px-2 py-1 text-xs">
           {pending ? "Saving…" : "Save"}
         </button>

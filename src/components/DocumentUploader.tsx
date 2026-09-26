@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition, useId } from "react";
 import { uploadDocumentAction } from "@/lib/actions/documents";
 import type { ActionResult } from "@/lib/actions/auth";
 
 export function DocumentUploader({ eventId }: { eventId: string }) {
+  const fid = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
@@ -23,12 +24,12 @@ export function DocumentUploader({ eventId }: { eventId: string }) {
     <form ref={formRef} onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
       <input type="hidden" name="eventId" value={eventId} />
       <div className="flex-1">
-        <label className="field-label">Title</label>
-        <input name="title" placeholder="Full results" maxLength={120} className="field-input" />
+        <label htmlFor={`${fid}-title`} className="field-label">Title</label>
+        <input id={`${fid}-title`} name="title" placeholder="Full results" maxLength={120} className="field-input" />
       </div>
       <div>
-        <label className="field-label">PDF file</label>
-        <input name="document" type="file" accept="application/pdf" required className="field-input" />
+        <label htmlFor={`${fid}-document`} className="field-label">PDF file</label>
+        <input id={`${fid}-document`} name="document" type="file" accept="application/pdf" required className="field-input" />
       </div>
       <button type="submit" disabled={pending} className="btn btn-primary">
         {pending ? "Uploading…" : "Upload document"}

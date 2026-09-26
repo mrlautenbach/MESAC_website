@@ -11,7 +11,10 @@
   --foreground: #0c3446; /* ink */
   --card: #ffffff; /* dashboard/form surfaces - kept white for input legibility */
   --surface: #dbd4be; /* marketing-page surface bands */
-  --border: color-mix(in srgb, #0c3446 18%, transparent); /* soft, for form inputs */
+  --border: color-mix(in srgb, #0c3446 18%, transparent); /* soft, for cards and rules */
+  /* Form fields and outline buttons: at least 3:1 against white and the
+     sand ground, so a field's edge is visible (WCAG non-text contrast). */
+  --control-border: color-mix(in srgb, #0c3446 55%, transparent);
   --divider: color-mix(in srgb, #0c3446 40%, transparent); /* strong 2px/1px section rules */
   --primary: #2a6a8a; /* accent */
   --primary-dark: #215a77; /* accent hover/pressed */
@@ -23,6 +26,14 @@
   --muted: color-mix(in srgb, #0c3446 75%, transparent);
   --danger: #b3261e;
   --success: #1f7a4d;
+  --danger-tint: #fbeae8; /* error message backgrounds */
+  --success-tint: #e6f2ea; /* success message backgrounds */
+  /* Bands that stay dark in both themes - tournament and school headers,
+     the ticker, the footer - and the conference-blue home hero. */
+  --ink: #0c3446;
+  --on-ink: #ebe5d4;
+  --brand: #2a6a8a;
+  color-scheme: light;
   --girls: #a33b5e; /* division color-coding, kept apart from --danger/--primary */
   --girls-tint: #f6dde6;
   --boys: #2a5a8a;
@@ -33,12 +44,44 @@
   --font-mesac-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
+/* Dark mode, following the device's setting: the same navy/sand identity,
+   inverted - a deep navy ground with sand text, lighter blues so links and
+   active states stay readable, and tints dark enough to sit on it. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0e2230;
+    --foreground: #e6e0cf;
+    --card: #16303f;
+    --surface: #132a38;
+    --border: color-mix(in srgb, #e6e0cf 18%, transparent);
+    --control-border: color-mix(in srgb, #e6e0cf 45%, transparent);
+    --divider: color-mix(in srgb, #e6e0cf 32%, transparent);
+    --primary: #7cb6d3;
+    --primary-dark: #9ccbe2;
+    --primary-deep: #cfe4ee;
+    --primary-tint: #1d3f52;
+    --muted: color-mix(in srgb, #e6e0cf 72%, transparent);
+    --danger: #f19085;
+    --success: #74cf9e;
+    --danger-tint: #472220;
+    --success-tint: #173d2b;
+    --girls: #e798b2;
+    --girls-tint: #4a2533;
+    --boys: #93b8e2;
+    --boys-tint: #1f3550;
+    --ink: #081922;
+    --brand: #1f5470;
+    color-scheme: dark;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-surface: var(--surface);
   --color-border: var(--border);
+  --color-control-border: var(--control-border);
   --color-divider: var(--divider);
   --color-primary: var(--primary);
   --color-primary-dark: var(--primary-dark);
@@ -48,6 +91,11 @@
   --color-muted: var(--muted);
   --color-danger: var(--danger);
   --color-success: var(--success);
+  --color-danger-tint: var(--danger-tint);
+  --color-success-tint: var(--success-tint);
+  --color-ink: var(--ink);
+  --color-on-ink: var(--on-ink);
+  --color-brand: var(--brand);
   --color-girls: var(--girls);
   --color-girls-tint: var(--girls-tint);
   --color-boys: var(--boys);
@@ -148,6 +196,16 @@ body {
    className (e.g. `field-input w-24` would always render at the
    `field-input` width, silently ignoring `w-24`) regardless of order. */
 @layer components {
+  /* The small uppercase label above a title - styled like an h6, but not a
+     heading, so it doesn't sit out of order above the page's h1. */
+  .eyebrow {
+    font-size: 0.8125rem;
+    font-weight: 800;
+    line-height: 1.12;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
   .btn {
     display: inline-flex;
     align-items: center;
@@ -176,7 +234,7 @@ body {
   .btn-secondary {
     background: transparent;
     color: var(--foreground);
-    border-color: var(--border);
+    border-color: var(--control-border);
   }
   .btn-secondary:hover {
     background: color-mix(in srgb, var(--foreground) 7%, transparent);
@@ -190,12 +248,13 @@ body {
     opacity: 0.9;
   }
 
+  /* Sand stays sand in both themes, so its text stays navy too. */
   .btn-accent {
     background: var(--accent);
-    color: var(--primary-deep);
+    color: #0b2e42;
   }
   .btn-accent:hover {
-    background: color-mix(in srgb, var(--accent) 84%, var(--primary-deep));
+    background: color-mix(in srgb, var(--accent) 84%, #0b2e42);
   }
 
   /* Editorial voice for the one kind of text on this site that's actually
@@ -225,10 +284,10 @@ body {
 
   .field-input {
     width: 100%;
-    border: 1px solid var(--border);
+    border: 1px solid var(--control-border);
     padding: 0.6rem 0.75rem;
     font-size: 1rem;
-    background: white;
+    background: var(--card);
     color: var(--foreground);
   }
   .field-input:focus-visible {

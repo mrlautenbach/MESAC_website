@@ -7,6 +7,12 @@ import { BowlResults } from "@/components/BowlViews";
 import { ChallengeResults } from "@/components/ChallengeViews";
 import { GolfIndividualResults, GolfTeamResults } from "@/components/GolfViews";
 import { TournamentResults } from "@/components/TournamentGames";
+import { tournamentPageTitle } from "@/lib/pageTitles";
+
+export async function generateMetadata({ params }: { params: Promise<{ season: string }> }) {
+  const { season } = await params;
+  return { title: await tournamentPageTitle(season, "results") };
+}
 
 export const dynamic = "force-dynamic";
 

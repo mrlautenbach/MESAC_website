@@ -84,6 +84,7 @@ export function MeetScheduleTable({
           <select
             value={divisionSlug}
             onChange={(e) => setDivisionSlug(e.target.value)}
+            aria-label="Division"
             className="field-input w-auto py-1.5 text-sm"
           >
             <option value="">All divisions</option>

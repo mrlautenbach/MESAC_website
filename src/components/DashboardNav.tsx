@@ -39,6 +39,13 @@ export function DashboardNav({ isAdmin }: { isAdmin: boolean }) {
             </Link>
           ))}
         </nav>
+        <Link
+          href="/dashboard/change-password"
+          aria-current={pathname === "/dashboard/change-password" ? "page" : undefined}
+          className="tab-link ml-auto shrink-0"
+        >
+          Change password
+        </Link>
       </div>
     </div>
   );
