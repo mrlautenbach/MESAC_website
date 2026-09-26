@@ -8,14 +8,7 @@ import { schoolInputSchema, slugSchema } from "@/lib/validation";
 import { processAndStorePhoto } from "@/lib/photo-upload";
 import { PhotoValidationError } from "@/lib/photo-upload";
 import type { ActionResult } from "@/lib/actions/auth";
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
+import { slugify } from "@/lib/slug";
 
 function geoFields(data: {
   code?: string;

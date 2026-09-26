@@ -3,6 +3,7 @@
 import { useCsvText } from "@/components/useCsvText";
 import { useActionState } from "react";
 import { importMeetScheduleAction, type ImportMeetScheduleResult } from "@/lib/actions/meet-schedule";
+import { CsvImportErrors } from "@/components/CsvImportOutcome";
 
 type Props = {
   tournamentId: string;
@@ -100,20 +101,7 @@ export function MeetScheduleImportForm({ tournamentId, divisions }: Props) {
         />
       </div>
 
-      {state && !state.ok && (
-        <div role="alert" className="space-y-2 bg-danger-tint px-4 py-3 text-sm text-danger">
-          <p className="font-semibold">{state.error}</p>
-          {state.rowErrors && state.rowErrors.length > 0 && (
-            <ul className="list-inside list-disc space-y-1">
-              {state.rowErrors.map((e, i) => (
-                <li key={i}>
-                  Row {e.row}: {e.message}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+      {state && !state.ok && <CsvImportErrors error={state.error} rowErrors={state.rowErrors} />}
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending} className="btn btn-primary">

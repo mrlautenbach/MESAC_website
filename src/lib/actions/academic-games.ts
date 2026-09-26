@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import { revalidateTournament } from "@/lib/revalidate";
-import { parseCsv, csvRowsToObjects } from "@/lib/csv";
+import { parseCsv, csvRowsToObjects, readCsvUpload } from "@/lib/csv";
 import { findDivision } from "@/lib/divisionAlias";
 import { isBowlItem, matchTrack, parseClock, RUN_BY_FIELD, trackNames } from "@/lib/academicGames";
 import {
@@ -23,18 +23,14 @@ import {
 } from "@/lib/bowl";
 import type { Prisma } from "@/generated/prisma";
 import { deleteStoredFiles, storedFilesFor } from "@/lib/storedFiles";
+import { slugify } from "@/lib/slug";
+import { loadSchoolKeys } from "@/lib/schoolKeys";
 
 export type AcademicImportResult =
   | { ok: true; summary: string }
   | { ok: false; error: string; rowErrors?: { row: number; message: string }[] };
 
 type RowError = { row: number; message: string };
-
-async function readCsvText(formData: FormData): Promise<string> {
-  const file = formData.get("csvFile");
-  const pasted = formData.get("csvText");
-  return file instanceof File && file.size > 0 ? await file.text() : typeof pasted === "string" ? pasted : "";
-}
 
 async function loadAcademicTournament(tournamentId: string) {
   const tournament = await prisma.tournament.findUnique({
@@ -73,14 +69,6 @@ const REQUIRED_HEADERS = ["date", "start", "title"];
 // A blank team cell means every team; so do these.
 const EVERYONE = new Set(["all", "both", "everyone", "all teams"]);
 
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-}
-
 type PlannedItem = {
   rowNum: number;
   start: Date;
@@ -117,7 +105,7 @@ export async function importAcademicScheduleAction(
     return { ok: false, error: "This activity doesn't use the Academic Games format." };
   }
 
-  const text = await readCsvText(formData);
+  const text = await readCsvUpload(formData);
   if (!text.trim()) return { ok: false, error: "Upload a .csv file or paste CSV text." };
 
   const rows = parseCsv(text);
@@ -349,7 +337,7 @@ export async function importBowlScheduleAction(_prev: AcademicImportResult | nul
   if (!loaded.ok) return loaded;
   const { tournament } = loaded;
 
-  const text = await readCsvText(formData);
+  const text = await readCsvUpload(formData);
   if (!text.trim()) return { ok: false, error: "Upload a .csv file or paste CSV text." };
   const rows = parseCsv(text);
   if (rows.length < 2) return { ok: false, error: "The file needs a header row plus at least one game row." };
@@ -361,12 +349,7 @@ export async function importBowlScheduleAction(_prev: AcademicImportResult | nul
     };
   }
 
-  const schools = await prisma.school.findMany();
-  const schoolByKey = new Map<string, (typeof schools)[number]>();
-  for (const s of schools) {
-    schoolByKey.set(s.name.trim().toLowerCase(), s);
-    if (s.code) schoolByKey.set(s.code.trim().toLowerCase(), s);
-  }
+  const { byKey: schoolByKey } = await loadSchoolKeys();
 
   const rowErrors: RowError[] = [];
   const planned: PlannedGame[] = [];
@@ -651,7 +634,7 @@ export async function importChallengeResultsAction(_prev: AcademicImportResult |
   if (!loaded.ok) return loaded;
   const { tournament } = loaded;
 
-  const text = await readCsvText(formData);
+  const text = await readCsvUpload(formData);
   if (!text.trim()) return { ok: false, error: "Upload a .csv file or paste CSV text." };
   const rows = parseCsv(text);
   if (rows.length < 2) return { ok: false, error: "The file needs a header row plus at least one result row." };
@@ -664,12 +647,7 @@ export async function importChallengeResultsAction(_prev: AcademicImportResult |
   if (challenges.length === 0) {
     return { ok: false, error: "There are no challenges on the schedule yet - upload the schedule first, then the results." };
   }
-  const schools = await prisma.school.findMany();
-  const schoolByKey = new Map<string, (typeof schools)[number]>();
-  for (const s of schools) {
-    schoolByKey.set(s.name.trim().toLowerCase(), s);
-    if (s.code) schoolByKey.set(s.code.trim().toLowerCase(), s);
-  }
+  const { byKey: schoolByKey } = await loadSchoolKeys();
   const needsDivision = tournament.divisions.length > 0;
 
   const rowErrors: RowError[] = [];

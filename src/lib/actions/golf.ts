@@ -5,8 +5,9 @@ import { revalidateTournament } from "@/lib/revalidate";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
-import { parseCsv, csvRowsToObjects } from "@/lib/csv";
+import { parseCsv, csvRowsToObjects, readCsvUpload } from "@/lib/csv";
 import { flightOf, GOLF_SEEDS_PER_SCHOOL, normalizeMargin } from "@/lib/golf";
+import { loadSchoolKeys, type FindSchool } from "@/lib/schoolKeys";
 
 // Every golf upload returns the same shape: a one-line summary on success,
 // or every row's problem at once so the whole file can be fixed in one go.
@@ -24,9 +25,7 @@ async function loadGolfTournament(tournamentId: string) {
 }
 
 async function readCsv(formData: FormData, required: string[]) {
-  const file = formData.get("csvFile");
-  const pasted = formData.get("csvText");
-  const text = file instanceof File && file.size > 0 ? await file.text() : typeof pasted === "string" ? pasted : "";
+  const text = await readCsvUpload(formData);
   if (!text.trim()) return { ok: false, error: "Upload a .csv file or paste CSV text." } as const;
   const rows = parseCsv(text);
   if (rows.length < 2) return { ok: false, error: "The file needs a header row plus at least one row." } as const;
@@ -41,16 +40,6 @@ async function readCsv(formData: FormData, required: string[]) {
       .map((record, i) => ({ record, row: i + 2 }))
       .filter(({ record }) => Object.values(record).some((v) => v !== "")),
   } as const;
-}
-
-async function schoolLookup() {
-  const schools = await prisma.school.findMany({ select: { id: true, name: true, code: true } });
-  const byKey = new Map<string, (typeof schools)[number]>();
-  for (const s of schools) {
-    byKey.set(s.name.trim().toLowerCase(), s);
-    if (s.code) byKey.set(s.code.trim().toLowerCase(), s);
-  }
-  return (raw: string) => byKey.get(raw.trim().toLowerCase());
 }
 
 function parseSeed(raw: string): number | null {
@@ -79,7 +68,7 @@ export async function importGolfRosterAction(_prev: GolfImportResult | null, for
   const { tournament } = loaded;
   const csv = await readCsv(formData, ["school", "seed", "name"]);
   if (!csv.ok) return { ok: false, error: csv.error };
-  const findSchool = await schoolLookup();
+  const findSchool = (await loadSchoolKeys()).find;
 
   const rowErrors: RowError[] = [];
   const planned: { schoolId: string; seed: number; name: string; grade: number | null; gender: string | null }[] = [];
@@ -155,7 +144,7 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
   const { tournament } = loaded;
   const csv = await readCsv(formData, ["date", "flight", "group", "tee_time", "school", "seed"]);
   if (!csv.ok) return { ok: false, error: csv.error };
-  const findSchool = await schoolLookup();
+  const findSchool = (await loadSchoolKeys()).find;
   const roster = await prisma.golfPlayer.findMany({ where: { tournamentId: tournament.id }, select: { id: true, schoolId: true, seed: true } });
   const rosterByKey = new Map(roster.map((p) => [`${p.schoolId}:${p.seed}`, p]));
 
@@ -266,7 +255,7 @@ export async function importGolfScoresAction(_prev: GolfImportResult | null, for
   const { tournament } = loaded;
   const csv = await readCsv(formData, ["school", "seed", "points"]);
   if (!csv.ok) return { ok: false, error: csv.error };
-  const findSchool = await schoolLookup();
+  const findSchool = (await loadSchoolKeys()).find;
   const roster = await prisma.golfPlayer.findMany({ where: { tournamentId: tournament.id }, select: { id: true, schoolId: true, seed: true } });
   const rosterByKey = new Map(roster.map((p) => [`${p.schoolId}:${p.seed}`, p]));
 
@@ -355,7 +344,7 @@ export async function importGolfTeamDrawAction(_prev: GolfImportResult | null, f
   const { tournament } = loaded;
   const csv = await readCsv(formData, ["round", "date", "time", "home", "away", "flight"]);
   if (!csv.ok) return { ok: false, error: csv.error };
-  const findSchool = await schoolLookup();
+  const findSchool = (await loadSchoolKeys()).find;
 
   type Pair = { flight: number; startHole: number | null; marshal: string | null };
   type Match = { round: number; startTime: Date; course: string | null; homeSchoolId: string; awaySchoolId: string; row: number; pairs: Map<number, Pair> };
@@ -468,7 +457,7 @@ export async function importGolfTeamDrawAction(_prev: GolfImportResult | null, f
 // cell couldn't be read.
 function parseWinner(
   raw: string,
-  findSchool: Awaited<ReturnType<typeof schoolLookup>>,
+  findSchool: FindSchool,
   rowHomeId: string,
   rowAwayId: string
 ): string | "HALVED" | null | undefined {
@@ -492,7 +481,7 @@ export async function importGolfTeamResultsAction(_prev: GolfImportResult | null
   const { tournament } = loaded;
   const csv = await readCsv(formData, ["round", "home", "away", "flight", "winner"]);
   if (!csv.ok) return { ok: false, error: csv.error };
-  const findSchool = await schoolLookup();
+  const findSchool = (await loadSchoolKeys()).find;
   const matches = await prisma.golfTeamMatch.findMany({ where: { tournamentId: tournament.id }, include: { pairs: true } });
 
   const rowErrors: RowError[] = [];

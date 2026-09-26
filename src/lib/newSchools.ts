@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma";
 import { recordAudit } from "@/lib/audit";
+import { slugify } from "@/lib/slug";
 
 // Adds the schools an import file names that aren't in the database yet.
 // They go in as guest schools, so a visiting team shows up wherever it plays
@@ -18,7 +19,7 @@ export async function createGuestSchools(
     const key = name.trim().toLowerCase();
     if (!key || created.has(key)) continue;
 
-    const base = key.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 60) || "school";
+    const base = slugify(key, 60) || "school";
     let slug = base;
     let suffix = 1;
     while (await tx.school.findUnique({ where: { slug }, select: { id: true } })) {

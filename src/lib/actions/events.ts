@@ -13,7 +13,7 @@ import {
   setScoreEntrySchema,
   streamUrlSchema,
 } from "@/lib/validation";
-import { parseCsv } from "@/lib/csv";
+import { parseCsv, readCsvUpload } from "@/lib/csv";
 import { findDivision } from "@/lib/divisionAlias";
 import { createGuestSchools } from "@/lib/newSchools";
 import { gameNumberOf } from "@/lib/eventOrder";
@@ -21,6 +21,8 @@ import { computeOutcomes, resolvePlayoffSlots, resolveStandingSlots, tryFillFrom
 import type { ActionResult } from "@/lib/actions/auth";
 import { z } from "zod";
 import { deleteStoredFiles, storedFilesFor } from "@/lib/storedFiles";
+import { slugify } from "@/lib/slug";
+import { loadSchoolKeys } from "@/lib/schoolKeys";
 
 async function makeUniqueEventSlug(tournamentId: string, date: Date, schoolSlugs: string[]) {
   const base = [date.toISOString().slice(0, 10), ...schoolSlugs].join("-").slice(0, 90);
@@ -223,9 +225,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
   // Only admins can add schools, same as the Schools page.
   const addNewSchools = formData.get("addNewSchools") === "on" && admin.role === "ADMIN";
 
-  const file = formData.get("csvFile");
-  const pastedText = formData.get("csvText");
-  const text = file instanceof File && file.size > 0 ? await file.text() : typeof pastedText === "string" ? pastedText : "";
+  const text = await readCsvUpload(formData);
   if (!text.trim()) {
     return { ok: false, error: "Upload a .csv file or paste CSV text." };
   }
@@ -251,12 +251,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
   }
   const col = (name: string) => header.indexOf(name);
 
-  const schools = await prisma.school.findMany();
-  const schoolByKey = new Map<string, (typeof schools)[number]>();
-  for (const s of schools) {
-    schoolByKey.set(s.name.trim().toLowerCase(), s);
-    if (s.code) schoolByKey.set(s.code.trim().toLowerCase(), s);
-  }
+  const { schools, byKey: schoolByKey } = await loadSchoolKeys();
   const requiresDivision = tournament.divisions.length > 0;
   const divisionNames = tournament.divisions.map((d) => d.name).join(", ");
   // Said once for the whole file rather than on every row.
@@ -270,7 +265,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
 
   const existingEvents = await prisma.event.findMany({
     where: { tournamentId: tournament.id, externalId: { not: null } },
-    include: { participants: true },
+    include: { participants: true, results: true },
   });
   const existingByGameId = new Map(existingEvents.map((e) => [e.externalId!, e]));
   const knownGameIds = new Set(existingByGameId.keys());
@@ -426,6 +421,23 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
   }
 
   const schoolSlugById = new Map(schools.map((s) => [s.id, s.slug]));
+  // Every slug already taken in this tournament, read once rather than
+  // checked row by row inside the transaction.
+  const takenSlugs = new Set(
+    (await prisma.event.findMany({ where: { tournamentId: tournament.id }, select: { slug: true } })).map((e) => e.slug)
+  );
+  // The games another game is waiting on ("winner of G3 plays..."): only
+  // their rows need the bracket worked out again. Rows in this file that
+  // point at a game add it as they're written.
+  const existingIds = existingEvents.map((e) => e.id);
+  const feedsBracket = new Set(
+    (
+      await prisma.event.findMany({
+        where: { OR: [{ homeSourceEventId: { in: existingIds } }, { awaySourceEventId: { in: existingIds } }] },
+        select: { homeSourceEventId: true, awaySourceEventId: true },
+      })
+    ).flatMap((e) => [e.homeSourceEventId, e.awaySourceEventId].filter((id): id is string => id !== null))
+  );
 
   type ResolvedSide =
     | { participantAction: "none" }
@@ -437,7 +449,6 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
 
   const { createdIds, updatedIds, removedIds, removedFiles, newSchoolNames } = await prisma.$transaction(
     async (tx) => {
-      const claimedSlugs = new Set<string>();
       const gameIdToEventId = new Map(Array.from(existingByGameId.entries()).map(([gid, e]) => [gid, e.id]));
       const createdIds: string[] = [];
       const updatedIds: string[] = [];
@@ -475,32 +486,6 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
         return resolved.participantAction === "create" || resolved.participantAction === "replace" ? resolved.schoolId : null;
       }
 
-      // Both sides' outgoing schools are removed before either incoming one
-      // is added: a school can only be in a game once, so adding first would
-      // crash whenever a school moves to the other side of the same game (a
-      // re-upload with home and away swapped, say).
-      async function applyParticipants(
-        eventId: string,
-        sides: { isHome: boolean; resolved: ResolvedSide; existing: { schoolId: string } | null; vacate: boolean }[]
-      ) {
-        for (const side of sides) {
-          if (side.existing && side.vacate) {
-            await tx.result.deleteMany({ where: { eventId, schoolId: side.existing.schoolId } });
-            await tx.eventParticipant.deleteMany({ where: { eventId, isHome: side.isHome } });
-          }
-        }
-        for (const side of sides) {
-          const schoolId = incomingSchoolId(side.resolved);
-          if (!schoolId) continue;
-          await tx.eventParticipant.create({ data: { eventId, schoolId, isHome: side.isHome } });
-          await tx.result.upsert({
-            where: { eventId_schoolId: { eventId, schoolId } },
-            create: { eventId, schoolId },
-            update: {},
-          });
-        }
-      }
-
       function currentSchoolId(resolved: ResolvedSide, existingParticipant: { schoolId: string } | null): string | null {
         if (
           resolved.participantAction === "pending" ||
@@ -532,7 +517,16 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       }
 
       for (const row of planned) {
-        const existing = row.gameId ? existingByGameId.get(row.gameId) : undefined;
+        const loaded = row.gameId ? existingByGameId.get(row.gameId) : undefined;
+        // A bracket game's sides may have just been filled or emptied by an
+        // earlier row's result (see resolvePlayoffSlots), so it's read again.
+        const existing =
+          loaded && (loaded.homeSourceEventId || loaded.awaySourceEventId)
+            ? {
+                ...loaded,
+                ...(await tx.event.findUniqueOrThrow({ where: { id: loaded.id }, select: { participants: true, results: true } })),
+              }
+            : loaded;
         const existingHome = existing?.participants.find((p) => p.isHome) ?? null;
         const existingAway = existing?.participants.find((p) => !p.isHome) ?? null;
 
@@ -553,6 +547,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
         }
         const homeSource = sourceFieldsFor(homeResolved);
         const awaySource = sourceFieldsFor(awayResolved);
+        for (const source of [homeSource, awaySource]) if (source?.eventId) feedsBracket.add(source.eventId);
 
         let eventId: string;
         if (existing) {
@@ -590,7 +585,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
           const homeSlugId = currentSchoolId(homeResolved, existingHome);
           const awaySlugId = currentSchoolId(awayResolved, existingAway);
           const base = row.gameId
-            ? `game-${row.gameId.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "row"}`
+            ? `game-${slugify(row.gameId) || "row"}`
             : [
                 row.date.toISOString().slice(0, 10),
                 homeSlugId ? schoolSlugById.get(homeSlugId) : "tbd",
@@ -598,11 +593,11 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
               ].join("-").slice(0, 90);
           let slug = base;
           let suffix = 1;
-          while (claimedSlugs.has(slug) || (await tx.event.findUnique({ where: { tournamentId_slug: { tournamentId: tournament.id, slug } } }))) {
+          while (takenSlugs.has(slug)) {
             suffix += 1;
             slug = `${base}-${suffix}`;
           }
-          claimedSlugs.add(slug);
+          takenSlugs.add(slug);
 
           const event = await tx.event.create({
             data: {
@@ -631,42 +626,74 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
           createdIds.push(eventId);
         }
 
-        await applyParticipants(eventId, [
-          { isHome: true, resolved: homeResolved, existing: existingHome, vacate: vacateHome },
-          { isHome: false, resolved: awayResolved, existing: existingAway, vacate: vacateAway },
-        ]);
+        // Both sides' outgoing schools are removed before either incoming one
+        // is added: a school can only be in a game once, so adding first would
+        // crash whenever a school moves to the other side of the same game (a
+        // re-upload with home and away swapped, say). Removing a school also
+        // drops its result.
+        const vacated = [
+          ...(existingHome && vacateHome ? [existingHome] : []),
+          ...(existingAway && vacateAway ? [existingAway] : []),
+        ];
+        if (vacated.length > 0) {
+          await tx.result.deleteMany({ where: { eventId, schoolId: { in: vacated.map((p) => p.schoolId) } } });
+          await tx.eventParticipant.deleteMany({ where: { eventId, OR: vacated.map((p) => ({ isHome: p.isHome })) } });
+        }
+        const incoming = [
+          { isHome: true, schoolId: incomingSchoolId(homeResolved) },
+          { isHome: false, schoolId: incomingSchoolId(awayResolved) },
+        ].filter((side): side is { isHome: boolean; schoolId: string } => side.schoolId !== null);
+        if (incoming.length > 0) {
+          await tx.eventParticipant.createMany({ data: incoming.map((side) => ({ eventId, ...side })) });
+        }
 
+        // Scores and outcomes are worked out here rather than read back: a
+        // blank score cell keeps the school's stored score, unless it was just
+        // removed from the game above.
+        const vacatedIds = new Set(vacated.map((p) => p.schoolId));
+        const storedScore = (schoolId: string) =>
+          vacatedIds.has(schoolId) ? null : (existing?.results.find((r) => r.schoolId === schoolId)?.score ?? null);
         const homeSchoolId = currentSchoolId(homeResolved, existingHome);
         const awaySchoolId = currentSchoolId(awayResolved, existingAway);
-        if (row.homeScore !== null && homeSchoolId) {
-          await tx.result.update({ where: { eventId_schoolId: { eventId, schoolId: homeSchoolId } }, data: { score: row.homeScore } });
-        }
-        if (row.awayScore !== null && awaySchoolId) {
-          await tx.result.update({ where: { eventId_schoolId: { eventId, schoolId: awaySchoolId } }, data: { score: row.awayScore } });
-        }
-        if (homeSchoolId && awaySchoolId) {
-          const [homeResult, awayResult] = await Promise.all([
-            tx.result.findUnique({ where: { eventId_schoolId: { eventId, schoolId: homeSchoolId } } }),
-            tx.result.findUnique({ where: { eventId_schoolId: { eventId, schoolId: awaySchoolId } } }),
-          ]);
-          const outcomes = computeOutcomes(scoringType, homeResult?.score ?? null, awayResult?.score ?? null);
-          if (outcomes.home) await tx.result.update({ where: { eventId_schoolId: { eventId, schoolId: homeSchoolId } }, data: { outcome: outcomes.home } });
-          if (outcomes.away) await tx.result.update({ where: { eventId_schoolId: { eventId, schoolId: awaySchoolId } }, data: { outcome: outcomes.away } });
-        }
-
-        for (const fv of row.fieldValues) {
-          if (fv.value === null) {
-            await tx.eventFieldValue.deleteMany({ where: { eventId, fieldId: fv.fieldId } });
-          } else {
-            await tx.eventFieldValue.upsert({
-              where: { eventId_fieldId: { eventId, fieldId: fv.fieldId } },
-              create: { eventId, fieldId: fv.fieldId, value: fv.value },
-              update: { value: fv.value },
+        const homeScore = homeSchoolId ? (row.homeScore ?? storedScore(homeSchoolId)) : null;
+        const awayScore = awaySchoolId ? (row.awayScore ?? storedScore(awaySchoolId)) : null;
+        const outcomes = homeSchoolId && awaySchoolId ? computeOutcomes(scoringType, homeScore, awayScore) : { home: null, away: null };
+        const resultWrites = [
+          { schoolId: homeSchoolId, score: row.homeScore, outcome: outcomes.home },
+          { schoolId: awaySchoolId, score: row.awayScore, outcome: outcomes.away },
+        ].flatMap(({ schoolId, score, outcome }) => {
+          if (!schoolId) return [];
+          const changes = { ...(score !== null ? { score } : {}), ...(outcome ? { outcome } : {}) };
+          const isIncoming = incoming.some((side) => side.schoolId === schoolId);
+          return isIncoming || Object.keys(changes).length > 0 ? [{ schoolId, changes }] : [];
+        });
+        if (!existing) {
+          // A new game has no results yet, so both go in at once.
+          if (resultWrites.length > 0) {
+            await tx.result.createMany({ data: resultWrites.map((w) => ({ eventId, schoolId: w.schoolId, ...w.changes })) });
+          }
+        } else {
+          for (const { schoolId, changes } of resultWrites) {
+            await tx.result.upsert({
+              where: { eventId_schoolId: { eventId, schoolId } },
+              create: { eventId, schoolId, ...changes },
+              update: changes,
             });
           }
         }
 
-        await resolvePlayoffSlots(tx, eventId);
+        // A blank custom-field cell clears that field.
+        if (existing) {
+          await tx.eventFieldValue.deleteMany({ where: { eventId, fieldId: { in: row.fieldValues.map((fv) => fv.fieldId) } } });
+        }
+        const fieldValues = row.fieldValues.filter((fv): fv is { fieldId: string; value: string } => fv.value !== null);
+        if (fieldValues.length > 0) {
+          await tx.eventFieldValue.createMany({ data: fieldValues.map((fv) => ({ eventId, ...fv })) });
+        }
+
+        // A game created by this file can't have games waiting on it yet -
+        // later rows that do are filled in as they're written, below.
+        if (existing && feedsBracket.has(eventId)) await resolvePlayoffSlots(tx, eventId);
         if (homeResolved.participantAction === "pending") {
           await tryFillFromExistingSource(tx, eventId, true, homeResolved.sourceEventId, homeResolved.outcome);
         }

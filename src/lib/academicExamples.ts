@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { toCsv } from "@/lib/csv";
 import { RUN_BY_FIELD, isBowlItem, rankChallenge, sortDivisions } from "@/lib/academicGames";
 import { FINALS_STAGES, gameCode, teamLabel, type BowlStage } from "@/lib/bowl";
+import { roundRobin } from "@/lib/roundRobin";
 
 // The downloadable example for the Academic Games schedule upload - a
 // complete file that uploads as-is: the tournament's current timeline once
@@ -108,24 +109,6 @@ const FINALS: [string, string, string][] = [
   ["Final", "winner SF1", "winner SF2"],
 ];
 
-// Round-robin pairings (the circle method), with the second half of the
-// list playing the first; an odd count gets a bye each round.
-function circleRounds<T>(items: T[]): [T, T][][] {
-  const list: (T | null)[] = items.length % 2 === 0 ? [...items] : [...items, null];
-  const rounds: [T, T][][] = [];
-  for (let r = 0; r < list.length - 1; r++) {
-    const round: [T, T][] = [];
-    for (let i = 0; i < list.length / 2; i++) {
-      const a = list[i];
-      const b = list[list.length - 1 - i];
-      if (a !== null && b !== null) round.push([a, b]);
-    }
-    rounds.push(round);
-    list.splice(1, 0, list.pop()!);
-  }
-  return rounds;
-}
-
 const at = (day: Date, hours: number, minutes: number) => {
   const d = new Date(day);
   d.setHours(hours, minutes, 0, 0);
@@ -183,7 +166,7 @@ export async function buildBowlExample(tournamentId: string): Promise<{ filename
   const schools = (await prisma.school.findMany({ where: { isLeagueMember: true }, orderBy: { name: "asc" } })).map((s) => s.code || s.name);
   const teams = schools.flatMap((school) => ["Red", "Blue"].map((colour) => ({ school, label: `${school} ${colour}` })));
   // Both legs, dropping a school's two teams playing each other.
-  const legs = circleRounds(teams);
+  const legs = roundRobin(teams);
   const rounds = [...legs, ...legs.map((round) => round.map(([a, b]) => [b, a] as [typeof a, typeof a]))].map((round) =>
     round.filter(([a, b]) => a.school !== b.school)
   );

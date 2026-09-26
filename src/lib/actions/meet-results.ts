@@ -5,9 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import { meetResultRowSchema } from "@/lib/validation";
-import { parseCsv, csvRowsToObjects } from "@/lib/csv";
+import { parseCsv, csvRowsToObjects, readCsvUpload } from "@/lib/csv";
 import { createGuestSchools } from "@/lib/newSchools";
 import type { ActionResult } from "@/lib/actions/auth";
+import { loadSchoolKeys } from "@/lib/schoolKeys";
 
 export type ImportMeetResultsResult =
   | { ok: true; imported: number; newSchools: string[] }
@@ -36,9 +37,7 @@ export async function importMeetResultsAction(
     return { ok: false, error: "This activity doesn't use meet results." };
   }
 
-  const file = formData.get("csvFile");
-  const pastedText = formData.get("csvText");
-  const text = file instanceof File && file.size > 0 ? await file.text() : typeof pastedText === "string" ? pastedText : "";
+  const text = await readCsvUpload(formData);
   if (!text.trim()) return { ok: false, error: "Upload a .csv file or paste CSV text." };
 
   const rows = parseCsv(text);
@@ -52,12 +51,7 @@ export async function importMeetResultsAction(
     };
   }
 
-  const schools = await prisma.school.findMany();
-  const schoolByKey = new Map<string, (typeof schools)[number]>();
-  for (const s of schools) {
-    schoolByKey.set(s.name.trim().toLowerCase(), s);
-    if (s.code) schoolByKey.set(s.code.trim().toLowerCase(), s);
-  }
+  const { byKey: schoolByKey } = await loadSchoolKeys();
 
   const rowErrors: { row: number; message: string }[] = [];
   const planned: {

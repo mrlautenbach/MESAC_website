@@ -4,6 +4,7 @@ import { toCsv } from "@/lib/csv";
 import { ordinal } from "@/lib/eventDisplay";
 import { SCHEDULE_ORDER } from "@/lib/eventOrder";
 import { sortDivisions } from "@/lib/academicGames";
+import { roundRobin } from "@/lib/roundRobin";
 
 // Downloadable examples for the two schedule uploads - the games schedule
 // (team sports) and a meet's schedule & program. Like every example on the
@@ -11,23 +12,6 @@ import { sortDivisions } from "@/lib/academicGames";
 // schedule as it stands once there is one (so a change is "download, edit,
 // re-upload"), otherwise a sample built from its own dates, schools and
 // divisions.
-
-// Round-robin pairings (the circle method); an odd count gets a bye each round.
-function circleRounds<T>(items: T[]): [T, T][][] {
-  const list: (T | null)[] = items.length % 2 === 0 ? [...items] : [...items, null];
-  const rounds: [T, T][][] = [];
-  for (let r = 0; r < list.length - 1; r++) {
-    const round: [T, T][] = [];
-    for (let i = 0; i < list.length / 2; i++) {
-      const a = list[i];
-      const b = list[list.length - 1 - i];
-      if (a !== null && b !== null) round.push([a, b]);
-    }
-    rounds.push(round);
-    list.splice(1, 0, list.pop()!);
-  }
-  return rounds;
-}
 
 const label = (s: { code: string | null; name: string }) => s.code || s.name;
 
@@ -132,7 +116,7 @@ export async function buildGameScheduleExample(tournamentId: string): Promise<{ 
     : (await prisma.school.findMany({ where: { isLeagueMember: true }, orderBy: { name: "asc" } })).map(label);
   const tracks: (string | null)[] = hasDivisions ? sortDivisions(tournament.divisions).map((d) => d.name) : [null];
   const games: { track: string | null; home: string; away: string }[] = [];
-  for (const [a, b] of circleRounds(schools).flat()) for (const track of tracks) games.push({ track, home: a, away: b });
+  for (const [a, b] of roundRobin(schools).flat()) for (const track of tracks) games.push({ track, home: a, away: b });
 
   const courts = ["Court 1", "Court 2"];
   const days = Math.max(1, differenceInCalendarDays(tournament.endDate, tournament.startDate) + 1);

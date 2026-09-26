@@ -2,6 +2,7 @@ import { addDays, format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { toCsv } from "@/lib/csv";
 import { GOLF_FLIGHTS, GOLF_SEEDS_PER_SCHOOL, pairName, seedingIsFinal, teamSeeding } from "@/lib/golf";
+import { roundRobin } from "@/lib/roundRobin";
 
 // Downloadable example CSVs for each golf upload. Every one is a complete,
 // valid file that uploads as-is: filled in from whatever the tournament
@@ -15,25 +16,6 @@ export type GolfExampleFile = (typeof GOLF_EXAMPLE_FILES)[number];
 
 type Player = { id: string; schoolId: string; seed: number; name: string; grade: number | null; gender: string | null; points: number | null };
 type School = { id: string; label: string };
-
-// Round-robin pairings (the circle method): every school plays every other
-// once, one match each per round. An odd number of schools gets a bye each
-// round.
-function roundRobin<T>(items: T[]): [T, T][][] {
-  const list: (T | null)[] = items.length % 2 === 0 ? [...items] : [...items, null];
-  const rounds: [T, T][][] = [];
-  for (let r = 0; r < list.length - 1; r++) {
-    const round: [T, T][] = [];
-    for (let i = 0; i < list.length / 2; i++) {
-      const a = list[i];
-      const b = list[list.length - 1 - i];
-      if (a !== null && b !== null) round.push([a, b]);
-    }
-    rounds.push(round);
-    list.splice(1, 0, list.pop()!);
-  }
-  return rounds;
-}
 
 export async function buildGolfExample(tournamentId: string, file: GolfExampleFile): Promise<{ filename: string; csv: string } | null> {
   const tournament = await prisma.tournament.findUnique({

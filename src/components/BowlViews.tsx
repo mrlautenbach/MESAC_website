@@ -13,6 +13,7 @@ import {
   teamLabel,
   type BowlStage,
 } from "@/lib/bowl";
+import { DivisionSections } from "@/components/DivisionSections";
 
 // The Academic Bowl's schedule: each division's games day by day, one card
 // per round-robin round and one per finals stage, every game a row with its
@@ -162,27 +163,11 @@ export async function BowlSchedule({ tournamentId, divisionId }: { tournamentId:
   // Both divisions: one after the other, with a jump to the second.
   const shown = sortDivisions(divisions).filter((d) => games.some((g) => g.divisionId === d.id));
   return (
-    <div className="space-y-12">
-      {shown.length > 1 && (
-        <p className="text-sm text-muted">
-          Jump to{" "}
-          {shown.map((d, i) => (
-            <span key={d.id}>
-              {i > 0 && " · "}
-              <a href={`#${d.slug}`} className="font-semibold text-primary hover:underline">
-                {d.name}
-              </a>
-            </span>
-          ))}
-        </p>
+    <DivisionSections divisions={shown}>
+      {(division) => (
+        <DivisionSchedule games={games.filter((g) => g.divisionId === division.id)} idPrefix={`${division.slug}-`} />
       )}
-      {shown.map((division) => (
-        <section key={division.id} id={division.slug} className="scroll-mt-28 space-y-4">
-          <h4>{division.name}</h4>
-          <DivisionSchedule games={games.filter((g) => g.divisionId === division.id)} idPrefix={`${division.slug}-`} />
-        </section>
-      ))}
-    </div>
+    </DivisionSections>
   );
 }
 
@@ -370,29 +355,13 @@ export async function BowlResults({ tournamentId, divisionId }: { tournamentId: 
 
   const shown = sortDivisions(divisions).filter((d) => games.some((g) => g.divisionId === d.id));
   return (
-    <div className="space-y-12">
-      {shown.length > 1 && (
-        <p className="text-sm text-muted">
-          Jump to{" "}
-          {shown.map((d, i) => (
-            <span key={d.id}>
-              {i > 0 && " · "}
-              <a href={`#${d.slug}`} className="font-semibold text-primary hover:underline">
-                {d.name}
-              </a>
-            </span>
-          ))}
-        </p>
+    <DivisionSections divisions={shown}>
+      {(division) => (
+        <DivisionResults
+          teams={teams.filter((t) => t.divisionId === division.id)}
+          games={games.filter((g) => g.divisionId === division.id)}
+        />
       )}
-      {shown.map((division) => (
-        <section key={division.id} id={division.slug} className="scroll-mt-28 space-y-4">
-          <h4>{division.name}</h4>
-          <DivisionResults
-            teams={teams.filter((t) => t.divisionId === division.id)}
-            games={games.filter((g) => g.divisionId === division.id)}
-          />
-        </section>
-      ))}
-    </div>
+    </DivisionSections>
   );
 }

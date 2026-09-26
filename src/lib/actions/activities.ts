@@ -8,14 +8,7 @@ import { recordAudit } from "@/lib/audit";
 import { activityInputSchema } from "@/lib/validation";
 import type { ActionResult } from "@/lib/actions/auth";
 import { deleteStoredFiles, storedFilesFor } from "@/lib/storedFiles";
-
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
+import { slugify } from "@/lib/slug";
 
 // An activity is meaningless on its own - it only becomes a real, visitable
 // page once it has a tournament edition. So creating one always creates its

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { auth } from "@/lib/auth";
 
 export type CurrentUser = {
@@ -11,8 +12,9 @@ export type CurrentUser = {
 
 // Every page and server action should call this instead of `auth()`
 // directly. It collapses a disabled account / revoked session (see
-// lib/auth.ts jwt callback) down to "not logged in".
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+// lib/auth.ts jwt callback) down to "not logged in". Cached for the rest of
+// the request, so the header, the page and its components share one check.
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const session = await auth();
   if (!session?.user?.isValid) return null;
   return {
@@ -23,7 +25,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     email: session.user.email ?? "",
     mustChangePassword: session.user.mustChangePassword,
   };
-}
+});
 
 export async function requireUser(): Promise<CurrentUser> {
   const user = await getCurrentUser();

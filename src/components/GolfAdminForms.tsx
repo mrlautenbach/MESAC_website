@@ -12,6 +12,7 @@ import {
   saveGolfMatchResultsAction,
   type GolfImportResult,
 } from "@/lib/actions/golf";
+import { CsvImportOutcome } from "@/components/CsvImportOutcome";
 
 const IMPORTS = {
   roster: { action: importGolfRosterAction, submit: "Upload roster" },
@@ -20,31 +21,6 @@ const IMPORTS = {
   teamDraw: { action: importGolfTeamDrawAction, submit: "Upload team draw" },
   teamResults: { action: importGolfTeamResultsAction, submit: "Upload team results" },
 } as const;
-
-function Outcome({ state }: { state: GolfImportResult | null }) {
-  if (!state) return null;
-  if (state.ok) {
-    return (
-      <p role="status" className="bg-success-tint px-3 py-2 text-sm text-success">
-        {state.summary}
-      </p>
-    );
-  }
-  return (
-    <div role="alert" className="space-y-2 bg-danger-tint px-4 py-3 text-sm text-danger">
-      <p className="font-semibold">{state.error}</p>
-      {state.rowErrors && state.rowErrors.length > 0 && (
-        <ul className="list-inside list-disc space-y-1">
-          {state.rowErrors.map((e, i) => (
-            <li key={i}>
-              Row {e.row}: {e.message}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 // One CSV upload: file or pasted text, plus an example file to start from
 // (see lib/golfExamples - complete, and filled in from what's already set up).
@@ -79,7 +55,7 @@ export function GolfCsvForm({
         </label>
         <textarea {...csvText} id={`${id}-text`} name="csvText" rows={5} className="field-input font-mono text-xs" placeholder={placeholder} />
       </div>
-      <Outcome state={state} />
+      <CsvImportOutcome state={state} />
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending} className="btn btn-primary">
           {pending ? "Uploading…" : submit}

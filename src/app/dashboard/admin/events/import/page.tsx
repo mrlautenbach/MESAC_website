@@ -4,6 +4,10 @@ import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { EventImportForm } from "@/components/EventImportForm";
 
+// The upload runs as a server action on this page, so this is its time
+// limit too - room for a full weekend's schedule on a slow connection.
+export const maxDuration = 60;
+
 export default async function ImportEventsPage({
   searchParams,
 }: {

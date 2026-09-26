@@ -5,8 +5,9 @@ import { revalidateTournament } from "@/lib/revalidate";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
-import { parseCsv, csvRowsToObjects } from "@/lib/csv";
+import { parseCsv, csvRowsToObjects, readCsvUpload } from "@/lib/csv";
 import { normalizeDivisionName } from "@/lib/divisionAlias";
+import { slugify } from "@/lib/slug";
 
 export type ImportMeetScheduleResult =
   | { ok: true; rounds: number; sessions: number; newSessions: number }
@@ -56,9 +57,7 @@ export async function importMeetScheduleAction(
     return { ok: false, error: "This activity doesn't use meet results." };
   }
 
-  const file = formData.get("csvFile");
-  const pastedText = formData.get("csvText");
-  const text = file instanceof File && file.size > 0 ? await file.text() : typeof pastedText === "string" ? pastedText : "";
+  const text = await readCsvUpload(formData);
   if (!text.trim()) return { ok: false, error: "Upload a .csv file or paste CSV text." };
 
   const rows = parseCsv(text);
@@ -253,11 +252,7 @@ export async function importMeetScheduleAction(
       const key = row.sessionName.toLowerCase();
       if (sessionIdCache.has(key)) continue;
 
-      const base = row.sessionName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 90) || "session";
+      const base = slugify(row.sessionName, 90) || "session";
       let slug = base;
       let suffix = 1;
       while (

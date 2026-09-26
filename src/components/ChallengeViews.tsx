@@ -10,6 +10,7 @@ import {
   shortChallengeName,
   sortDivisions,
 } from "@/lib/academicGames";
+import { DivisionSections } from "@/components/DivisionSections";
 
 // Academic Games' challenge results, per division: the STEM and Humanities
 // tables (each school's total score across the group's three challenges),
@@ -162,26 +163,10 @@ export async function ChallengeResults({ tournamentId, divisionId }: { tournamen
   if (shown.length === 0) return <DivisionChallenges {...forDivision(null)} idPrefix="" />;
 
   return (
-    <div className="space-y-12">
-      {shown.length > 1 && (
-        <p className="text-sm text-muted">
-          Jump to{" "}
-          {shown.map((d, i) => (
-            <span key={d.id}>
-              {i > 0 && " · "}
-              <a href={`#${d.slug}`} className="font-semibold text-primary hover:underline">
-                {d.name}
-              </a>
-            </span>
-          ))}
-        </p>
+    <DivisionSections divisions={shown}>
+      {(division) => (
+        <DivisionChallenges {...forDivision(division.id)} idPrefix={`${division.slug}-`} />
       )}
-      {shown.map((division) => (
-        <section key={division.id} id={division.slug} className="scroll-mt-28 space-y-4">
-          <h4>{division.name}</h4>
-          <DivisionChallenges {...forDivision(division.id)} idPrefix={`${division.slug}-`} />
-        </section>
-      ))}
-    </div>
+    </DivisionSections>
   );
 }

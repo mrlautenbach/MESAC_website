@@ -70,3 +70,10 @@ function csvCell(value: string | number | null | undefined): string {
 export function toCsv(header: string[], rows: (string | number | null | undefined)[][]): string {
   return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n") + "\n";
 }
+
+// What an upload form sent: the chosen .csv file, or else the pasted text.
+export async function readCsvUpload(formData: FormData): Promise<string> {
+  const file = formData.get("csvFile");
+  const pasted = formData.get("csvText");
+  return file instanceof File && file.size > 0 ? await file.text() : typeof pasted === "string" ? pasted : "";
+}

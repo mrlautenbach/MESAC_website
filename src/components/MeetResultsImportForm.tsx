@@ -4,6 +4,7 @@ import { useCsvText } from "@/components/useCsvText";
 import { useActionState } from "react";
 import { importMeetResultsAction, clearMeetResultsAction, type ImportMeetResultsResult } from "@/lib/actions/meet-results";
 import { AddNewSchoolsCheckbox, NewSchoolsNote } from "@/components/NewSchoolsImport";
+import { CsvImportErrors } from "@/components/CsvImportOutcome";
 
 export function MeetResultsImportForm({ eventId, resultCount }: { eventId: string; resultCount: number }) {
   const [state, formAction, pending] = useActionState<ImportMeetResultsResult | null, FormData>(
@@ -87,20 +88,7 @@ export function MeetResultsImportForm({ eventId, resultCount }: { eventId: strin
 
         <AddNewSchoolsCheckbox />
 
-        {state && !state.ok && (
-          <div role="alert" className="space-y-2 bg-danger-tint px-4 py-3 text-sm text-danger">
-            <p className="font-semibold">{state.error}</p>
-            {state.rowErrors && state.rowErrors.length > 0 && (
-              <ul className="list-inside list-disc space-y-1">
-                {state.rowErrors.map((e, i) => (
-                  <li key={i}>
-                    Row {e.row}: {e.message}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
+        {state && !state.ok && <CsvImportErrors error={state.error} rowErrors={state.rowErrors} />}
         {state?.ok && (
           <p role="status" className="bg-success-tint px-3 py-2 text-sm text-success">
             Imported {state.imported} result{state.imported === 1 ? "" : "s"}!

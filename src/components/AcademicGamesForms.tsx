@@ -9,37 +9,13 @@ import {
   saveBowlScoresAction,
   type AcademicImportResult,
 } from "@/lib/actions/academic-games";
+import { CsvImportOutcome } from "@/components/CsvImportOutcome";
 
 const IMPORTS = {
   schedule: { action: importAcademicScheduleAction, submit: "Upload schedule" },
   bowl: { action: importBowlScheduleAction, submit: "Upload bowl schedule" },
   challenges: { action: importChallengeResultsAction, submit: "Upload challenge results" },
 } as const;
-
-function Outcome({ state }: { state: AcademicImportResult | null }) {
-  if (!state) return null;
-  if (state.ok) {
-    return (
-      <p role="status" className="bg-success-tint px-3 py-2 text-sm text-success">
-        {state.summary}
-      </p>
-    );
-  }
-  return (
-    <div role="alert" className="space-y-2 bg-danger-tint px-4 py-3 text-sm text-danger">
-      <p className="font-semibold">{state.error}</p>
-      {state.rowErrors && state.rowErrors.length > 0 && (
-        <ul className="list-inside list-disc space-y-1">
-          {state.rowErrors.map((e, i) => (
-            <li key={i}>
-              Row {e.row}: {e.message}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 // One Academic Games CSV upload: file or pasted text, plus the example file
 // to start from (see lib/academicExamples).
@@ -74,7 +50,7 @@ export function AcademicCsvForm({
         </label>
         <textarea {...csvText} id={`${id}-text`} name="csvText" rows={6} className="field-input font-mono text-xs" placeholder={placeholder} />
       </div>
-      <Outcome state={state} />
+      <CsvImportOutcome state={state} />
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending} className="btn btn-primary">
           {pending ? "Uploading…" : submit}
