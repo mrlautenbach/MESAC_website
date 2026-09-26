@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useState } from "react";
 import { importEventsAction, type ImportEventsResult } from "@/lib/actions/events";
 import { AddNewSchoolsCheckbox, NewSchoolsNote } from "@/components/NewSchoolsImport";
 
@@ -19,20 +19,6 @@ type Props = {
   canAddSchools?: boolean;
 };
 
-function buildTemplate(season: SeasonOption | undefined, schoolCodes: Props["schoolCodes"]) {
-  const hasDivisions = (season?.divisions.length ?? 0) > 0;
-  const genderCol = hasDivisions ? ["gender"] : [];
-  const genderSample = hasDivisions ? [season!.divisions[0].name] : [];
-  const customCols = season?.fields.map((f) => f.key) ?? [];
-  const customSample = customCols.map(() => "");
-
-  const header = ["game_id", ...genderCol, "home", "home_score", "away", "away_score", "date", "time", "court", "streaming_link", "status", ...customCols];
-  const sampleCodes = schoolCodes.slice(0, 2).map((s) => s.code || s.name);
-  const row1 = ["G1", ...genderSample, sampleCodes[0] ?? "TEAM1", "", sampleCodes[1] ?? "TEAM2", "", "2026-09-12", "09:00", "Main Gym", "", "SCHEDULED", ...customSample];
-  const row2 = ["G2", ...genderSample, sampleCodes[1] ?? "TEAM2", "", "WINNER(G1)", "", "2026-09-13", "09:00", "Main Gym", "", "SCHEDULED", ...customSample];
-  return `${header.join(",")}\n${row1.join(",")}\n${row2.join(",")}\n`;
-}
-
 // Meet-style activities (Swimming, Track & Field) set up their schedule via
 // the combined schedule+program CSV instead - see MeetScheduleImportForm.
 export function EventImportForm({ seasons, schoolCodes, defaultTournamentId, canAddSchools = false }: Props) {
@@ -42,10 +28,7 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId, can
   );
   const season = seasons.find((s) => s.id === tournamentId);
 
-  const templateHref = useMemo(() => {
-    const csv = buildTemplate(season, schoolCodes);
-    return `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
-  }, [season, schoolCodes]);
+  const exampleHref = `/dashboard/admin/events/import/example?tournament=${tournamentId}`;
 
   if (state?.ok) {
     return (
@@ -138,9 +121,15 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId, can
             page.
           </li>
         </ul>
-        <a href={templateHref} download={`${season?.label.replace(/[^a-z0-9]+/gi, "-") || "events"}-template.csv`} className="btn btn-secondary">
-          Download CSV template
-        </a>
+        <p className="text-muted">
+          The{" "}
+          <a href={exampleHref} download className="font-semibold text-primary hover:underline">
+            example CSV
+          </a>{" "}
+          uploads as-is: this tournament&apos;s schedule as it stands, to edit and upload again - or, before there is
+          one, a sample round robin between its schools on its own dates. Games added one at a time have no{" "}
+          <code>game_id</code>, so they aren&apos;t in it and stay as they are.
+        </p>
       </div>
 
       <div>
@@ -191,9 +180,14 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId, can
         </div>
       )}
 
-      <button type="submit" disabled={pending} className="btn btn-primary">
-        {pending ? "Importing…" : "Import games"}
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={pending} className="btn btn-primary">
+          {pending ? "Importing…" : "Import games"}
+        </button>
+        <a href={exampleHref} download className="text-sm font-semibold text-primary hover:underline">
+          Download example CSV
+        </a>
+      </div>
     </form>
   );
 }

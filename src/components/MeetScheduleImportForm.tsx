@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo } from "react";
+import { useActionState } from "react";
 import { importMeetScheduleAction, type ImportMeetScheduleResult } from "@/lib/actions/meet-schedule";
 
 type Props = {
@@ -8,43 +8,13 @@ type Props = {
   divisions: { id: string; name: string }[];
 };
 
-function buildTemplate(divisions: Props["divisions"]) {
-  const hasDivisions = divisions.length > 0;
-  const divisionCol = hasDivisions ? ["division"] : [];
-  const divisionCell = hasDivisions ? [divisions[0].name] : [];
-  const header = [
-    "date",
-    "session",
-    "event_number",
-    "round",
-    "event_name",
-    "gender",
-    ...divisionCol,
-    "location",
-    "status",
-    "live_stream",
-    "time",
-  ];
-  // Event 1 shows a prelim/final pair across two different sessions; event 2
-  // shows a single (final-only) event - both are valid shapes.
-  const rows = [
-    ["2026-09-12", "Day 1 Prelims", "1", "prelim", "100m Freestyle", "Girls", ...divisionCell, "Aquatics Center", "SCHEDULED", "", "09:00"],
-    ["2026-09-12", "Day 1 Finals", "1", "final", "100m Freestyle", "Girls", ...divisionCell, "Aquatics Center", "SCHEDULED", "https://example.com/live", "18:00"],
-    ["2026-09-12", "Day 1 Finals", "2", "", "200m Individual Medley", "Girls", ...divisionCell, "Aquatics Center", "SCHEDULED", "", "18:20"],
-  ];
-  return `${header.join(",")}\n${rows.map((r) => r.join(",")).join("\n")}\n`;
-}
-
 export function MeetScheduleImportForm({ tournamentId, divisions }: Props) {
   const [state, formAction, pending] = useActionState<ImportMeetScheduleResult | null, FormData>(
     importMeetScheduleAction,
     null
   );
 
-  const templateHref = useMemo(
-    () => `data:text/csv;charset=utf-8,${encodeURIComponent(buildTemplate(divisions))}`,
-    [divisions]
-  );
+  const exampleHref = `/dashboard/admin/meet-schedule/example?tournament=${tournamentId}`;
 
   if (state?.ok) {
     return (
@@ -96,9 +66,15 @@ export function MeetScheduleImportForm({ tournamentId, divisions }: Props) {
           Re-uploading replaces any event_number this file mentions (wherever it was before) - event_numbers left
           out of the file keep whatever they already have.
         </p>
-        <a href={templateHref} download="meet-schedule-template.csv" className="btn btn-secondary">
-          Download CSV template
-        </a>
+        <p className="text-muted">
+          The{" "}
+          <a href={exampleHref} download className="font-semibold text-primary hover:underline">
+            example CSV
+          </a>{" "}
+          uploads as-is: this meet&apos;s schedule and program as they stand, to edit and upload again - or, before
+          there is one, a sample Day 1 of prelims and finals for girls and boys
+          {divisions.length > 0 ? " in each division" : ""} on the meet&apos;s first day.
+        </p>
       </div>
 
       <div>
@@ -136,9 +112,14 @@ export function MeetScheduleImportForm({ tournamentId, divisions }: Props) {
         </div>
       )}
 
-      <button type="submit" disabled={pending} className="btn btn-primary">
-        {pending ? "Importing…" : "Import schedule"}
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={pending} className="btn btn-primary">
+          {pending ? "Importing…" : "Import schedule"}
+        </button>
+        <a href={exampleHref} download className="text-sm font-semibold text-primary hover:underline">
+          Download example CSV
+        </a>
+      </div>
     </form>
   );
 }
