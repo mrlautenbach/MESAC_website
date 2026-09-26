@@ -7,7 +7,8 @@ import { requireAdmin } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import { revalidateTournament } from "@/lib/revalidate";
 import { parseCsv, csvRowsToObjects } from "@/lib/csv";
-import { matchTrack, parseClock, RUN_BY_FIELD, trackNames } from "@/lib/academicGames";
+import { findDivision } from "@/lib/divisionAlias";
+import { isBowlItem, matchTrack, parseClock, RUN_BY_FIELD, trackNames } from "@/lib/academicGames";
 import {
   bowlStandings,
   gameCode,
@@ -628,4 +629,135 @@ export async function saveBowlScoresAction(_prev: AcademicImportResult | null, f
   revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
   revalidatePath("/dashboard/admin/academic-games");
   return { ok: true, summary: moved > 0 ? `Saved - ${plural(moved, "finals game")} updated.` : "Saved." };
+}
+
+// ── The challenges ─────────────────────────────────────────────────────
+
+const CHALLENGE_HEADERS = ["challenge", "school"];
+const titleKey = (title: string) => title.replace(/\s*\(.*?\)\s*/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+
+// Challenge results from one CSV: challenge (its title on the schedule,
+// e.g. "Math Challenge"), division (varsity or jv - needed for a challenge
+// every team sits together), place, school, score. Each challenge and
+// division in the file has its results replaced; ones not in the file are
+// left alone, so results can go up one challenge at a time.
+export async function importChallengeResultsAction(_prev: AcademicImportResult | null, formData: FormData): Promise<AcademicImportResult> {
+  const admin = await requireAdmin();
+  const loaded = await loadAcademicTournament(String(formData.get("tournamentId") ?? ""));
+  if (!loaded.ok) return loaded;
+  const { tournament } = loaded;
+
+  const text = await readCsvText(formData);
+  if (!text.trim()) return { ok: false, error: "Upload a .csv file or paste CSV text." };
+  const rows = parseCsv(text);
+  if (rows.length < 2) return { ok: false, error: "The file needs a header row plus at least one result row." };
+  const { header, records } = csvRowsToObjects(rows);
+  if (CHALLENGE_HEADERS.some((h) => !header.includes(h)) || (!header.includes("place") && !header.includes("score"))) {
+    return { ok: false, error: "The header row needs: challenge, school, and place or score (plus division)." };
+  }
+
+  const challenges = (await prisma.event.findMany({ where: { tournamentId: tournament.id } })).filter((e) => !isBowlItem(e.title ?? ""));
+  if (challenges.length === 0) {
+    return { ok: false, error: "There are no challenges on the schedule yet - upload the schedule first, then the results." };
+  }
+  const schools = await prisma.school.findMany();
+  const schoolByKey = new Map<string, (typeof schools)[number]>();
+  for (const s of schools) {
+    schoolByKey.set(s.name.trim().toLowerCase(), s);
+    if (s.code) schoolByKey.set(s.code.trim().toLowerCase(), s);
+  }
+  const needsDivision = tournament.divisions.length > 0;
+
+  const rowErrors: RowError[] = [];
+  const planned: { eventId: string; divisionId: string | null; schoolId: string; place: number | null; score: number | null }[] = [];
+  const seen = new Map<string, number>();
+
+  records.forEach((record, i) => {
+    const rowNum = i + 2;
+    if (Object.values(record).every((v) => !v.trim())) return;
+    const get = (name: string) => (record[name] ?? "").trim();
+    const errors: string[] = [];
+
+    // The division first - it picks between two challenges with the same
+    // title (Varsity's Math Challenge and JV's).
+    const divisionRaw = get("division");
+    const division = divisionRaw ? findDivision(tournament.divisions, divisionRaw) : undefined;
+    if (divisionRaw && !division) errors.push(`Unknown division "${divisionRaw}" (use ${tournament.divisions.map((d) => d.name).join(", ")}).`);
+
+    const challengeRaw = get("challenge");
+    const key = titleKey(challengeRaw);
+    let named = challenges.filter((c) => titleKey(c.title ?? "") === key);
+    if (named.length === 0 && key) named = challenges.filter((c) => titleKey(c.title ?? "").includes(key));
+    const matching = division ? named.filter((c) => !c.divisionId || c.divisionId === division.id) : named;
+    let event: (typeof challenges)[number] | undefined;
+    if (!challengeRaw) errors.push("Missing challenge.");
+    else if (named.length === 0) errors.push(`No challenge called "${challengeRaw}" on the schedule.`);
+    else if (new Set(matching.map((c) => titleKey(c.title ?? ""))).size > 1) errors.push(`"${challengeRaw}" matches more than one challenge - use its full title.`);
+    else if (matching.length === 0) errors.push(`"${challengeRaw}" isn't a ${division?.name} challenge.`);
+    else if (matching.length > 1) errors.push(`"${challengeRaw}" is on the schedule for more than one division - say which in the division column.`);
+    else event = matching[0];
+
+    // A challenge on one track takes its division from the schedule; one
+    // every team sits together needs the row to say.
+    const divisionId = event?.divisionId ?? division?.id ?? null;
+    if (event && !event.divisionId && !division && needsDivision) {
+      errors.push(`${event.title} is for every team - say which division this result is for.`);
+    }
+
+    const schoolRaw = get("school");
+    const team = schoolRaw ? parseTeamName(schoolRaw, schoolByKey) : null;
+    if (!schoolRaw) errors.push("Missing school.");
+    else if (!team || team.name) errors.push(`Unknown school "${schoolRaw}".`);
+
+    const placeRaw = get("place").replace(/(st|nd|rd|th|=)$/i, "");
+    const place = placeRaw ? Number(placeRaw) : null;
+    if (place !== null && (!Number.isInteger(place) || place < 1 || place > 99)) errors.push(`Place "${get("place")}" must be 1, 2, 3...`);
+    const scoreRaw = get("score");
+    const score = scoreRaw ? Number(scoreRaw) : null;
+    if (score !== null && (!Number.isFinite(score) || score < 0 || score > 100000)) errors.push(`Score "${scoreRaw}" isn't a number.`);
+    if (!placeRaw && !scoreRaw) errors.push("Give a place, a score, or both.");
+
+    if (errors.length > 0 || !event || !team) {
+      rowErrors.push({ row: rowNum, message: errors.join(" ") });
+      return;
+    }
+    const dup = `${event.id}|${divisionId}|${team.school.id}`;
+    if (seen.has(dup)) {
+      rowErrors.push({ row: rowNum, message: `${team.school.code || team.school.name} already has a result for this challenge (row ${seen.get(dup)}).` });
+      return;
+    }
+    seen.set(dup, rowNum);
+    planned.push({ eventId: event.id, divisionId, schoolId: team.school.id, place, score });
+  });
+
+  if (rowErrors.length > 0) {
+    return { ok: false, error: `${rowErrors.length} row(s) need fixing before anything is saved.`, rowErrors };
+  }
+  if (planned.length === 0) return { ok: false, error: "No result rows found in the file." };
+
+  const groups = [...new Set(planned.map((p) => `${p.eventId}|${p.divisionId ?? ""}`))];
+  await prisma.$transaction(async (tx) => {
+    for (const group of groups) {
+      const [eventId, divisionId] = group.split("|");
+      await tx.challengeResult.deleteMany({ where: { eventId, divisionId: divisionId || null } });
+    }
+    await tx.challengeResult.createMany({ data: planned.map((p) => ({ ...p, tournamentId: tournament.id })) });
+  });
+
+  await recordAudit({
+    actorId: admin.id,
+    actorLabel: admin.name,
+    action: "CHALLENGE_RESULTS_IMPORT",
+    entityType: "Tournament",
+    entityId: tournament.id,
+    summary: `${admin.name} uploaded Academic Games challenge results (${planned.length} results)`,
+    after: { results: planned.length, challenges: groups.length },
+  });
+
+  revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
+  revalidatePath("/dashboard/admin/academic-games");
+  return {
+    ok: true,
+    summary: `Challenge results saved: ${plural(planned.length, "result")} across ${plural(groups.length, "challenge")} (counting each division separately).`,
+  };
 }

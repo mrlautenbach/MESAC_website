@@ -4,7 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { AcademicCsvForm, BowlScoresForm } from "@/components/AcademicGamesForms";
-import { RUN_BY_FIELD, formatTimeRange, sortDivisions } from "@/lib/academicGames";
+import { RUN_BY_FIELD, formatTimeRange, isBowlItem, sortDivisions } from "@/lib/academicGames";
 import { FINALS_STAGES, gameLabel, sourceLabel, teamLabel, type BowlStage } from "@/lib/bowl";
 
 const STAGE_ORDER: BowlStage[] = ["ROUND_ROBIN", ...FINALS_STAGES.map((f) => f.stage)];
@@ -35,6 +35,7 @@ export default async function AcademicGamesAdminPage({ searchParams }: { searchP
         include: { division: true, fieldValues: { where: { field: { key: RUN_BY_FIELD.key } } } },
       },
       bowlTeams: true,
+      challengeResults: { select: { eventId: true, divisionId: true } },
       bowlGames: {
         orderBy: [{ startTime: "asc" }, { room: "asc" }],
         include: { teamA: { include: { school: true } }, teamB: { include: { school: true } } },
@@ -58,6 +59,12 @@ export default async function AcademicGamesAdminPage({ searchParams }: { searchP
   const days = [...new Set(events.map((e) => format(e.date, "yyyy-MM-dd")))];
   const noVenue = events.filter((e) => !e.location).length;
   const example = (file: string) => `/dashboard/admin/academic-games/examples?tournament=${tournament.id}&file=${file}`;
+
+  const challenges = events.filter((e) => !isBowlItem(e.title ?? ""));
+  // Which divisions each challenge has results for (a challenge every team
+  // sits together has one set per division).
+  const resultsFor = (eventId: string, divisionId: string | null) =>
+    tournament.challengeResults.filter((r) => r.eventId === eventId && r.divisionId === divisionId).length;
 
   const games = tournament.bowlGames;
   const scored = games.filter((g) => g.scoreA !== null).length;
@@ -99,6 +106,7 @@ export default async function AcademicGamesAdminPage({ searchParams }: { searchP
         <nav aria-label="Steps" className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
           <a href="#schedule" className="font-semibold text-primary hover:underline">Schedule</a>
           <a href="#bowl" className="font-semibold text-primary hover:underline">Academic Bowl</a>
+          <a href="#challenges" className="font-semibold text-primary hover:underline">Challenge results</a>
           {games.length > 0 && <a href="#bowl-scores" className="font-semibold text-primary hover:underline">Bowl scores</a>}
           <Link href={`/seasons/${tournament.slug}/schedule`} className="ml-auto font-semibold text-primary hover:underline">
             View public schedule →
@@ -220,10 +228,70 @@ export default async function AcademicGamesAdminPage({ searchParams }: { searchP
         />
       </section>
 
+      <section id="challenges" className="scroll-mt-20 space-y-4">
+        <div>
+          <h2 className="text-xl">3. Challenge results</h2>
+          <p className="mt-1 text-sm text-muted">
+            One row per school per challenge. Columns: <code>challenge</code> (its title on the schedule, e.g. Math
+            Challenge), <code>division</code> (<code>varsity</code> or <code>jv</code> - needed for a challenge every
+            team sits together, like the Current Events Olympiad), <code>place</code>, <code>school</code> (code or
+            name), and <code>score</code>. Give a place, a score or both; with scores alone, places follow from them.
+          </p>
+          <p className="mt-1 text-sm text-muted">
+            Uploading replaces the results for each challenge and division in the file and leaves the rest alone, so
+            results can go up one challenge at a time. STEM (Math, Engineering, Science) and Humanities (Humanities,
+            Current Events, Arts) each rank schools by their total score across the three. The{" "}
+            <a href={example("challenges")} download className="font-semibold text-primary hover:underline">
+              example CSV
+            </a>{" "}
+            {tournament.challengeResults.length
+              ? "is the results as they stand."
+              : "has sample results for every challenge on the schedule - replace the places and scores."}
+          </p>
+        </div>
+        <AcademicCsvForm
+          kind="challenges"
+          tournamentId={tournament.id}
+          exampleHref={example("challenges")}
+          placeholder={`challenge,division,place,school,score\nMath Challenge,varsity,1,Dubai,48\nCurrent Events Olympiad,jv,1,AES,41`}
+        />
+        {challenges.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="mtable text-sm">
+              <thead>
+                <tr>
+                  <th>Challenge</th>
+                  {divisions.map((d) => (
+                    <th key={d.id}>{d.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {challenges.map((e) => (
+                  <tr key={e.id}>
+                    <td className="font-semibold">{e.title}</td>
+                    {divisions.map((d) => {
+                      // A one-track challenge only has results for its own division.
+                      if (e.divisionId && e.divisionId !== d.id) return <td key={d.id} className="text-muted">-</td>;
+                      const n = resultsFor(e.id, d.id);
+                      return (
+                        <td key={d.id} className={n ? "" : "text-muted"}>
+                          {n ? `${n} schools` : "No results yet"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       {bowlDivisions.length > 0 && (
         <section id="bowl-scores" className="scroll-mt-20 space-y-6">
           <div>
-            <h2 className="text-xl">3. Bowl scores</h2>
+            <h2 className="text-xl">4. Bowl scores</h2>
             <p className="mt-1 text-sm text-muted">
               Round by round. Leave both boxes blank for a game that hasn&apos;t been played. Finals games can be
               scored once both their teams are known.

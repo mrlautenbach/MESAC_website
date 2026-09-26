@@ -1,7 +1,7 @@
 import { addDays, format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { toCsv } from "@/lib/csv";
-import { RUN_BY_FIELD, sortDivisions } from "@/lib/academicGames";
+import { RUN_BY_FIELD, isBowlItem, rankChallenge, sortDivisions } from "@/lib/academicGames";
 import { FINALS_STAGES, gameCode, teamLabel, type BowlStage } from "@/lib/bowl";
 
 // The downloadable example for the Academic Games schedule upload - a
@@ -242,4 +242,64 @@ export async function buildBowlExample(tournamentId: string): Promise<{ filename
     }
   });
   return { filename, csv: toCsv(BOWL_HEADER, rows) };
+}
+
+// ── The challenges ─────────────────────────────────────────────────────
+
+const CHALLENGE_HEADER = ["challenge", "division", "place", "school", "score"];
+
+// The challenge results upload's example: the results as they stand once
+// there are any, otherwise sample results for every challenge on the
+// schedule - each league school's place and score, per division (Varsity
+// and JV each get their own results for a challenge every team sits
+// together). Without a schedule it uses the 2025 challenges' titles, which
+// only upload once the schedule has them.
+export async function buildChallengeExample(tournamentId: string): Promise<{ filename: string; csv: string } | null> {
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    include: {
+      activity: true,
+      divisions: true,
+      events: { orderBy: { date: "asc" } },
+      challengeResults: { include: { school: true } },
+    },
+  });
+  if (!tournament || !tournament.activity.usesAcademicFormat) return null;
+  const filename = `${tournament.slug}-challenge-results.csv`;
+  const divisions = sortDivisions(tournament.divisions);
+  const nameOf = new Map(divisions.map((d) => [d.id, d.name]));
+  const challenges = tournament.events.filter((e) => !isBowlItem(e.title ?? ""));
+
+  if (tournament.challengeResults.length > 0) {
+    const rows = challenges.flatMap((event) =>
+      [null, ...divisions.map((d) => d.id)].flatMap((divisionId) =>
+        rankChallenge(tournament.challengeResults.filter((r) => r.eventId === event.id && r.divisionId === divisionId)).map((r) => [
+          event.title,
+          divisionId ? nameOf.get(divisionId) : "",
+          r.place,
+          r.school.code || r.school.name,
+          r.score,
+        ])
+      )
+    );
+    return { filename, csv: toCsv(CHALLENGE_HEADER, rows) };
+  }
+
+  const schools = (await prisma.school.findMany({ where: { isLeagueMember: true }, orderBy: { name: "asc" } })).map((s) => s.code || s.name);
+  const tracks = divisions.length > 0 ? divisions.map((d) => d.name) : ["Varsity", "Junior Varsity"];
+  const entries: { title: string; tracks: string[] }[] =
+    challenges.length > 0
+      ? challenges.map((e) => ({ title: e.title ?? "", tracks: e.divisionId ? [nameOf.get(e.divisionId)!] : tracks }))
+      : [...new Set(SAMPLE.map(([, , , title]) => title).filter((t) => !isBowlItem(t)))].map((title) => ({ title, tracks }));
+
+  const rows: (string | number)[][] = [];
+  entries.forEach(({ title, tracks: own }, c) =>
+    own.forEach((track, t) => {
+      // A different finishing order for each challenge and division.
+      const step = schools.length % 5 === 0 ? 1 : 5;
+      const order = schools.map((_, i) => schools[(i * step + c * 3 + t) % schools.length]);
+      order.forEach((school, i) => rows.push([title, track, i + 1, school, 48 - i * 5 - ((c * 7 + t * 3 + i) % 4)]));
+    })
+  );
+  return { filename, csv: toCsv(CHALLENGE_HEADER, rows) };
 }

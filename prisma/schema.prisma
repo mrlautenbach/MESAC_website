@@ -96,6 +96,7 @@ model School {
   golfHomeMatches          GolfTeamMatch[] @relation("GolfHome")
   golfAwayMatches          GolfTeamMatch[] @relation("GolfAway")
   bowlTeams                BowlTeam[]
+  challengeResults         ChallengeResult[]
 }
 
 model User {
@@ -246,6 +247,7 @@ model Division {
   meetResults    MeetResult[]
   bowlTeams      BowlTeam[]
   bowlGames      BowlGame[]
+  challengeResults ChallengeResult[]
 
   @@unique([activityId, tournamentId, slug])
 }
@@ -301,6 +303,7 @@ model Tournament {
   golfMatches    GolfTeamMatch[]
   bowlTeams      BowlTeam[]
   bowlGames      BowlGame[]
+  challengeResults ChallengeResult[]
 
   @@index([activityId])
 }
@@ -416,6 +419,7 @@ model Event {
   sets              EventSet[]
   meetResults       MeetResult[]
   programEntries    MeetProgramEntry[]
+  challengeResults  ChallengeResult[]
   photos            Photo[]
   documents         Document[]
   fieldValues       EventFieldValue[]
@@ -867,4 +871,28 @@ model BowlGame {
   updatedAt    DateTime   @updatedAt
 
   @@index([tournamentId, divisionId, stage, number])
+}
+
+// ── Academic Games: the challenges ─────────────────────────────────────
+// Each school's place and score in one challenge (a timeline Event such as
+// "Math Challenge") for one division. A challenge that every team sits
+// together (Current Events Olympiad) still records Varsity and JV results
+// separately, so the division is on the result rather than taken from the
+// event.
+model ChallengeResult {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  eventId      String
+  event        Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  divisionId   String?
+  division     Division?  @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  schoolId     String
+  school       School     @relation(fields: [schoolId], references: [id])
+  place        Int?
+  score        Float?
+  createdAt    DateTime   @default(now())
+
+  @@index([tournamentId, divisionId])
+  @@index([eventId])
 }

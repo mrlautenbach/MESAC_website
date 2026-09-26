@@ -4,6 +4,7 @@ import { useActionState, useId } from "react";
 import {
   importAcademicScheduleAction,
   importBowlScheduleAction,
+  importChallengeResultsAction,
   saveBowlScoresAction,
   type AcademicImportResult,
 } from "@/lib/actions/academic-games";
@@ -11,6 +12,7 @@ import {
 const IMPORTS = {
   schedule: { action: importAcademicScheduleAction, submit: "Upload schedule" },
   bowl: { action: importBowlScheduleAction, submit: "Upload bowl schedule" },
+  challenges: { action: importChallengeResultsAction, submit: "Upload challenge results" },
 } as const;
 
 function Outcome({ state }: { state: AcademicImportResult | null }) {

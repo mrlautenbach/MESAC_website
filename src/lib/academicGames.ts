@@ -126,3 +126,65 @@ export function timelineDays<I extends TimelineItem>(items: I[], divisions: { id
   }
   return [...days.values()];
 }
+
+// ── The challenges ─────────────────────────────────────────────────────
+// Every timeline item except the Academic Bowl's blocks is a challenge with
+// its own results: each school's place and score, per division. Six of them
+// form two groups of three, and each group ranks schools by their total
+// score across its three.
+
+export const CHALLENGE_GROUPS = [
+  { name: "STEM", pattern: /\b(math|engineering|science)/i },
+  { name: "Humanities", pattern: /\b(humanities|current events|arts?)\b/i },
+] as const;
+
+export const isBowlItem = (title: string) => /\bbowl\b/i.test(title);
+
+export function challengeGroup(title: string): string | null {
+  return CHALLENGE_GROUPS.find((g) => g.pattern.test(title))?.name ?? null;
+}
+
+// "Math Challenge" -> "Math", "Art and Music Olympiad" -> "Art and Music" -
+// for a group table's column headings.
+export function shortChallengeName(title: string): string {
+  return title.replace(/\s*\(.*?\)\s*/g, " ").replace(/\b(challenge|olympiad)\b/gi, "").replace(/\s+/g, " ").trim() || title;
+}
+
+type ChallengeRow = { schoolId: string; place: number | null; score: number | null };
+
+// A challenge's results in finishing order, each with its place: the place
+// given, or - where a file only gave scores - worked out from them, highest
+// first, level scores sharing a place.
+export function rankChallenge<R extends ChallengeRow>(rows: R[]): (R & { rank: number | null })[] {
+  if (rows.some((r) => r.place !== null)) {
+    return [...rows]
+      .sort((a, b) => (a.place ?? Infinity) - (b.place ?? Infinity) || (b.score ?? 0) - (a.score ?? 0))
+      .map((r) => ({ ...r, rank: r.place }));
+  }
+  const sorted = [...rows].sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
+  return sorted.map((r) => ({ ...r, rank: r.score === null ? null : sorted.findIndex((s) => s.score === r.score) + 1 }));
+}
+
+export type GroupRow<S> = { school: S; scores: Map<string, number | null>; total: number; place: number };
+
+// One group's table for one division: each school's score in each of the
+// group's challenges and their total, highest total first. Complete once
+// every challenge in the group has results.
+export function groupStandings<S extends { id: string; name: string }>(
+  schools: S[],
+  challenges: { id: string }[],
+  results: (ChallengeRow & { eventId: string })[]
+): { rows: GroupRow<S>[]; complete: boolean; challengesIn: number } {
+  const own = results.filter((r) => challenges.some((c) => c.id === r.eventId));
+  const entered = schools.filter((s) => own.some((r) => r.schoolId === s.id));
+  const rows = entered.map((school) => {
+    const scores = new Map(
+      challenges.map((c) => [c.id, own.find((r) => r.eventId === c.id && r.schoolId === school.id)?.score ?? null])
+    );
+    return { school, scores, total: [...scores.values()].reduce<number>((sum, v) => sum + (v ?? 0), 0), place: 0 };
+  });
+  rows.sort((a, b) => b.total - a.total || a.school.name.localeCompare(b.school.name));
+  for (const row of rows) row.place = rows.findIndex((r) => r.total === row.total) + 1;
+  const challengesIn = challenges.filter((c) => own.some((r) => r.eventId === c.id)).length;
+  return { rows, complete: challenges.length > 0 && challengesIn === challenges.length, challengesIn };
+}

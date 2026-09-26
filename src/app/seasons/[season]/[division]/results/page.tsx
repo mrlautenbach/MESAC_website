@@ -4,6 +4,7 @@ import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { pickView } from "@/lib/viewSwitch";
 import { BowlResults } from "@/components/BowlViews";
+import { ChallengeResults } from "@/components/ChallengeViews";
 import { TournamentResults } from "@/components/TournamentGames";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +57,7 @@ export default async function DivisionResultsPage({
           viewSwitch?.current === "bowl" ? (
             <BowlResults tournamentId={tournament.id} divisionId={division.id} />
           ) : (
-            <p className="text-muted">Results will be posted here once the competitions begin.</p>
+            <ChallengeResults tournamentId={tournament.id} divisionId={division.id} />
           )
         ) : (
           <TournamentResults
