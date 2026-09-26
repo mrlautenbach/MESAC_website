@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { format } from "date-fns";
+import { formatWhen } from "@/lib/eventDisplay";
 import { StatusTag } from "@/components/StatusTag";
 import { divisionTagClass } from "@/lib/divisionTagClass";
 import { LiveIcon } from "@/components/icons/LiveIcon";
@@ -108,7 +108,7 @@ export function MeetScheduleTable({
               >
                 {group.rows[0].sessionTitle}
               </Link>
-              <span className="font-normal text-muted">{format(group.date, "EEEE, MMM d, yyyy · h:mm a")}</span>
+              <span className="font-normal text-muted">{formatWhen(group.date, "EEEE, MMM d, yyyy · h:mm a", "EEEE, MMM d, yyyy")}</span>
             </h5>
             <div className="overflow-x-auto">
               <table className="mtable">
@@ -137,7 +137,7 @@ export function MeetScheduleTable({
                           )}
                         </td>
                       )}
-                      <td className="whitespace-nowrap tabular-nums">{format(row.date, "h:mm a")}</td>
+                      <td className="whitespace-nowrap tabular-nums">{formatWhen(row.date, "h:mm a") || "TBC"}</td>
                       <td>
                         <div className="flex flex-wrap items-center gap-1.5">
                           <StatusTag status={row.status} />

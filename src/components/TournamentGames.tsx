@@ -182,6 +182,8 @@ export async function UpcomingGames({
   activity: Activity;
   limit?: number;
 }) {
+  // "Nothing else" only makes sense once there's been something.
+  const scheduled = await prisma.event.count({ where: { tournamentId } });
   return (
     <EventsTable
       tournamentId={tournamentId}
@@ -190,7 +192,7 @@ export async function UpcomingGames({
       scoringType={activity.scoringType}
       usesSetScores={activity.usesSetScores}
       statusFilter="UPCOMING"
-      emptyMessage="Nothing else is scheduled right now."
+      emptyMessage={scheduled === 0 ? "No games scheduled yet." : "Nothing else is scheduled right now."}
       limit={limit}
     />
   );
@@ -378,7 +380,10 @@ async function WinLossStandings({
         </>
       )}
       <p className="mt-2 text-xs text-muted">
-        {activity.winPoints} pts for a win, {activity.drawPoints} for a draw, {activity.lossPoints} for a loss.
+        {/* A game played in sets (volleyball) always has a winner - no draws to mention. */}
+        {activity.usesSetScores
+          ? `${activity.winPoints} pts for a win, ${activity.lossPoints} for a loss.`
+          : `${activity.winPoints} pts for a win, ${activity.drawPoints} for a draw, ${activity.lossPoints} for a loss.`}
       </p>
     </section>
   );

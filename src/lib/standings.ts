@@ -178,9 +178,13 @@ export async function computeStandings(
     row.form = (formHistory.get(row.schoolId) ?? []).slice(-5);
   }
 
+  // Level on points and wins, the better score difference (points or sets
+  // for minus against) goes higher.
   return Array.from(table.values()).sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
     if (b.wins !== a.wins) return b.wins - a.wins;
+    const diff = b.totalScore - b.against - (a.totalScore - a.against);
+    if (diff !== 0) return diff;
     return a.schoolName.localeCompare(b.schoolName);
   });
 }

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { SCHEDULE_ORDER } from "@/lib/eventOrder";
-import { format, startOfDay } from "date-fns";
-import { sideLabel } from "@/lib/eventDisplay";
+import { startOfDay } from "date-fns";
+import { formatWhen, sideLabel } from "@/lib/eventDisplay";
 import { SchoolColorDot } from "@/components/SchoolColorDot";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
 import { matchRosterForSeason } from "@/lib/matchRoster";
@@ -174,7 +174,7 @@ export default async function SchedulePage() {
                                     return (
                                       <li key={event.id} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-sm">
                                         <Link href={href} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 hover:text-primary">
-                                          <span className="tabular-nums text-muted">{format(event.date, "MMM d, h:mm a")}</span>
+                                          <span className="tabular-nums text-muted">{formatWhen(event.date, "MMM d, h:mm a", "MMM d")}</span>
                                           {event.division && (
                                             <span className={`tag ${divisionTagClass(event.division.name)}`}>{event.division.name}</span>
                                           )}

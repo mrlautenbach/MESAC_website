@@ -9,7 +9,7 @@ import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { GolfOverview } from "@/components/GolfViews";
 import { AcademicUpNext } from "@/components/AcademicTimeline";
 import { LiveIcon } from "@/components/icons/LiveIcon";
-import { sideLabel } from "@/lib/eventDisplay";
+import { formatWhen, sideLabel } from "@/lib/eventDisplay";
 import { loadRoster } from "@/lib/tournamentRoster";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { UpcomingGames } from "@/components/TournamentGames";
@@ -257,7 +257,7 @@ function NextCell({ event, tournamentSlug }: { event: HeadlineEvent; tournamentS
         {matchupOf(event)}
       </Link>
       <p className="mt-3.5 text-xs text-muted">
-        {format(event.date, "EEEE · h:mm a")}
+        {formatWhen(event.date, "EEEE · h:mm a", "EEEE")}
         {event.location ? ` · ${event.location}` : ""}
       </p>
     </div>

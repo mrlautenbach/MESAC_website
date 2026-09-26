@@ -1,5 +1,6 @@
 "use client";
 
+import { useCsvText } from "@/components/useCsvText";
 import { useActionState, useId } from "react";
 import {
   importGolfDrawAction,
@@ -61,6 +62,7 @@ export function GolfCsvForm({
   const { action, submit } = IMPORTS[kind];
   const [state, formAction, pending] = useActionState<GolfImportResult | null, FormData>(action, null);
   const id = useId();
+  const csvText = useCsvText(state);
 
   return (
     <form action={formAction} className="space-y-3">
@@ -75,7 +77,7 @@ export function GolfCsvForm({
         <label htmlFor={`${id}-text`} className="field-label">
           Or paste CSV text
         </label>
-        <textarea id={`${id}-text`} name="csvText" rows={5} className="field-input font-mono text-xs" placeholder={placeholder} />
+        <textarea {...csvText} id={`${id}-text`} name="csvText" rows={5} className="field-input font-mono text-xs" placeholder={placeholder} />
       </div>
       <Outcome state={state} />
       <div className="flex flex-wrap items-center gap-3">
@@ -172,7 +174,7 @@ export function GolfMatchResultsForm({
               <span className="font-semibold">{p.awayPair}</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <select name={`winner-${p.id}`} defaultValue={p.winner ?? ""} className="field-input w-auto py-1 text-sm" aria-label={`Flight ${p.flight} winner`}>
+              <select key={p.winner ?? ""} name={`winner-${p.id}`} defaultValue={p.winner ?? ""} className="field-input w-auto py-1 text-sm" aria-label={`Flight ${p.flight} winner`}>
                 <option value="">Not played yet</option>
                 <option value="HOME">{homeLabel} won</option>
                 <option value="AWAY">{awayLabel} won</option>

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { LiveIcon } from "@/components/icons/LiveIcon";
-import { sideLabel } from "@/lib/eventDisplay";
+import { formatWhen, showsResult, sideLabel } from "@/lib/eventDisplay";
 import { divisionTagClass } from "@/lib/divisionTagClass";
 import { StatusTag } from "@/components/StatusTag";
 
@@ -77,8 +77,8 @@ function visibleColumns(props: EventRowsProps): Columns {
   const scored = scoringType !== "NONE";
   return {
     game: scored && events.some((e) => e.externalId),
-    score: scored && events.some((e) => e.results.some((r) => r.score !== null)),
-    sets: usesSetScores && events.some((e) => e.sets.length > 0),
+    score: scored && events.some((e) => showsResult(e.status) && e.results.some((r) => r.score !== null)),
+    sets: usesSetScores && events.some((e) => showsResult(e.status) && e.sets.length > 0),
     division: showDivisionTag,
     court: events.some((e) => e.location),
     fields: customFields.filter((f) => events.some((e) => e.fieldValues.some((v) => v.fieldId === f.id && v.value))),
@@ -231,8 +231,9 @@ export function EventRows(props: EventRowsProps) {
                   event.homeSourceLabel ||
                   event.awaySourceLabel
               );
-              const homeScore = home && event.results.find((r) => r.schoolId === home.schoolId)?.score;
-              const awayScore = away && event.results.find((r) => r.schoolId === away.schoolId)?.score;
+              const played = showsResult(event.status);
+              const homeScore = played && home ? event.results.find((r) => r.schoolId === home.schoolId)?.score : null;
+              const awayScore = played && away ? event.results.find((r) => r.schoolId === away.schoolId)?.score : null;
               const winner = winnerSchoolId(event, scoringType);
               // The losing side reads quieter once a game has a winner.
               const tone = (schoolId: string | undefined) => (winner && schoolId !== winner ? "text-muted" : "");
@@ -303,7 +304,7 @@ export function EventRows(props: EventRowsProps) {
                     {cols.sets && (
                       <div className="whitespace-nowrap">
                         <span className="elabel">Sets</span>
-                        {event.sets.length > 0
+                        {played && event.sets.length > 0
                           ? event.sets.map((s) => `${s.homeScore}-${s.awayScore}`).join(", ")
                           : "—"}
                       </div>
@@ -319,7 +320,7 @@ export function EventRows(props: EventRowsProps) {
                     )}
                     <div className="whitespace-nowrap tabular-nums">
                       <span className="elabel">Time</span>
-                      {format(event.date, "h:mm a")}
+                      {formatWhen(event.date, "h:mm a") || "TBC"}
                     </div>
                     {cols.court && (
                       <div>

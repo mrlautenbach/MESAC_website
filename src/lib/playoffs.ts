@@ -48,49 +48,67 @@ export async function getEventOutcome(
     : { winnerSchoolId: away.schoolId, loserSchoolId: home.schoolId };
 }
 
-async function fillSlot(tx: Db, dependentEventId: string, isHome: boolean, schoolId: string) {
-  // Leave the slot open if it's filled already - or if this school is
-  // already on the other side (e.g. "1st vs ABA" and ABA finishes first): a
-  // school can only be in a game once, and an admin has to sort that out.
-  const existing = await tx.eventParticipant.findFirst({
-    where: { eventId: dependentEventId, OR: [{ isHome }, { schoolId }] },
-  });
-  if (existing) return;
-  await tx.eventParticipant.create({ data: { eventId: dependentEventId, schoolId, isHome } });
-  await tx.result.upsert({
-    where: { eventId_schoolId: { eventId: dependentEventId, schoolId } },
-    create: { eventId: dependentEventId, schoolId },
-    update: {},
-  });
+// Puts `schoolId` (or nobody) on one side of a bracket game. Brackets are
+// worked out again whenever a result changes, so a corrected score moves
+// the right team through rather than leaving the old one in place: when a
+// side's team changes, the result that belonged to the old matchup is
+// cleared and the game goes back to Scheduled. Returns whether it changed.
+async function setSlot(tx: Db, eventId: string, isHome: boolean, schoolId: string | null): Promise<boolean> {
+  const participants = await tx.eventParticipant.findMany({ where: { eventId } });
+  const current = participants.find((p) => p.isHome === isHome) ?? null;
+  if ((current?.schoolId ?? null) === schoolId) return false;
+  // A school can only be in a game once - if it's already on the other side
+  // (e.g. "1st vs ABA" and ABA finishes first), an admin has to sort it out.
+  if (schoolId && participants.some((p) => p.isHome !== isHome && p.schoolId === schoolId)) return false;
+
+  if (current) {
+    await tx.eventParticipant.delete({ where: { id: current.id } });
+    await tx.result.deleteMany({ where: { eventId, schoolId: current.schoolId } });
+    await tx.result.updateMany({ where: { eventId }, data: { score: null, outcome: null } });
+    await tx.eventSet.deleteMany({ where: { eventId } });
+    await tx.event.update({ where: { id: eventId }, data: { status: "SCHEDULED" } });
+  }
+  if (schoolId) {
+    await tx.eventParticipant.create({ data: { eventId, schoolId, isHome } });
+    await tx.result.upsert({
+      where: { eventId_schoolId: { eventId, schoolId } },
+      create: { eventId, schoolId },
+      update: {},
+    });
+  }
+  return true;
 }
 
-// Call after a game's result (or status) changes - fills in any dependent
-// playoff slot ("winner of this game plays...") that's now determinable.
-// No-op if this game isn't decided yet, or its dependents are already filled.
-export async function resolvePlayoffSlots(tx: Db, sourceEventId: string) {
+// Call after a game's result (or status) changes - puts its winner and
+// loser into any game waiting on them ("winner of this game plays..."), or
+// empties those slots again if it's no longer decided. A slot that changes
+// passes the change on down the bracket.
+export async function resolvePlayoffSlots(tx: Db, sourceEventId: string, seen = new Set<string>()) {
+  if (seen.has(sourceEventId)) return;
+  seen.add(sourceEventId);
   const outcome = await getEventOutcome(tx, sourceEventId);
-  if (!outcome) return;
 
   const dependents = await tx.event.findMany({
     where: { OR: [{ homeSourceEventId: sourceEventId }, { awaySourceEventId: sourceEventId }] },
   });
+  const pick = (which: "WINNER" | "LOSER") => (outcome ? (which === "WINNER" ? outcome.winnerSchoolId : outcome.loserSchoolId) : null);
   for (const dep of dependents) {
+    let changed = false;
     if (dep.homeSourceEventId === sourceEventId && dep.homeSourceOutcome) {
-      const schoolId = dep.homeSourceOutcome === "WINNER" ? outcome.winnerSchoolId : outcome.loserSchoolId;
-      await fillSlot(tx, dep.id, true, schoolId);
+      changed = (await setSlot(tx, dep.id, true, pick(dep.homeSourceOutcome))) || changed;
     }
     if (dep.awaySourceEventId === sourceEventId && dep.awaySourceOutcome) {
-      const schoolId = dep.awaySourceOutcome === "WINNER" ? outcome.winnerSchoolId : outcome.loserSchoolId;
-      await fillSlot(tx, dep.id, false, schoolId);
+      changed = (await setSlot(tx, dep.id, false, pick(dep.awaySourceOutcome))) || changed;
     }
+    if (changed) await resolvePlayoffSlots(tx, dep.id, seen);
   }
 }
 
 // Call after any game's result (or status) changes - fills in a placement
 // slot ("4th place plays...") for every division whose group-stage games
 // (every event that isn't itself a pending-or-resolved bracket slot) are all
-// decided, so a position no longer just committed doesn't keep the slot
-// pending. Unlike resolvePlayoffSlots this isn't scoped to one source event,
+// decided, and empties it again if they no longer are (a game set back to
+// Scheduled) or the standings have moved. Unlike resolvePlayoffSlots this isn't scoped to one source event,
 // since a standings position depends on every game in the division, not one
 // game in particular - so it re-checks every division with a pending slot.
 //
@@ -105,7 +123,6 @@ export async function resolveStandingSlots(tx: Db, tournamentId: string) {
       tournamentId,
       OR: [{ homeSourceStanding: { not: null } }, { awaySourceStanding: { not: null } }],
     },
-    include: { participants: true },
   });
   if (pending.length === 0) return;
 
@@ -142,18 +159,13 @@ export async function resolveStandingSlots(tx: Db, tournamentId: string) {
   }
 
   for (const event of pending) {
+    // No table yet (the group stage isn't finished) empties the slot.
     const rows = standingsByDivision.get(event.divisionId);
-    if (!rows) continue;
-    const home = event.participants.find((p) => p.isHome);
-    const away = event.participants.find((p) => !p.isHome);
-    if (event.homeSourceStanding && !home) {
-      const row = rows[event.homeSourceStanding - 1];
-      if (row) await fillSlot(tx, event.id, true, row.schoolId);
-    }
-    if (event.awaySourceStanding && !away) {
-      const row = rows[event.awaySourceStanding - 1];
-      if (row) await fillSlot(tx, event.id, false, row.schoolId);
-    }
+    const at = (position: number) => rows?.[position - 1]?.schoolId ?? null;
+    let changed = false;
+    if (event.homeSourceStanding) changed = (await setSlot(tx, event.id, true, at(event.homeSourceStanding))) || changed;
+    if (event.awaySourceStanding) changed = (await setSlot(tx, event.id, false, at(event.awaySourceStanding))) || changed;
+    if (changed) await resolvePlayoffSlots(tx, event.id);
   }
 }
 
@@ -171,5 +183,5 @@ export async function tryFillFromExistingSource(
   const outcome = await getEventOutcome(tx, sourceEventId);
   if (!outcome) return;
   const schoolId = sourceOutcome === "WINNER" ? outcome.winnerSchoolId : outcome.loserSchoolId;
-  await fillSlot(tx, eventId, isHome, schoolId);
+  if (await setSlot(tx, eventId, isHome, schoolId)) await resolvePlayoffSlots(tx, eventId);
 }

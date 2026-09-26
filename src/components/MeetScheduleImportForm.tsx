@@ -1,5 +1,6 @@
 "use client";
 
+import { useCsvText } from "@/components/useCsvText";
 import { useActionState } from "react";
 import { importMeetScheduleAction, type ImportMeetScheduleResult } from "@/lib/actions/meet-schedule";
 
@@ -13,6 +14,7 @@ export function MeetScheduleImportForm({ tournamentId, divisions }: Props) {
     importMeetScheduleAction,
     null
   );
+  const csvText = useCsvText(state);
 
   const exampleHref = `/dashboard/admin/meet-schedule/example?tournament=${tournamentId}`;
 
@@ -89,6 +91,7 @@ export function MeetScheduleImportForm({ tournamentId, divisions }: Props) {
           Or paste CSV text
         </label>
         <textarea
+          {...csvText}
           id="csvText"
           name="csvText"
           rows={8}

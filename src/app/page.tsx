@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { format } from "date-fns";
+import { format, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { loadLatestResults, type LatestResult } from "@/lib/latestResults";
 import { SeasonBrowser } from "@/components/SeasonBrowser";
@@ -31,7 +31,13 @@ export default async function HomePage() {
     // League members only - a guest school plays in a tournament without
     // being presented as part of the league.
     prisma.school.findMany({ where: { isLeagueMember: true } }),
-    prisma.tournament.findMany({ where: { isCurrent: true }, select: { name: true } }),
+    // Tournaments actually running today - "underway" only once one has
+    // started, not whenever an edition is marked current.
+    prisma.tournament.findMany({
+      where: { startDate: { lte: now }, endDate: { gte: startOfDay(now) } },
+      orderBy: { startDate: "asc" },
+      select: { name: true },
+    }),
     prisma.season.findMany({
       orderBy: { order: "asc" },
       include: {
@@ -50,7 +56,7 @@ export default async function HomePage() {
     prisma.tournament.findMany({
       where: { endDate: { gte: now } },
       orderBy: { startDate: "asc" },
-      take: 3,
+      take: 8,
       include: { activity: true, hostSchool: true },
     }),
     prisma.photo.findMany({ where: { featuredOnHome: true }, orderBy: { createdAt: "desc" }, take: 10 }),
@@ -63,7 +69,8 @@ export default async function HomePage() {
   ]);
 
   const countries = new Set(schools.map((s) => s.city?.split(",").pop()?.trim()).filter(Boolean)).size;
-  const currentTerm = currentTournaments[0]?.name ?? "this term";
+  const underway = currentTournaments[0]?.name ?? null;
+  const nextUp = upcomingTournaments.find((t) => t.startDate > now) ?? null;
   const shuffledSchools = dailyShuffle(schools);
 
   // Just the activities that actually exist - no "coming soon" placeholders
@@ -82,7 +89,9 @@ export default async function HomePage() {
   }));
 
   const scoreCells = recentResults.slice(0, 2);
-  const upcomingCards = upcomingTournaments.map((t) => ({
+  // A tournament in an upcoming cell isn't repeated in the Next up slides.
+  const inCells = [0, 1].flatMap((i) => (scoreCells[i] ? [] : upcomingTournaments[i] ? [upcomingTournaments[i].id] : []));
+  const upcomingCards = upcomingTournaments.filter((t) => !inCells.includes(t.id)).map((t) => ({
     slug: t.slug,
     name: t.name,
     startDate: t.startDate,
@@ -174,7 +183,11 @@ export default async function HomePage() {
               {recentResults.length === 0 ? (
                 <span className="whitespace-nowrap border-r border-white/20 px-6 py-2.5">
                   <span className="mr-2.5 font-extrabold text-accent">●</span>
-                  {currentTerm} is underway. Check back after the first whistle
+                  {underway
+                    ? `${underway} is underway. Check back after the first whistle`
+                    : nextUp
+                      ? `Next up: ${nextUp.name} starts ${format(nextUp.startDate, "d MMMM")}`
+                      : "No games played yet this season"}
                 </span>
               ) : (
                 recentResults.map((result, j) => (

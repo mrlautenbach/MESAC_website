@@ -141,7 +141,10 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
             </div>
 
             <Panel title="Dates, host & status">
+              {/* Keyed on the tournament: after "Make current" swaps which one
+                  this is, the forms start over with its values. */}
               <SeasonEditionForm
+                key={current.id}
                 activityId={activity.id}
                 schools={schools}
                 showLiveResults={activity.usesLiveResults}
@@ -164,11 +167,12 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
             </Panel>
 
             <Panel title={`Participating schools (${participatingCount} of ${schoolOptions.length})`}>
-              <TournamentSchoolsManager tournamentId={current.id} schools={schoolOptions} />
+              <TournamentSchoolsManager key={current.id} tournamentId={current.id} schools={schoolOptions} />
             </Panel>
 
             <Panel title={`Divisions (${current.divisions.length})`}>
               <DivisionsManager
+                key={current.id}
                 activityId={activity.id}
                 tournamentId={current.id}
                 divisions={current.divisions}

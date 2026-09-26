@@ -1,3 +1,5 @@
+import { format } from "date-fns";
+
 // A number as its English ordinal - 1 -> "1st", 2 -> "2nd", 11 -> "11th",
 // 22 -> "22nd", etc. Only ever fed a positive standings position here.
 export function ordinal(n: number): string {
@@ -33,4 +35,23 @@ export function sideLabel(
   if (sourceOutcome) return `${sourceOutcome === "WINNER" ? "Winner" : "Loser"} of ${sourceExternalId ?? "TBD"}`;
   if (sourceStanding) return `${ordinal(sourceStanding)} place`;
   return "TBD";
+}
+
+// An event saved without a time (a meet session given only a date) is
+// stored at midnight - shown as no time rather than "12:00 AM".
+export function hasTime(date: Date): boolean {
+  return date.getHours() !== 0 || date.getMinutes() !== 0;
+}
+
+// `date` in `withTime` when it has a time, otherwise in `dateOnly` (or
+// nothing): "Thursday · 9:30 AM", or just "Thursday".
+export function formatWhen(date: Date, withTime: string, dateOnly = ""): string {
+  return hasTime(date) ? format(date, withTime) : dateOnly ? format(date, dateOnly) : "";
+}
+
+// Scores only count once a game has been played: a scheduled game can still
+// carry leftover numbers (a result entered, then the game set back to
+// Scheduled), and those mustn't read as a final score.
+export function showsResult(status: string): boolean {
+  return status === "COMPLETED";
 }

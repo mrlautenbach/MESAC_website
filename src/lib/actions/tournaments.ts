@@ -7,6 +7,7 @@ import { requireUser, requireAdmin } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import { tournamentInputSchema } from "@/lib/validation";
 import type { ActionResult } from "@/lib/actions/auth";
+import { deleteStoredFiles, storedFilesFor } from "@/lib/storedFiles";
 
 // Creating a new edition for an activity is the "archive" action: the
 // previous current edition simply stops being current (isCurrent: false)
@@ -193,6 +194,7 @@ export async function deleteTournamentAction(_prevState: ActionResult | null, fo
     return { ok: false, error: `Type "${tournament.name}" exactly to confirm deletion.` };
   }
 
+  const files = await storedFilesFor(prisma, { tournamentIds: [tournamentId] });
   await prisma.$transaction(async (tx) => {
     await tx.tournament.delete({ where: { id: tournamentId } });
 
@@ -206,6 +208,7 @@ export async function deleteTournamentAction(_prevState: ActionResult | null, fo
       }
     }
   });
+  await deleteStoredFiles(files);
 
   await recordAudit({
     actorId: admin.id,

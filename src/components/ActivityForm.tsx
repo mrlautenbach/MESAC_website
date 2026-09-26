@@ -69,7 +69,14 @@ export function ActivityForm({
         <label htmlFor="seasonId" className="field-label">
           Season
         </label>
-        <select id="seasonId" name="seasonId" required className="field-input" defaultValue={existing?.seasonId ?? seasons[0]?.id}>
+        <select
+          key={existing?.seasonId ?? ""}
+          id="seasonId"
+          name="seasonId"
+          required
+          className="field-input"
+          defaultValue={existing?.seasonId ?? seasons[0]?.id}
+        >
           {seasons.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}

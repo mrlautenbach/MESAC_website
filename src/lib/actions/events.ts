@@ -20,6 +20,7 @@ import { gameNumberOf } from "@/lib/eventOrder";
 import { computeOutcomes, resolvePlayoffSlots, resolveStandingSlots, tryFillFromExistingSource } from "@/lib/playoffs";
 import type { ActionResult } from "@/lib/actions/auth";
 import { z } from "zod";
+import { deleteStoredFiles, storedFilesFor } from "@/lib/storedFiles";
 
 async function makeUniqueEventSlug(tournamentId: string, date: Date, schoolSlugs: string[]) {
   const base = [date.toISOString().slice(0, 10), ...schoolSlugs].join("-").slice(0, 90);
@@ -434,7 +435,7 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     | { participantAction: "pending-standing"; position: number }
     | { participantAction: "pending-label"; text: string | null };
 
-  const { createdIds, updatedIds, removedIds, newSchoolNames } = await prisma.$transaction(
+  const { createdIds, updatedIds, removedIds, removedFiles, newSchoolNames } = await prisma.$transaction(
     async (tx) => {
       const claimedSlugs = new Set<string>();
       const gameIdToEventId = new Map(Array.from(existingByGameId.entries()).map(([gid, e]) => [gid, e.id]));
@@ -677,10 +678,12 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       }
 
       const removedIds: string[] = [];
+      let removedFiles: string[] = [];
       if (replaceExisting) {
         const fileGameIds = new Set(planned.map((r) => r.gameId).filter((id): id is string => id !== null));
         const toRemove = existingEvents.filter((e) => e.externalId && !fileGameIds.has(e.externalId));
         if (toRemove.length > 0) {
+          removedFiles = await storedFilesFor(tx, { eventIds: toRemove.map((e) => e.id) });
           await tx.event.deleteMany({ where: { id: { in: toRemove.map((e) => e.id) } } });
           removedIds.push(...toRemove.map((e) => e.id));
         }
@@ -695,10 +698,11 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       );
       await ensureInRoster(tx, tournament.id, importedSchoolIds);
 
-      return { createdIds, updatedIds, removedIds, newSchoolNames: [...newSchools.values()].map((school) => school.name) };
+      return { createdIds, updatedIds, removedIds, removedFiles, newSchoolNames: [...newSchools.values()].map((school) => school.name) };
     },
     { timeout: 60_000 }
   );
+  await deleteStoredFiles(removedFiles);
 
   // Runs after the transaction commits, not inside it - it needs to see
   // every row this file just wrote (see resolveStandingSlots).

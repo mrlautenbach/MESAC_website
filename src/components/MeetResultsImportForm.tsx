@@ -1,5 +1,6 @@
 "use client";
 
+import { useCsvText } from "@/components/useCsvText";
 import { useActionState } from "react";
 import { importMeetResultsAction, clearMeetResultsAction, type ImportMeetResultsResult } from "@/lib/actions/meet-results";
 import { AddNewSchoolsCheckbox, NewSchoolsNote } from "@/components/NewSchoolsImport";
@@ -9,6 +10,7 @@ export function MeetResultsImportForm({ eventId, resultCount }: { eventId: strin
     importMeetResultsAction,
     null
   );
+  const csvText = useCsvText(state);
   const exampleHref = `/dashboard/events/${eventId}/results-example`;
 
   return (
@@ -74,6 +76,7 @@ export function MeetResultsImportForm({ eventId, resultCount }: { eventId: strin
             Or paste CSV text
           </label>
           <textarea
+            {...csvText}
             id="meetCsvText"
             name="csvText"
             rows={6}

@@ -7,6 +7,7 @@ import { requireAdmin, requireUser } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import { activityInputSchema } from "@/lib/validation";
 import type { ActionResult } from "@/lib/actions/auth";
+import { deleteStoredFiles, storedFilesFor } from "@/lib/storedFiles";
 
 function slugify(s: string): string {
   return s
@@ -217,7 +218,10 @@ export async function deleteActivityAction(_prevState: ActionResult | null, form
     return { ok: false, error: `Type "${activity.name}" exactly to confirm deletion.` };
   }
 
+  const tournaments = await prisma.tournament.findMany({ where: { activityId }, select: { id: true } });
+  const files = await storedFilesFor(prisma, { tournamentIds: tournaments.map((t) => t.id) });
   await prisma.activity.delete({ where: { id: activityId } });
+  await deleteStoredFiles(files);
 
   await recordAudit({
     actorId: admin.id,
@@ -260,18 +264,33 @@ export async function syncDivisionsAction(_prevState: ActionResult | null, formD
 
   const activity = await prisma.activity.findUnique({
     where: { id: activityId },
-    include: { divisions: { where: { tournamentId }, include: { _count: { select: { events: true } } } } },
+    include: {
+      divisions: {
+        where: { tournamentId },
+        include: { _count: { select: { events: true, teamPhotos: true, bowlTeams: true, bowlGames: true, challengeResults: true } } },
+      },
+    },
   });
   if (!activity) return { ok: false, error: "Activity not found." };
 
   const checkedByLower = new Set(names.map((n) => n.toLowerCase()));
   const toRemove = activity.divisions.filter((d) => !checkedByLower.has(d.name.toLowerCase()));
-  const blocked = toRemove.find((d) => d._count.events > 0);
-  if (blocked) {
-    return {
-      ok: false,
-      error: `Can't remove "${blocked.name}" - it has ${blocked._count.events} game${blocked._count.events === 1 ? "" : "s"} on it. Remove or move those first.`,
-    };
+  // Removing a division deletes what belongs to it (team photos, Academic
+  // Bowl teams and games, challenge results), so it's only allowed once
+  // there's nothing on it.
+  for (const d of toRemove) {
+    const n = d._count;
+    const on = [
+      [n.events, "game"],
+      [n.teamPhotos, "team photo"],
+      [n.bowlTeams + n.bowlGames, "Academic Bowl entry"],
+      [n.challengeResults, "challenge result"],
+    ]
+      .filter(([count]) => (count as number) > 0)
+      .map(([count, what]) => `${count} ${count === 1 ? what : String(what).replace(/y$/, "ie") + "s"}`);
+    if (on.length > 0) {
+      return { ok: false, error: `Can't remove "${d.name}" - it has ${on.join(", ")} on it. Remove or move those first.` };
+    }
   }
 
   const existingByLower = new Map(activity.divisions.map((d) => [d.name.toLowerCase(), d]));

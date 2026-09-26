@@ -144,7 +144,9 @@ export async function AcademicUpNext({ tournamentId, limit = 5 }: { tournamentId
     .filter((i) => (i.end ?? i.start) >= now)
     .sort((a, b) => a.start.getTime() - b.start.getTime() || rank(a) - rank(b))
     .slice(0, limit);
-  if (next.length === 0) return <p className="text-muted">Nothing else is scheduled right now.</p>;
+  if (next.length === 0) {
+    return <p className="text-muted">{items.length === 0 ? "The schedule hasn't been posted yet." : "Nothing else is scheduled right now."}</p>;
+  }
 
   const nameOf = new Map(divisions.map((d) => [d.id, d.name]));
   return (

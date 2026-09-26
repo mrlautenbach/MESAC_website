@@ -1,5 +1,6 @@
 "use client";
 
+import { useCsvText } from "@/components/useCsvText";
 import { useActionState, useId } from "react";
 import {
   importAcademicScheduleAction,
@@ -56,6 +57,7 @@ export function AcademicCsvForm({
   const { action, submit } = IMPORTS[kind];
   const [state, formAction, pending] = useActionState<AcademicImportResult | null, FormData>(action, null);
   const id = useId();
+  const csvText = useCsvText(state);
 
   return (
     <form action={formAction} className="space-y-3">
@@ -70,7 +72,7 @@ export function AcademicCsvForm({
         <label htmlFor={`${id}-text`} className="field-label">
           Or paste CSV text
         </label>
-        <textarea id={`${id}-text`} name="csvText" rows={6} className="field-input font-mono text-xs" placeholder={placeholder} />
+        <textarea {...csvText} id={`${id}-text`} name="csvText" rows={6} className="field-input font-mono text-xs" placeholder={placeholder} />
       </div>
       <Outcome state={state} />
       <div className="flex flex-wrap items-center gap-3">

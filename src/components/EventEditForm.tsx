@@ -191,6 +191,10 @@ export function EventEditForm({
 
                   {scoringType === "LOW_SCORE" && editable && (
                     <IndividualScoresEditor
+                      // Remounted when the saved scores change, so its rows
+                      // are what was just saved (not what the page first
+                      // loaded, which a later save would write back).
+                      key={JSON.stringify(individualResultsBySchool[p.schoolId] ?? [])}
                       schoolId={p.schoolId}
                       initialEntries={individualResultsBySchool[p.schoolId] ?? []}
                     />
@@ -303,7 +307,9 @@ function SideSelect({
       <label htmlFor={name} className="field-label">
         {label}
       </label>
-      <select id={name} name={name} defaultValue={side.schoolId ?? ""} className="field-input">
+      {/* Keyed on the saved school so it shows what was just saved - a
+          dropdown's default only updates when it's remounted. */}
+      <select key={side.schoolId ?? ""} id={name} name={name} defaultValue={side.schoolId ?? ""} className="field-input">
         <option value="">{side.pendingLabel ? `Not decided yet: ${side.pendingLabel}` : "Not decided yet"}</option>
         {schools.map((s) => (
           <option key={s.id} value={s.id}>

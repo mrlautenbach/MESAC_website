@@ -1,12 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { DocumentList } from "@/components/DocumentList";
 import { MeetResultsView } from "@/components/MeetResultsView";
-import { sideLabel } from "@/lib/eventDisplay";
+import { formatWhen, showsResult, sideLabel } from "@/lib/eventDisplay";
 
 export const dynamic = "force-dynamic";
 
@@ -215,7 +214,7 @@ export default async function EventPage({
           </div>
         </div>
         <p className="mt-1 text-muted">
-          {format(event.date, "EEEE, MMM d, yyyy · h:mm a")}
+          {formatWhen(event.date, "EEEE, MMM d, yyyy · h:mm a", "EEEE, MMM d, yyyy")}
           {event.location && !tournament.activity.usesMeetResults ? ` · ${event.location}` : ""}
           {event.externalId ? ` · ${tournament.activity.usesMeetResults ? "Session" : "Game"} ${event.externalId}` : ""}
         </p>
@@ -224,7 +223,7 @@ export default async function EventPage({
       {tournament.activity.scoringType !== "NONE" && (
         <section className="card p-4">
           <h2 className="mb-3 text-lg">{tournament.activity.scoringType === "LOW_SCORE" ? "Team result" : "Result"}</h2>
-          {event.results.every((r) => r.score === null && r.outcome === null) ? (
+          {!showsResult(event.status) || event.results.every((r) => r.score === null && r.outcome === null) ? (
             <p className="text-muted">Results haven&apos;t been posted yet.</p>
           ) : (
             <ul className="space-y-2">

@@ -82,6 +82,7 @@ export function SeasonEditionForm({
           Host school (optional)
         </label>
         <select
+          key={existing?.hostSchoolId ?? ""}
           id="hostSchoolId"
           name="hostSchoolId"
           defaultValue={existing?.hostSchoolId ?? ""}

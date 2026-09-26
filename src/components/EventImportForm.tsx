@@ -1,5 +1,6 @@
 "use client";
 
+import { useCsvText } from "@/components/useCsvText";
 import { useActionState, useState } from "react";
 import { importEventsAction, type ImportEventsResult } from "@/lib/actions/events";
 import { AddNewSchoolsCheckbox, NewSchoolsNote } from "@/components/NewSchoolsImport";
@@ -23,6 +24,7 @@ type Props = {
 // the combined schedule+program CSV instead - see MeetScheduleImportForm.
 export function EventImportForm({ seasons, schoolCodes, defaultTournamentId, canAddSchools = false }: Props) {
   const [state, formAction, pending] = useActionState<ImportEventsResult | null, FormData>(importEventsAction, null);
+  const csvText = useCsvText(state);
   const [tournamentId, setTournamentId] = useState(
     (defaultTournamentId && seasons.some((s) => s.id === defaultTournamentId) ? defaultTournamentId : seasons[0]?.id) ?? ""
   );
@@ -144,6 +146,7 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId, can
           Or paste CSV text
         </label>
         <textarea
+          {...csvText}
           id="csvText"
           name="csvText"
           rows={8}

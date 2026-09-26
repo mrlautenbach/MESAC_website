@@ -22,6 +22,7 @@ import {
   type BowlStage,
 } from "@/lib/bowl";
 import type { Prisma } from "@/generated/prisma";
+import { deleteStoredFiles, storedFilesFor } from "@/lib/storedFiles";
 
 export type AcademicImportResult =
   | { ok: true; summary: string }
@@ -256,9 +257,12 @@ export async function importAcademicScheduleAction(
     }
 
     const stale = tournament.events.filter((e) => !kept.has(e.id)).map((e) => e.id);
+    const removedFiles = await storedFilesFor(tx, { eventIds: stale });
     if (stale.length > 0) await tx.event.deleteMany({ where: { id: { in: stale } } });
-    return { created, updated, removed: stale.length, newDivisions: newDivisionNames };
+    return { created, updated, removed: stale.length, newDivisions: newDivisionNames, removedFiles };
   });
+
+  await deleteStoredFiles(result.removedFiles);
 
   await recordAudit({
     actorId: admin.id,
@@ -267,7 +271,7 @@ export async function importAcademicScheduleAction(
     entityType: "Tournament",
     entityId: tournament.id,
     summary: `${admin.name} uploaded the Academic Games schedule (${result.created} added, ${result.updated} updated, ${result.removed} removed)`,
-    after: result,
+    after: { created: result.created, updated: result.updated, removed: result.removed, newDivisions: result.newDivisions },
   });
 
   revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
