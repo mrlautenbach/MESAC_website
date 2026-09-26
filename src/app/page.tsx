@@ -8,6 +8,7 @@ import { PhotoSlider } from "@/components/PhotoSlider";
 import { NextUpGallery } from "@/components/NextUpGallery";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
 import { dailyShuffle } from "@/lib/dailyShuffle";
+import { formatDateRange } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -119,7 +120,10 @@ export default async function HomePage() {
             </div>
             <p className="mt-4 max-w-[46ch] text-base">MESAC is what our student-athletes plan their year around.</p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/tournaments" className="btn btn-accent">
+              <Link href="/today" className="btn btn-accent">
+                Today&apos;s games
+              </Link>
+              <Link href="/tournaments" className="btn border border-background/60 text-background hover:bg-background/10">
                 Season calendar
               </Link>
             </div>
@@ -156,7 +160,7 @@ export default async function HomePage() {
             {shuffledSchools.map((school) => (
               <Link
                 key={school.id}
-                href="/schools"
+                href={`/schools/${school.slug}`}
                 title={school.name}
                 className="flex h-32 flex-col items-center justify-center gap-2 border border-white/20 border-b-[3px] bg-[color-mix(in_srgb,var(--primary-tint)_16%,transparent)] px-2 transition-colors hover:bg-[color-mix(in_srgb,var(--primary-tint)_26%,transparent)]"
                 style={school.themeColor ? { borderBottomColor: school.themeColor } : undefined}
@@ -333,7 +337,7 @@ function UpcomingTournamentCell({ tournament }: { tournament: UpcomingTournament
     <div>
       <h6 className="text-primary-dark">Upcoming · {tournament.name}</h6>
       <div className="mt-3.5 text-lg font-extrabold">
-        {format(tournament.startDate, "MMM d")} – {format(tournament.endDate, "MMM d")}
+        {formatDateRange(tournament.startDate, tournament.endDate)}
       </div>
       <p className="mt-3.5 text-xs text-muted">{tournament.hostSchool ? `Hosted by ${tournament.hostSchool.name}` : "Host TBD"}</p>
     </div>

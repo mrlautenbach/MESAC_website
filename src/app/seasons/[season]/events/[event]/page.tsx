@@ -6,6 +6,9 @@ import { getCurrentUser } from "@/lib/session";
 import { DocumentList } from "@/components/DocumentList";
 import { MeetResultsView } from "@/components/MeetResultsView";
 import { formatWhen, showsResult, sideLabel } from "@/lib/eventDisplay";
+import { SeasonHero } from "@/components/SeasonHero";
+import { TournamentSubNav } from "@/components/TournamentSubNav";
+import { SchoolBadge } from "@/components/SchoolBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +18,10 @@ export default async function EventPage({
   params: Promise<{ season: string; event: string }>;
 }) {
   const { season: tournamentSlug, event: eventSlug } = await params;
-  const tournament = await prisma.tournament.findUnique({ where: { slug: tournamentSlug }, include: { activity: true } });
+  const tournament = await prisma.tournament.findUnique({
+    where: { slug: tournamentSlug },
+    include: { activity: true, divisions: true, hostSchool: true },
+  });
   if (!tournament) notFound();
 
   const event = await prisma.event.findUnique({
@@ -186,44 +192,120 @@ export default async function EventPage({
     individualByschool.set(entry.schoolId, list);
   }
 
+  // A two-school game gets a scoreboard; anything else (a meet session, an
+  // Academic Games competition, a multi-school event) is headed by its title.
+  const isDual = event.participants.length === 2 || !!isPendingDualMatchup;
+  const played = showsResult(event.status);
+  const scoreOf = (schoolId: string | undefined) => (schoolId ? event.results.find((r) => r.schoolId === schoolId)?.score ?? null : null);
+  const homeScore = scoreOf(homeParticipant?.schoolId);
+  const awayScore = scoreOf(awayParticipant?.schoolId);
+  const winnerId = !played
+    ? null
+    : (event.results.find((r) => r.outcome === "WIN")?.schoolId ??
+      (homeScore !== null && awayScore !== null && homeScore !== awayScore
+        ? (tournament.activity.scoringType === "LOW_SCORE" ? homeScore < awayScore : homeScore > awayScore)
+          ? homeParticipant?.schoolId
+          : awayParticipant?.schoolId
+        : null));
+  const showScores = played && isDual && homeScore !== null && awayScore !== null;
+
   return (
-    <div className="page-wrap space-y-8 py-8 [&>*]:max-w-4xl">
-      <div>
-        <Link
-          href={
-            event.division ? `/seasons/${tournament.slug}/${event.division.slug}/schedule` : `/seasons/${tournament.slug}`
-          }
-          className="text-sm font-semibold text-primary hover:underline"
-        >
-          &larr; {tournament.activity.name}
-          {event.division ? ` · ${event.division.name}` : ""} ({tournament.name})
-        </Link>
-        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <SeasonHero
+        activityName={tournament.activity.name}
+        activitySport={tournament.activity.sport}
+        activitySlug={tournament.activity.slug}
+        tournamentName={tournament.name}
+        divisionName={event.division?.name}
+        startDate={tournament.startDate}
+        endDate={tournament.endDate}
+        hostSchoolName={tournament.hostSchool?.name}
+        hostSchoolLogoUrl={tournament.hostSchool?.logoUrl}
+        archived={tournament.archived}
+      />
+      <TournamentSubNav
+        tournamentSlug={tournament.slug}
+        divisions={tournament.divisions}
+        usesMeetResults={tournament.activity.usesMeetResults}
+        usesAcademicFormat={tournament.activity.usesAcademicFormat}
+        currentDivisionSlug={event.division?.slug ?? null}
+      />
+
+      <div className="page-wrap space-y-8 py-8 [&>*]:max-w-4xl">
+      <section className="card px-4 py-6 sm:px-8">
+        {isDual ? (
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-6">
+            <ScoreboardSide
+              winnerId={winnerId ?? null}
+              participant={homeParticipant}
+              label={sideLabel(null, event.homeSourceOutcome, event.homeSourceEvent?.externalId, event.homeSourceStanding, event.homeSourceLabel)}
+            />
+            <div className="text-center">
+              {showScores ? (
+                <>
+                  <div className="text-4xl font-extrabold tracking-tight tabular-nums sm:text-5xl">
+                    <span className={winnerId === awayParticipant?.schoolId ? "text-muted" : ""}>{homeScore}</span>
+                    <span className="mx-2 text-muted">–</span>
+                    <span className={winnerId === homeParticipant?.schoolId ? "text-muted" : ""}>{awayScore}</span>
+                  </div>
+                  <span className="tag tag-neutral mt-2">Final</span>
+                </>
+              ) : (
+                <>
+                  <div className="text-2xl font-extrabold text-muted">v</div>
+                  {event.status === "CANCELLED" ? (
+                    <span className="tag tag-neutral mt-2">Cancelled</span>
+                  ) : (
+                    <div className="mt-1 text-sm font-bold tabular-nums">{formatWhen(event.date, "h:mm a") || "Time TBC"}</div>
+                  )}
+                </>
+              )}
+            </div>
+            <ScoreboardSide
+              winnerId={winnerId ?? null}
+              participant={awayParticipant}
+              label={sideLabel(null, event.awaySourceOutcome, event.awaySourceEvent?.externalId, event.awaySourceStanding, event.awaySourceLabel)}
+            />
+          </div>
+        ) : (
           <h1 className="text-2xl sm:text-3xl">{matchupTitle}</h1>
-          <div className="flex flex-wrap items-center gap-2">
-            {event.streamUrl && (
+        )}
+        {isDual && <h1 className="sr-only">{matchupTitle}</h1>}
+
+        {played && tournament.activity.usesSetScores && event.sets.length > 0 && (
+          <p className="mt-5 text-center text-sm text-muted tabular-nums">
+            Sets: {event.sets.map((s) => `${s.homeScore}–${s.awayScore}`).join(", ")}
+          </p>
+        )}
+
+        <p className={`mt-5 text-sm text-muted ${isDual ? "text-center" : ""}`}>
+          {formatWhen(event.date, "EEEE d MMMM yyyy · h:mm a", "EEEE d MMMM yyyy")}
+          {event.location && !tournament.activity.usesMeetResults ? ` · ${event.location}` : ""}
+          {event.externalId ? ` · ${tournament.activity.usesMeetResults ? "Session" : "Game"} ${event.externalId}` : ""}
+        </p>
+        {((event.streamUrl && event.status === "SCHEDULED") || canEdit) && (
+          <div className={`mt-4 flex flex-wrap gap-2 ${isDual ? "justify-center" : ""}`}>
+            {event.streamUrl && event.status === "SCHEDULED" && (
               <a href={event.streamUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
                 Watch live
               </a>
             )}
             {canEdit && (
-              <Link href={`/dashboard/events/${event.id}`} className="btn btn-primary">
+              <Link href={`/dashboard/events/${event.id}`} className="btn btn-secondary">
                 Enter results / add photos
               </Link>
             )}
           </div>
-        </div>
-        <p className="mt-1 text-muted">
-          {formatWhen(event.date, "EEEE, MMM d, yyyy · h:mm a", "EEEE, MMM d, yyyy")}
-          {event.location && !tournament.activity.usesMeetResults ? ` · ${event.location}` : ""}
-          {event.externalId ? ` · ${tournament.activity.usesMeetResults ? "Session" : "Game"} ${event.externalId}` : ""}
-        </p>
-      </div>
+        )}
+      </section>
 
-      {tournament.activity.scoringType !== "NONE" && (
+      {/* A two-school game's result is on the scoreboard; this card is for
+          everything else - team totals, multi-school events, golf-style
+          individual scores. */}
+      {tournament.activity.scoringType !== "NONE" && (!isDual || tournament.activity.scoringType === "LOW_SCORE") && (
         <section className="card p-4">
           <h2 className="mb-3 text-lg">{tournament.activity.scoringType === "LOW_SCORE" ? "Team result" : "Result"}</h2>
-          {!showsResult(event.status) || event.results.every((r) => r.score === null && r.outcome === null) ? (
+          {!played || event.results.every((r) => r.score === null && r.outcome === null) ? (
             <p className="text-muted">Results haven&apos;t been posted yet.</p>
           ) : (
             <ul className="space-y-2">
@@ -237,19 +319,6 @@ export default async function EventPage({
                 </li>
               ))}
             </ul>
-          )}
-
-          {tournament.activity.usesSetScores && event.sets.length > 0 && (
-            <div className="mt-4 border-t border-border pt-4">
-              <h3 className="mb-2 text-sm">Set scores</h3>
-              <ul className="flex flex-wrap gap-4 text-sm">
-                {event.sets.map((s) => (
-                  <li key={s.id} className="text-muted">
-                    Set {s.setNumber}: <span className="font-medium text-foreground">{s.homeScore}–{s.awayScore}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
           )}
 
           {tournament.activity.scoringType === "LOW_SCORE" && event.individualResults.length > 0 && (
@@ -324,7 +393,42 @@ export default async function EventPage({
           </div>
         )}
       </section>
+      </div>
     </div>
+  );
+}
+
+type ScoreboardSchool = {
+  schoolId: string;
+  school: { name: string; slug: string; logoUrl: string | null; themeColor: string | null; themeColorSecondary: string | null };
+};
+
+// One side of the game page's scoreboard: the school's logo and name,
+// linking to its page (quieter once the other side has won), or - for a
+// side not decided yet - what it's waiting on ("Winner of G3").
+function ScoreboardSide({ participant, label, winnerId }: { participant: ScoreboardSchool | undefined; label: string; winnerId: string | null }) {
+  if (!participant) {
+    return (
+      <span className="flex min-w-0 flex-col items-center gap-2 text-center text-muted italic">
+        <span className="flex h-16 w-16 items-center justify-center border border-dashed border-border text-xs not-italic">TBD</span>
+        <span className="text-base leading-tight sm:text-xl">{label}</span>
+      </span>
+    );
+  }
+  return (
+    <Link
+      href={`/schools/${participant.school.slug}`}
+      className={`flex min-w-0 flex-col items-center gap-2 text-center hover:text-primary ${winnerId && winnerId !== participant.schoolId ? "text-muted" : ""}`}
+    >
+      <SchoolBadge
+        size={64}
+        logoUrl={participant.school.logoUrl}
+        name={participant.school.name}
+        color={participant.school.themeColor}
+        secondaryColor={participant.school.themeColorSecondary}
+      />
+      <span className="text-base leading-tight font-extrabold sm:text-xl">{participant.school.name}</span>
+    </Link>
   );
 }
 

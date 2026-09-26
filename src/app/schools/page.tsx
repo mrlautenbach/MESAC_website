@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { SchoolsMap } from "@/components/SchoolsMap";
 import { SchoolBadge } from "@/components/SchoolBadge";
@@ -14,6 +15,7 @@ export default async function SchoolsPage() {
 
   const rows = schools.map((s) => ({
     id: s.id,
+    slug: s.slug,
     code: s.code,
     name: s.name,
     city: s.city,
@@ -43,10 +45,11 @@ export default async function SchoolsPage() {
           <div className="mhr" />
           <ul>
             {rows.map((s) => (
-              <li
-                key={s.id}
-                className="grid grid-cols-[92px_48px_1fr_auto] items-center border-b border-divider py-4 last:border-0"
-              >
+              <li key={s.id} className="border-b border-divider last:border-0">
+                <Link
+                  href={`/schools/${s.slug}`}
+                  className="grid grid-cols-[92px_48px_1fr_auto] items-center py-4 hover:bg-foreground/[.03]"
+                >
                 <span className="whitespace-nowrap text-[15px] font-extrabold text-primary-dark">{s.code ?? "—"}</span>
                 <span className="ml-1 flex items-center justify-center">
                   <SchoolBadge
@@ -65,6 +68,7 @@ export default async function SchoolsPage() {
                 <span className="ml-3 text-[11.5px] tabular-nums text-muted">
                   {s.teams > 0 ? `${s.teams} ${s.teams === 1 ? "team" : "teams"}` : ""}
                 </span>
+                </Link>
               </li>
             ))}
           </ul>

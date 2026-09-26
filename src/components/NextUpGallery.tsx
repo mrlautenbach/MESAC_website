@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { format } from "date-fns";
+import { formatDateRange } from "@/lib/dates";
 
 type UpcomingCard = {
   slug: string;
@@ -51,7 +51,7 @@ export function NextUpGallery({ tournaments }: { tournaments: UpcomingCard[] }) 
       </div>
       <div className="mt-3 text-3xl font-extrabold leading-tight tracking-tight">{tournament.name}</div>
       <p className="mt-3 text-[13px] opacity-90">
-        {format(tournament.startDate, "MMM d")} – {format(tournament.endDate, "MMM d")}
+        {formatDateRange(tournament.startDate, tournament.endDate)}
         {tournament.hostSchoolName ? ` · Hosted by ${tournament.hostSchoolName}` : ""}
       </p>
       <Link

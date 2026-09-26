@@ -108,7 +108,7 @@ export function MeetScheduleTable({
               >
                 {group.rows[0].sessionTitle}
               </Link>
-              <span className="font-normal text-muted">{formatWhen(group.date, "EEEE, MMM d, yyyy · h:mm a", "EEEE, MMM d, yyyy")}</span>
+              <span className="font-normal text-muted">{formatWhen(group.date, "EEEE d MMMM yyyy · h:mm a", "EEEE d MMMM yyyy")}</span>
             </h5>
             <div className="overflow-x-auto">
               <table className="mtable">

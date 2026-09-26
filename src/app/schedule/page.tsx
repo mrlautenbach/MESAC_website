@@ -174,7 +174,7 @@ export default async function SchedulePage() {
                                     return (
                                       <li key={event.id} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-sm">
                                         <Link href={href} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 hover:text-primary">
-                                          <span className="tabular-nums text-muted">{formatWhen(event.date, "MMM d, h:mm a", "MMM d")}</span>
+                                          <span className="tabular-nums text-muted">{formatWhen(event.date, "EEE d MMM, h:mm a", "EEE d MMM")}</span>
                                           {event.division && (
                                             <span className={`tag ${divisionTagClass(event.division.name)}`}>{event.division.name}</span>
                                           )}

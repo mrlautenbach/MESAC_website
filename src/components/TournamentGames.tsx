@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { startOfToday } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { SCHEDULE_ORDER } from "@/lib/eventOrder";
@@ -307,7 +308,9 @@ async function WinLossStandings({
                       color={colorBySchoolId.get(row.schoolId)?.color}
                       secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor}
                     />
-                    {row.schoolName}
+                    <Link href={`/schools/${row.schoolSlug}`} className="hover:text-primary hover:underline">
+                      {row.schoolName}
+                    </Link>
                   </span>
                   <span className="text-[17px] font-extrabold tabular-nums">{row.points} pts</span>
                 </div>
@@ -357,7 +360,9 @@ async function WinLossStandings({
                         color={colorBySchoolId.get(row.schoolId)?.color}
                         secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor}
                       />
-                      {row.schoolName}
+                      <Link href={`/schools/${row.schoolSlug}`} className="hover:text-primary hover:underline">
+                        {row.schoolName}
+                      </Link>
                     </span>{" "}
                     {row.draws > 0 && <span className="font-normal text-muted">· {row.draws} drawn</span>}
                   </td>
@@ -431,7 +436,9 @@ async function LowScoreStandings({
                           color={colorBySchoolId.get(row.schoolId)?.color}
                           secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor}
                         />
-                        {row.schoolName}
+                        <Link href={`/schools/${row.schoolSlug}`} className="hover:text-primary hover:underline">
+                          {row.schoolName}
+                        </Link>
                       </span>
                     </td>
                     <td className="text-right tabular-nums">{row.played}</td>
@@ -472,7 +479,9 @@ async function LowScoreStandings({
                           color={colorBySchoolId.get(row.schoolId)?.color}
                           secondaryColor={colorBySchoolId.get(row.schoolId)?.secondaryColor}
                         />
-                        {row.schoolName}
+                        <Link href={`/schools/${row.schoolSlug}`} className="hover:text-primary hover:underline">
+                          {row.schoolName}
+                        </Link>
                       </span>
                     </td>
                     <td className="text-right text-[17px] font-extrabold tabular-nums">{row.avgScore.toFixed(1)}</td>

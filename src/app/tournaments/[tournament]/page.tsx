@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { formatDateRange } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +36,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ tou
           <h6 className="text-primary-dark">Current tournament</h6>
           <h2 className="mb-2 mt-2">{current.name}</h2>
           <p className="mb-4 text-muted">
-            {format(current.startDate, "MMM d, yyyy")} – {format(current.endDate, "MMM d, yyyy")}
+            {formatDateRange(current.startDate, current.endDate)}
             {current.hostSchool && ` · Hosted by ${current.hostSchool.name}`}
           </p>
           <Link href={`/seasons/${current.slug}`} className="btn btn-primary">
@@ -56,7 +56,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ tou
                     {tournament.name}
                   </Link>
                   <div className="text-sm text-muted">
-                    {format(tournament.startDate, "MMM d, yyyy")} – {format(tournament.endDate, "MMM d, yyyy")}
+                    {formatDateRange(tournament.startDate, tournament.endDate)}
                     {tournament.hostSchool && ` · Hosted by ${tournament.hostSchool.name}`}
                   </div>
                 </div>

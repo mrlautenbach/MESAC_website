@@ -212,7 +212,7 @@ export function EventRows(props: EventRowsProps) {
         {dayGroups.map((group) => (
           <Fragment key={group.key}>
             <h5 className="col-span-full pb-1.5 pt-4 text-sm text-primary-dark first-of-type:pt-3 sm:border-b sm:border-divider">
-              {format(group.events[0].date, "EEEE, MMM d, yyyy")}
+              {format(group.events[0].date, "EEEE d MMMM yyyy")}
             </h5>
 
             {group.events.map((event) => {

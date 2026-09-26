@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 export type StandingsRow = {
   schoolId: string;
   schoolName: string;
+  schoolSlug: string;
   logoUrl: string | null;
   played: number;
   wins: number;
@@ -106,7 +107,7 @@ export async function computeStandings(
     select: {
       status: true,
       results: { select: { schoolId: true, score: true, outcome: true } },
-      participants: { select: { schoolId: true, isHome: true, school: { select: { name: true, logoUrl: true } } } },
+      participants: { select: { schoolId: true, isHome: true, school: { select: { name: true, slug: true, logoUrl: true } } } },
       sets: { select: { homeScore: true, awayScore: true } },
     },
   });
@@ -135,6 +136,7 @@ export async function computeStandings(
         row = {
           schoolId: result.schoolId,
           schoolName: school.name,
+          schoolSlug: school.slug,
           logoUrl: school.logoUrl,
           played: 0,
           wins: 0,
@@ -192,6 +194,7 @@ export async function computeStandings(
 export type LowScoreTeamRow = {
   schoolId: string;
   schoolName: string;
+  schoolSlug: string;
   logoUrl: string | null;
   played: number;
   totalScore: number;
@@ -217,6 +220,7 @@ export async function computeLowScoreTeamStandings(
       row = {
         schoolId: result.schoolId,
         schoolName: result.school.name,
+        schoolSlug: result.school.slug,
         logoUrl: result.school.logoUrl,
         played: 0,
         totalScore: 0,
@@ -236,6 +240,7 @@ export async function computeLowScoreTeamStandings(
 export type IndividualStandingsRow = {
   schoolId: string;
   schoolName: string;
+  schoolSlug: string;
   athleteName: string;
   played: number;
   totalScore: number;
@@ -262,6 +267,7 @@ export async function computeIndividualStandings(
       row = {
         schoolId: entry.schoolId,
         schoolName: entry.school.name,
+        schoolSlug: entry.school.slug,
         athleteName: entry.athleteName,
         played: 0,
         totalScore: 0,
