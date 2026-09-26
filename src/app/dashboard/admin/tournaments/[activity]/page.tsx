@@ -65,7 +65,7 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
       </Link>
       <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">{activity.name}</h1>
+          <h1 className="text-3xl">{activity.name}</h1>
           <p className="mt-1 text-sm text-muted">
             {activity.sport} · {activity.usesGolfFormat
               ? "individual points by flight, then team match play"
@@ -283,7 +283,7 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="card p-5">
-      <h3 className="mb-4 text-base font-bold">{title}</h3>
+      <h3 className="mb-4 text-base">{title}</h3>
       {children}
     </div>
   );

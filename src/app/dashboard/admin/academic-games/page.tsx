@@ -93,7 +93,7 @@ export default async function AcademicGamesAdminPage({ searchParams }: { searchP
         <Link href={`/dashboard/admin/tournaments/${tournament.activityId}`} className="text-sm font-semibold text-primary-dark hover:underline">
           ← {tournament.activity.name}
         </Link>
-        <h1 className="mt-2 text-2xl font-bold">
+        <h1 className="mt-2 text-2xl">
           {tournament.activity.name} <span className="font-normal text-muted">· {tournament.name}</span>
         </h1>
         <nav aria-label="Steps" className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
@@ -108,7 +108,7 @@ export default async function AcademicGamesAdminPage({ searchParams }: { searchP
 
       <section id="schedule" className="scroll-mt-20 space-y-4">
         <div>
-          <h2 className="text-xl font-bold">1. Schedule ({events.length} competitions)</h2>
+          <h2 className="text-xl">1. Schedule ({events.length} competitions)</h2>
           <p className="mt-1 text-sm text-muted">
             One row per competition. Columns: <code>date</code> (YYYY-MM-DD), <code>start</code> and{" "}
             <code>end</code> (13:45 or 1:45pm), <code>title</code>, <code>team</code> (<code>varsity</code>,{" "}
@@ -143,7 +143,7 @@ export default async function AcademicGamesAdminPage({ searchParams }: { searchP
             <div className="mt-3 space-y-4">
               {days.map((day) => (
                 <div key={day}>
-                  <h3 className="mb-2 text-sm font-bold">{format(new Date(`${day}T00:00:00`), "EEEE d MMMM")}</h3>
+                  <h3 className="mb-2 text-sm">{format(new Date(`${day}T00:00:00`), "EEEE d MMMM")}</h3>
                   <div className="overflow-x-auto">
                     <table className="mtable text-sm">
                       <thead>
@@ -188,7 +188,7 @@ export default async function AcademicGamesAdminPage({ searchParams }: { searchP
 
       <section id="bowl" className="scroll-mt-20 space-y-4">
         <div>
-          <h2 className="text-xl font-bold">
+          <h2 className="text-xl">
             2. Academic Bowl ({games.length} games{games.length > 0 ? `, ${scored} scored` : ""})
           </h2>
           <p className="mt-1 text-sm text-muted">
@@ -223,7 +223,7 @@ export default async function AcademicGamesAdminPage({ searchParams }: { searchP
       {bowlDivisions.length > 0 && (
         <section id="bowl-scores" className="scroll-mt-20 space-y-6">
           <div>
-            <h2 className="text-xl font-bold">3. Bowl scores</h2>
+            <h2 className="text-xl">3. Bowl scores</h2>
             <p className="mt-1 text-sm text-muted">
               Round by round. Leave both boxes blank for a game that hasn&apos;t been played. Finals games can be
               scored once both their teams are known.
@@ -233,7 +233,7 @@ export default async function AcademicGamesAdminPage({ searchParams }: { searchP
             const firstOpen = rounds.find((r) => r.games.some((g) => g.scoreA === null && g.teamAId && g.teamBId));
             return (
               <div key={division.id} className="space-y-2">
-                <h3 className="font-bold">
+                <h3>
                   {division.name}{" "}
                   <span className="font-normal text-muted">
                     · {teams} teams · {done} of {total} games scored

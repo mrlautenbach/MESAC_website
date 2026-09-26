@@ -47,7 +47,7 @@ export default async function MeetSchedulePage({
         <Link href="/dashboard/admin/tournaments" className="text-sm font-semibold text-primary hover:underline">
           &larr; Activities
         </Link>
-        <h1 className="mt-1 text-2xl font-bold">Meet schedule &amp; program</h1>
+        <h1 className="mt-1 text-2xl">Meet schedule &amp; program</h1>
         <p className="text-muted">
           {tournament.activity.name} · {tournament.name}
         </p>
@@ -55,7 +55,7 @@ export default async function MeetSchedulePage({
 
       {tournament.events.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-bold">Sessions</h2>
+          <h2 className="mb-3 text-lg">Sessions</h2>
           <ul className="space-y-1.5 text-sm">
             {tournament.events.map((event) => (
               <li key={event.id} className="flex items-center justify-between gap-3 border-b border-border py-1.5 last:border-0">
@@ -73,7 +73,7 @@ export default async function MeetSchedulePage({
       )}
 
       <section>
-        <h2 className="mb-3 text-lg font-bold">Import schedule &amp; program</h2>
+        <h2 className="mb-3 text-lg">Import schedule &amp; program</h2>
         <p className="-mt-1 mb-3 text-sm text-muted">
           One CSV sets up sessions and named events together - a session is created automatically the first time a
           row references it by name.

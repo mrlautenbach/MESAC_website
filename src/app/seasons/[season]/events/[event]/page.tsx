@@ -200,7 +200,7 @@ export default async function EventPage({
           {event.division ? ` · ${event.division.name}` : ""} ({tournament.name})
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-2xl font-bold sm:text-3xl">{matchupTitle}</h1>
+          <h1 className="text-2xl sm:text-3xl">{matchupTitle}</h1>
           <div className="flex flex-wrap items-center gap-2">
             {event.streamUrl && (
               <a href={event.streamUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
@@ -223,7 +223,7 @@ export default async function EventPage({
 
       {tournament.activity.scoringType !== "NONE" && (
         <section className="card p-4">
-          <h2 className="mb-3 text-lg font-bold">{tournament.activity.scoringType === "LOW_SCORE" ? "Team result" : "Result"}</h2>
+          <h2 className="mb-3 text-lg">{tournament.activity.scoringType === "LOW_SCORE" ? "Team result" : "Result"}</h2>
           {event.results.every((r) => r.score === null && r.outcome === null) ? (
             <p className="text-muted">Results haven&apos;t been posted yet.</p>
           ) : (
@@ -242,7 +242,7 @@ export default async function EventPage({
 
           {tournament.activity.usesSetScores && event.sets.length > 0 && (
             <div className="mt-4 border-t border-border pt-4">
-              <h3 className="mb-2 text-sm font-bold">Set scores</h3>
+              <h3 className="mb-2 text-sm">Set scores</h3>
               <ul className="flex flex-wrap gap-4 text-sm">
                 {event.sets.map((s) => (
                   <li key={s.id} className="text-muted">
@@ -255,7 +255,7 @@ export default async function EventPage({
 
           {tournament.activity.scoringType === "LOW_SCORE" && event.individualResults.length > 0 && (
             <div className="mt-4 border-t border-border pt-4">
-              <h3 className="mb-2 text-sm font-bold">Individual scores</h3>
+              <h3 className="mb-2 text-sm">Individual scores</h3>
               <div className="space-y-3">
                 {Array.from(individualByschool.entries()).map(([schoolId, entries]) => (
                   <div key={schoolId}>
@@ -281,27 +281,27 @@ export default async function EventPage({
 
       {tournament.activity.usesMeetResults && meetResultGroups.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-bold">Results</h2>
+          <h2 className="mb-3 text-lg">Results</h2>
           <MeetResultsView groups={meetResultGroups} />
         </section>
       )}
 
       {event.recap && (
         <section className="card p-4">
-          <h2 className="mb-2 text-lg font-bold">Recap</h2>
+          <h2 className="mb-2 text-lg">Recap</h2>
           <p className="recap whitespace-pre-wrap text-foreground">{event.recap}</p>
         </section>
       )}
 
       {event.documents.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-bold">Results documents</h2>
+          <h2 className="mb-3 text-lg">Results documents</h2>
           <DocumentList documents={event.documents} canDelete={false} />
         </section>
       )}
 
       <section>
-        <h2 className="mb-3 text-lg font-bold">Photos</h2>
+        <h2 className="mb-3 text-lg">Photos</h2>
         {event.photos.length === 0 ? (
           <p className="text-muted">No photos yet.</p>
         ) : (

@@ -119,7 +119,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
         >
           &larr; View public event page
         </Link>
-        <h1 className="mt-1 text-2xl font-bold">
+        <h1 className="mt-1 text-2xl">
           {event.participants.length > 0 ? event.participants.map((p) => p.school.name).join(" vs ") : event.title}
         </h1>
         <p className="text-muted">
@@ -129,7 +129,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
       </div>
 
       <section>
-        <h2 className="mb-3 text-lg font-bold">Event details &amp; result</h2>
+        <h2 className="mb-3 text-lg">Event details &amp; result</h2>
         <EventEditForm
           eventId={event.id}
           isAdmin={isAdmin}
@@ -158,7 +158,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-bold">Results document</h2>
+        <h2 className="mb-3 text-lg">Results document</h2>
         <p className="mb-3 text-sm text-muted">
           Attach a PDF of full results. Useful for meets and festivals that don&apos;t fit a simple win/loss score.
         </p>
@@ -172,7 +172,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
 
       {isAdmin && event.tournament.activity.usesMeetResults && (
         <section>
-          <h2 className="mb-3 text-lg font-bold">Meet results</h2>
+          <h2 className="mb-3 text-lg">Meet results</h2>
           <p className="mb-3 text-sm text-muted">
             Import individual placings for this session from a CSV file, in addition to the results document above.
           </p>
@@ -181,13 +181,13 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
       )}
 
       <section>
-        <h2 className="mb-3 text-lg font-bold">Add photos</h2>
+        <h2 className="mb-3 text-lg">Add photos</h2>
         <PhotoUploader eventId={event.id} />
       </section>
 
       {event.photos.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-bold">Photos</h2>
+          <h2 className="mb-3 text-lg">Photos</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {event.photos.map((photo) => (
               <PhotoCaptionEditor key={photo.id} photo={photo} canDelete={isAdmin} />
@@ -197,7 +197,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
       )}
 
       <section>
-        <h2 className="mb-3 text-lg font-bold">Edit history</h2>
+        <h2 className="mb-3 text-lg">Edit history</h2>
         <EventHistory entries={auditEntries} isAdmin={isAdmin} />
       </section>
     </div>

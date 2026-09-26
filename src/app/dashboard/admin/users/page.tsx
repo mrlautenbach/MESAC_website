@@ -17,12 +17,12 @@ export default async function UsersAdminPage() {
   return (
     <div className="page-wrap space-y-10 py-8 [&>*]:max-w-3xl">
       <div>
-        <h1 className="mb-6 text-2xl font-bold">Create an account</h1>
+        <h1 className="mb-6 text-2xl">Create an account</h1>
         <CreateUserForm schools={schools} />
       </div>
 
       <div>
-        <h2 className="mb-4 text-xl font-bold">Accounts ({users.length})</h2>
+        <h2 className="mb-4 text-xl">Accounts ({users.length})</h2>
         <ul className="space-y-3">
           {users.map((u) => (
             <UserRow

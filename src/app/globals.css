@@ -75,12 +75,36 @@
 /* Flat, architectural: nothing on this site is rounded. Kept in `base` (not
    as a global `!important`) so the reset is the default rather than a law -
    an element that genuinely needs a radius can still take a `rounded-*`
-   utility, and one that's written stops silently doing nothing. */
+   utility, and one that's written stops silently doing nothing. The heading
+   reset lives here for the same reason: unlayered, it beat every `mb-*` /
+   `mt-*` / `tracking-*` put on a heading. */
 @layer base {
   *,
   *::before,
   *::after {
     border-radius: 0;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 800;
+    line-height: 1.12;
+    /* Tailwind's `text-*` sizes set `line-height: var(--tw-leading, <size's
+       own leading>)`, so without this a `text-xl` heading would drop the
+       1.12 heading leading for text-xl's body-copy 1.4. `leading-*` still
+       overrides it. */
+    --tw-leading: 1.12;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+  h6 {
+    font-size: 0.8125rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 }
 
@@ -100,23 +124,6 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-archivo), system-ui, sans-serif;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-weight: 800;
-  line-height: 1.12;
-  letter-spacing: -0.015em;
-  margin: 0;
-}
-h6 {
-  font-size: 0.8125rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 /* Mashrabiya diamond lattice - CSS only, never a full-page field. Use

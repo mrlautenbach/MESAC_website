@@ -24,7 +24,7 @@ export default async function NewEventPage({
   if (tournaments.length === 0) {
     return (
       <div className="page-wrap py-8 [&>*]:max-w-2xl">
-        <h1 className="mb-2 text-2xl font-bold">New event</h1>
+        <h1 className="mb-2 text-2xl">New event</h1>
         <p className="text-muted">Create an activity and tournament first before adding events.</p>
       </div>
     );
@@ -39,7 +39,7 @@ export default async function NewEventPage({
   return (
     <div className="page-wrap py-8 [&>*]:max-w-2xl">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">New event</h1>
+        <h1 className="text-2xl">New event</h1>
         <Link
           href={`/dashboard/admin/events/import${defaultTournamentId ? `?tournament=${defaultTournamentId}` : ""}`}
           className="text-sm font-semibold text-primary hover:underline"

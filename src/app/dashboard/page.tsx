@@ -40,7 +40,7 @@ export default async function DashboardPage() {
   if (user.mustChangePassword) {
     return (
       <div className="mx-auto max-w-lg px-4 py-10">
-        <h1 className="mb-2 text-2xl font-bold">Welcome, {user.name}</h1>
+        <h1 className="mb-2 text-2xl">Welcome, {user.name}</h1>
         <p className="mb-6 text-muted">
           For security, please set your own password before continuing.
         </p>
@@ -72,7 +72,7 @@ export default async function DashboardPage() {
     <div className="page-wrap py-8 space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Welcome, {user.name}</h1>
+          <h1 className="text-2xl">Welcome, {user.name}</h1>
           <p className="text-muted">
             {user.role === "ADMIN" ? "League admin" : "School editor"}
           </p>
@@ -83,7 +83,7 @@ export default async function DashboardPage() {
       </div>
 
       <section>
-        <h2 className="mb-3 text-xl font-bold">Upcoming</h2>
+        <h2 className="mb-3 text-xl">Upcoming</h2>
         {upcoming.length === 0 ? (
           <p className="text-muted">No upcoming events.</p>
         ) : (
@@ -96,7 +96,7 @@ export default async function DashboardPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-xl font-bold">Past</h2>
+        <h2 className="mb-3 text-xl">Past</h2>
         {past.length === 0 ? (
           <p className="text-muted">No past events yet.</p>
         ) : (

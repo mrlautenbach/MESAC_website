@@ -14,7 +14,7 @@ export default async function SchoolsAdminPage() {
   return (
     <div className="page-wrap space-y-10 py-8 [&>*]:max-w-3xl">
       <div>
-        <h1 className="mb-4 text-2xl font-bold">Schools ({schools.length})</h1>
+        <h1 className="mb-4 text-2xl">Schools ({schools.length})</h1>
         <ul className="card divide-y divide-border">
           {schools.map((school) => (
             <li key={school.id}>
