@@ -2,6 +2,7 @@
 
 import { useActionState, useId } from "react";
 import { createTournamentAction, updateTournamentAction } from "@/lib/actions/tournaments";
+import { LEAGUE_ZONES, ZONE_KEYS, type LeagueZone } from "@/lib/timeZones";
 
 type ExistingSeason = {
   id: string;
@@ -9,6 +10,7 @@ type ExistingSeason = {
   startDate: string; // yyyy-MM-dd
   endDate: string; // yyyy-MM-dd
   hostSchoolId: string | null;
+  timeZone: LeagueZone | null;
   archived: boolean;
   liveResultsUrl: string | null;
   liveResultsText: string | null;
@@ -98,6 +100,29 @@ export function SeasonEditionForm({
             </option>
           ))}
         </select>
+      </div>
+      <div>
+        <label htmlFor={`${fid}-timeZone`} className="field-label">
+          Time zone
+        </label>
+        <select
+          key={existing?.timeZone ?? ""}
+          id={`${fid}-timeZone`}
+          name="timeZone"
+          defaultValue={existing?.timeZone ?? ""}
+          className="field-input"
+        >
+          <option value="">The host school&apos;s</option>
+          {ZONE_KEYS.map((zone) => (
+            <option key={zone} value={zone}>
+              {LEAGUE_ZONES[zone].label}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-muted">
+          Game times are entered in this zone and shown in it unless a visitor picks another. Change it only when the
+          tournament is held away from its host school.
+        </p>
       </div>
 
       <div>

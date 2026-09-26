@@ -14,6 +14,14 @@ datasource db {
   directUrl = env("Database_POSTGRES_URL_NON_POOLING")
 }
 
+// The league's three time zones, none with daylight saving: the UAE and
+// Oman (UTC+4), Qatar (UTC+3) and India (UTC+5:30).
+enum LeagueTimeZone {
+  GULF
+  QATAR
+  INDIA
+}
+
 enum Role {
   ADMIN
   EDITOR
@@ -79,6 +87,8 @@ model School {
   // actual event participation, since a school's roster for the year is
   // known well before any games are scheduled.
   teamCount           Int     @default(0)
+  // Where the school is, for the times of the tournaments it hosts.
+  timeZone            LeagueTimeZone @default(GULF)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -268,6 +278,10 @@ model Tournament {
   endDate      DateTime
   hostSchoolId String?
   hostSchool   School?  @relation(fields: [hostSchoolId], references: [id])
+  // Times are entered, stored and shown by default in the tournament's own
+  // local time: its host school's zone, unless this is set because it's
+  // being held somewhere else.
+  timeZone     LeagueTimeZone?
   // Live results during a meet aren't always a hosted website - often it's
   // a photo of a printed sheet, or a few lines of pasted text. All three are
   // independent of Event.streamUrl (a per-event video stream); the public

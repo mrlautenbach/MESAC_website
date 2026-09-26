@@ -5,8 +5,11 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { SportIcon } from "@/components/icons/SportIcon";
-import { formatWhen, sideLabel } from "@/lib/eventDisplay";
-import { dayBounds, formatDateRange, formatShortDay, leagueToday } from "@/lib/dates";
+import { sideLabel } from "@/lib/eventDisplay";
+import { makeClock, tournamentZone } from "@/lib/timeZones";
+import { getTimeView } from "@/lib/timeView";
+import { TimeZoneSwitch } from "@/components/TimeZoneSwitch";
+import { dayBounds, formatDateRange, leagueToday } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ school: s
 }
 
 const GAME_INCLUDE = {
-  tournament: { include: { activity: true } },
+  tournament: { include: { activity: true, hostSchool: { select: { timeZone: true } } } },
   division: true,
   participants: { include: { school: true } },
   results: true,
@@ -34,7 +37,7 @@ export default async function SchoolPage({ params }: { params: Promise<{ school:
 
   const todayStart = dayBounds(leagueToday()).gte;
   const playing = { participants: { some: { schoolId: school.id } } };
-  const [upcoming, recent, entries, teamPhotos] = await Promise.all([
+  const [upcoming, recent, entries, teamPhotos, view] = await Promise.all([
     prisma.event.findMany({
       where: { ...playing, status: "SCHEDULED", date: { gte: todayStart } },
       orderBy: { date: "asc" },
@@ -52,12 +55,13 @@ export default async function SchoolPage({ params }: { params: Promise<{ school:
       include: { tournament: { include: { activity: true } }, division: true },
       orderBy: { createdAt: "desc" },
     }),
+    getTimeView(),
   ]);
 
   type Game = (typeof upcoming)[number];
   // This school's side of a game, the opponent's, and - once it's played -
   // its result from this school's point of view.
-  const view = (game: Game) => {
+  const sides = (game: Game) => {
     const own = game.participants.find((p) => p.schoolId === school.id);
     const other = game.participants.find((p) => p.schoolId !== school.id);
     const otherIsHome = !own?.isHome;
@@ -86,16 +90,18 @@ export default async function SchoolPage({ params }: { params: Promise<{ school:
     }
     return { opponent, isHome: !!own?.isHome, outcome, score: ownResult?.score ?? null, otherScore: otherResult?.score ?? null };
   };
-  const record = recent.map(view).reduce(
+  const record = recent.map(sides).reduce(
     (tally, g) => ({ ...tally, [g.outcome ?? "none"]: (tally[g.outcome ?? "none"] ?? 0) + 1 }),
     {} as Record<string, number>
   );
 
   const GameRow = ({ game, played }: { game: Game; played: boolean }) => {
-    const g = view(game);
+    const g = sides(game);
+    // Each game in its own tournament's time, or the zone chosen.
+    const clock = makeClock(tournamentZone(game.tournament), view);
     return (
       <li className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-x-3 py-2.5 sm:grid-cols-[5.5rem_minmax(0,11rem)_minmax(0,1fr)_auto]">
-        <span className="text-sm text-muted tabular-nums">{formatShortDay(game.date)}</span>
+        <span className="text-sm text-muted tabular-nums">{clock.format(game.date, "EEE d MMM")}</span>
         <span className="hidden min-w-0 items-center gap-1.5 truncate text-sm text-muted sm:flex">
           <SportIcon sport={game.tournament.activity.sport} size={16} />
           <span className="truncate">
@@ -119,7 +125,7 @@ export default async function SchoolPage({ params }: { params: Promise<{ school:
               {g.score != null && g.otherScore != null ? `${g.score}–${g.otherScore}` : ""}
             </>
           ) : (
-            <span className="text-muted">{formatWhen(game.date, "h:mm a") || "TBC"}</span>
+            <span className="text-muted">{clock.when(game.date, "h:mm a") || "TBC"}</span>
           )}
         </span>
       </li>
@@ -160,7 +166,10 @@ export default async function SchoolPage({ params }: { params: Promise<{ school:
       <div className="page-wrap grid gap-10 py-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="space-y-10">
           <section>
-            <h2 className="mb-2 text-xl">Coming up</h2>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-xl">Coming up</h2>
+              <TimeZoneSwitch view={view} />
+            </div>
             {upcoming.length === 0 ? (
               <p className="text-muted">No games scheduled right now.</p>
             ) : (

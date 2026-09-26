@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { formatWhen } from "@/lib/eventDisplay";
 import { StatusTag } from "@/components/StatusTag";
 import { divisionTagClass } from "@/lib/divisionTagClass";
 import { LiveIcon } from "@/components/icons/LiveIcon";
@@ -10,6 +9,10 @@ import { LiveIcon } from "@/components/icons/LiveIcon";
 export type MeetScheduleRow = {
   key: string;
   date: Date;
+  // Worked out on the server, in the zone the visitor chose: this row's
+  // time ("9:30 AM"), and its day and time for a session heading.
+  timeLabel: string;
+  headingLabel: string;
   sessionId: string;
   sessionTitle: string;
   sessionSlug: string;
@@ -61,16 +64,16 @@ export function MeetScheduleTable({
   // same day show as two separate blocks instead of one merged table.
   // Groups are ordered by the session's own time; rows within a group by
   // event_number, since that's the meet's actual running order.
-  const sessionGroups: { sessionId: string; date: Date; rows: MeetScheduleRow[] }[] = [];
+  const sessionGroups: { sessionId: string; date: Date; label: string; rows: MeetScheduleRow[] }[] = [];
   const indexBySession = new Map<string, number>();
   for (const row of visibleRows) {
     if (!indexBySession.has(row.sessionId)) {
       indexBySession.set(row.sessionId, sessionGroups.length);
-      sessionGroups.push({ sessionId: row.sessionId, date: row.date, rows: [] });
+      sessionGroups.push({ sessionId: row.sessionId, date: row.date, label: row.headingLabel, rows: [] });
     }
     const group = sessionGroups[indexBySession.get(row.sessionId)!];
     group.rows.push(row);
-    if (row.date < group.date) group.date = row.date;
+    if (row.date < group.date) Object.assign(group, { date: row.date, label: row.headingLabel });
   }
   sessionGroups.sort((a, b) => a.date.getTime() - b.date.getTime());
   for (const group of sessionGroups) {
@@ -109,7 +112,7 @@ export function MeetScheduleTable({
               >
                 {group.rows[0].sessionTitle}
               </Link>
-              <span className="font-normal text-muted">{formatWhen(group.date, "EEEE d MMMM yyyy · h:mm a", "EEEE d MMMM yyyy")}</span>
+              <span className="font-normal text-muted">{group.label}</span>
             </h5>
             <div className="overflow-x-auto">
               <table className="mtable">
@@ -138,7 +141,7 @@ export function MeetScheduleTable({
                           )}
                         </td>
                       )}
-                      <td className="whitespace-nowrap tabular-nums">{formatWhen(row.date, "h:mm a") || "TBC"}</td>
+                      <td className="whitespace-nowrap tabular-nums">{row.timeLabel || "TBC"}</td>
                       <td>
                         <div className="flex flex-wrap items-center gap-1.5">
                           <StatusTag status={row.status} />

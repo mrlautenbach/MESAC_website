@@ -2,7 +2,10 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { SCHEDULE_ORDER } from "@/lib/eventOrder";
 import { startOfDay } from "date-fns";
-import { formatWhen, sideLabel } from "@/lib/eventDisplay";
+import { sideLabel } from "@/lib/eventDisplay";
+import { makeClock, tournamentZone } from "@/lib/timeZones";
+import { getTimeView } from "@/lib/timeView";
+import { TimeZoneSwitch } from "@/components/TimeZoneSwitch";
 import { SchoolColorDot } from "@/components/SchoolColorDot";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
 import { matchRosterForSeason } from "@/lib/matchRoster";
@@ -31,7 +34,7 @@ function loadSeasons() {
             where: { archived: false },
             orderBy: { startDate: "desc" },
             take: 1,
-            include: { divisions: true },
+            include: { divisions: true, hostSchool: { select: { timeZone: true } } },
           },
         },
       },
@@ -41,7 +44,7 @@ function loadSeasons() {
 
 export default async function SchedulePage() {
   const today = startOfDay(new Date());
-  const seasons = await loadSeasons();
+  const [seasons, view] = await Promise.all([loadSeasons(), getTimeView()]);
 
   const currentTournamentIds = seasons.flatMap((s) => s.activities.flatMap((a) => a.tournaments.map((t) => t.id)));
 
@@ -73,7 +76,10 @@ export default async function SchedulePage() {
   return (
     <div className="page-wrap py-8">
       <p className="eyebrow text-primary-dark">Live &amp; upcoming</p>
-      <h1 className="mt-2 mb-8 text-4xl sm:text-5xl">Every activity, its own schedule.</h1>
+      <h1 className="mt-2 text-4xl sm:text-5xl">Every activity, its own schedule.</h1>
+      <div className="mt-4 mb-8">
+        <TimeZoneSwitch view={view} />
+      </div>
 
       <div className="space-y-10">
         {seasons.map((season) => {
@@ -125,6 +131,7 @@ export default async function SchedulePage() {
                           const a = row.activity;
                           const current = a.tournaments[0];
                           const events = current ? (eventsByTournamentId.get(current.id) ?? []) : [];
+                          const clock = current ? makeClock(tournamentZone(current), view) : null;
 
                           return (
                             <div key={row.key}>
@@ -185,7 +192,7 @@ export default async function SchedulePage() {
                                     return (
                                       <li key={event.id} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 text-sm">
                                         <Link href={href} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 hover:text-primary">
-                                          <span className="tabular-nums text-muted">{formatWhen(event.date, "EEE d MMM, h:mm a", "EEE d MMM")}</span>
+                                          <span className="tabular-nums text-muted">{clock?.when(event.date, "EEE d MMM, h:mm a", "EEE d MMM")}</span>
                                           {event.division && (
                                             <span className={`tag ${divisionTagClass(event.division.name)}`}>{event.division.name}</span>
                                           )}

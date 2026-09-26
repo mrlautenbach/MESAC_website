@@ -8,6 +8,7 @@ import { ChallengeResults } from "@/components/ChallengeViews";
 import { GolfIndividualResults, GolfTeamResults } from "@/components/GolfViews";
 import { TournamentResults } from "@/components/TournamentGames";
 import { tournamentPageTitle } from "@/lib/pageTitles";
+import { clockFor } from "@/lib/timeView";
 
 export async function generateMetadata({ params }: { params: Promise<{ season: string }> }) {
   const { season } = await params;
@@ -30,6 +31,7 @@ export default async function TournamentResultsPage({
     include: { activity: true, divisions: true, hostSchool: true },
   });
   if (!tournament) notFound();
+  const clock = await clockFor(tournament);
   // Non-meet activities with divisions have no combined page - each division
   // gets its own results. Meet-style activities (Swimming, Track & Field)
   // use this page as the "Overall" view across every division instead, and
@@ -55,7 +57,7 @@ export default async function TournamentResultsPage({
         archived={tournament.archived}
       />
 
-      <TournamentSubNav
+      <TournamentSubNav clock={clock}
         tournamentSlug={tournament.slug}
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
@@ -66,16 +68,16 @@ export default async function TournamentResultsPage({
       <div className="page-wrap py-8">
         {academic ? (
           viewSwitch?.current === "bowl" ? (
-            <BowlResults tournamentId={tournament.id} />
+            <BowlResults clock={clock} tournamentId={tournament.id} />
           ) : (
             <ChallengeResults tournamentId={tournament.id} />
           )
         ) : golfView === "individual" ? (
           <GolfIndividualResults tournamentId={tournament.id} />
         ) : golfView === "team" ? (
-          <GolfTeamResults tournamentId={tournament.id} scoring={tournament.activity} />
+          <GolfTeamResults clock={clock} tournamentId={tournament.id} scoring={tournament.activity} />
         ) : (
-          <TournamentResults tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
+          <TournamentResults clock={clock} tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
         )}
       </div>
     </div>

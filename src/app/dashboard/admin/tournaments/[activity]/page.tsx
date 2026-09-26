@@ -154,6 +154,7 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
                   startDate: format(current.startDate, "yyyy-MM-dd"),
                   endDate: format(current.endDate, "yyyy-MM-dd"),
                   hostSchoolId: current.hostSchoolId,
+                  timeZone: current.timeZone,
                   archived: current.archived,
                   liveResultsUrl: current.liveResultsUrl,
                   liveResultsText: current.liveResultsText,

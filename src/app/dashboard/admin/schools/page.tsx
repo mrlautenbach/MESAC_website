@@ -53,6 +53,7 @@ export default async function SchoolsAdminPage() {
                       themeColorSecondary: school.themeColorSecondary,
                       teamCount: school.teamCount,
                       isLeagueMember: school.isLeagueMember,
+                      timeZone: school.timeZone,
                     }}
                   />
                 </div>

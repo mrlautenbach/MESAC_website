@@ -20,6 +20,8 @@ export const slugSchema = z
   .max(80)
   .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens only");
 
+export const leagueTimeZoneSchema = z.enum(["GULF", "QATAR", "INDIA"]);
+
 export const schoolInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
   contactName: z.string().trim().max(120).optional().or(z.literal("")),
@@ -46,6 +48,8 @@ export const schoolInputSchema = z.object({
   // raw value and "on"/absent decides it - a guest school is the unticked
   // case and shows up only where it actually competes.
   isLeagueMember: z.coerce.boolean(),
+  // Where the school is: the times of the tournaments it hosts.
+  timeZone: leagueTimeZoneSchema,
 });
 
 export const scoringTypeSchema = z.enum(["WIN_LOSS", "LOW_SCORE", "NONE"]);
@@ -184,6 +188,8 @@ export const tournamentInputSchema = z.object({
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   hostSchoolId: z.string().cuid().optional().nullable(),
+  // Blank follows the host school's time zone.
+  timeZone: leagueTimeZoneSchema.nullable(),
   // Explicit admin toggle for the public "Archived" label - not derived
   // from isCurrent or from today's date vs. the tournament's dates.
   archived: z.boolean(),

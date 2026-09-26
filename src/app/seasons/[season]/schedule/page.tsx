@@ -8,6 +8,7 @@ import { AcademicTimeline } from "@/components/AcademicTimeline";
 import { BowlSchedule } from "@/components/BowlViews";
 import { pickView } from "@/lib/viewSwitch";
 import { tournamentPageTitle } from "@/lib/pageTitles";
+import { clockFor } from "@/lib/timeView";
 
 export async function generateMetadata({ params }: { params: Promise<{ season: string }> }) {
   const { season } = await params;
@@ -30,6 +31,7 @@ export default async function TournamentSchedulePage({
     include: { activity: true, divisions: true, hostSchool: true },
   });
   if (!tournament) notFound();
+  const clock = await clockFor(tournament);
   // Non-meet activities with divisions have no combined page - each division
   // gets its own schedule. Meet-style activities (Swimming, Track & Field)
   // use this page as the "Overall" view across every division instead, and
@@ -55,7 +57,7 @@ export default async function TournamentSchedulePage({
         archived={tournament.archived}
       />
 
-      <TournamentSubNav
+      <TournamentSubNav clock={clock}
         tournamentSlug={tournament.slug}
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
@@ -67,16 +69,16 @@ export default async function TournamentSchedulePage({
         <h4 className="mb-3">Schedule</h4>
         {academic ? (
           viewSwitch?.current === "bowl" ? (
-            <BowlSchedule tournamentId={tournament.id} />
+            <BowlSchedule clock={clock} tournamentId={tournament.id} />
           ) : (
-            <AcademicTimeline tournamentId={tournament.id} tournamentSlug={tournament.slug} />
+            <AcademicTimeline clock={clock} tournamentId={tournament.id} tournamentSlug={tournament.slug} />
           )
         ) : golfView === "individual" ? (
-          <GolfIndividualSchedule tournamentId={tournament.id} />
+          <GolfIndividualSchedule clock={clock} tournamentId={tournament.id} />
         ) : golfView === "team" ? (
-          <GolfTeamSchedule tournamentId={tournament.id} />
+          <GolfTeamSchedule clock={clock} tournamentId={tournament.id} />
         ) : (
-          <TournamentSchedule tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
+          <TournamentSchedule clock={clock} tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
         )}
       </div>
     </div>

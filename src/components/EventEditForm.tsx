@@ -28,6 +28,7 @@ type Props = {
   isAdmin: boolean;
   viewerSchoolId: string | null;
   dateValue: string; // yyyy-MM-ddTHH:mm for the datetime-local input
+  zoneName: string; // the tournament's own time zone, e.g. "Qatar time"
   location: string;
   status: "SCHEDULED" | "COMPLETED" | "CANCELLED";
   recap: string;
@@ -51,6 +52,7 @@ export function EventEditForm({
   isAdmin,
   viewerSchoolId,
   dateValue,
+  zoneName,
   location,
   status,
   recap,
@@ -84,7 +86,7 @@ export function EventEditForm({
         )}
         <div>
           <label htmlFor="date" className="field-label">
-            {timeline ? "Date & start time" : "Date & time"}
+            {timeline ? "Date & start time" : "Date & time"} <span className="font-normal text-muted">({zoneName})</span>
           </label>
           <input
             id="date"

@@ -61,17 +61,19 @@ export function parseClock(raw: string): { hours: number; minutes: number } | nu
   return { hours, minutes };
 }
 
-function clock(date: Date): string {
-  return format(date, "h:mm");
-}
-
-// "9:25-10:15am", "11:40am-12:00pm", or just "8:45am" with no end.
-export function formatTimeRange(start: Date, end: Date | null): string {
-  const startMeridiem = format(start, "aaa");
-  if (!end) return `${clock(start)}${startMeridiem}`;
-  const endMeridiem = format(end, "aaa");
-  const from = startMeridiem === endMeridiem ? clock(start) : `${clock(start)}${startMeridiem}`;
-  return `${from}–${clock(end)}${endMeridiem}`;
+// "9:25-10:15am", "11:40am-12:00pm", or just "8:45am" with no end - in
+// another time zone when given that zone's formatter (a Clock's format).
+export function formatTimeRange(
+  start: Date,
+  end: Date | null,
+  formatIn: (date: Date, pattern: string) => string = format
+): string {
+  const time = (date: Date) => formatIn(date, "h:mm");
+  const startMeridiem = formatIn(start, "aaa");
+  if (!end) return `${time(start)}${startMeridiem}`;
+  const endMeridiem = formatIn(end, "aaa");
+  const from = startMeridiem === endMeridiem ? time(start) : `${time(start)}${startMeridiem}`;
+  return `${from}–${time(end)}${endMeridiem}`;
 }
 
 export type TimelineItem = {

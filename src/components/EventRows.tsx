@@ -1,9 +1,9 @@
 import { Fragment } from "react";
 import Link from "next/link";
-import { format } from "date-fns";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { LiveIcon } from "@/components/icons/LiveIcon";
-import { formatWhen, showsResult, sideLabel } from "@/lib/eventDisplay";
+import { showsResult, sideLabel } from "@/lib/eventDisplay";
+import type { Clock } from "@/lib/timeZones";
 import { divisionTagClass } from "@/lib/divisionTagClass";
 import { StatusTag } from "@/components/StatusTag";
 
@@ -57,6 +57,8 @@ export type EventRowsProps = {
   /** Status + Watch columns - hidden on the results view, where every row is
    *  completed and a stream link is meaningless. */
   showWatch: boolean;
+  // The zone the times (and so the days) are shown in.
+  clock: Clock;
 };
 
 type Columns = {
@@ -169,7 +171,7 @@ function winnerSchoolId(event: EventRowEvent, scoringType: EventRowsProps["scori
 }
 
 export function EventRows(props: EventRowsProps) {
-  const { events, tournamentSlug, scoringType } = props;
+  const { events, tournamentSlug, scoringType, clock } = props;
   const eventHref = (slug: string) => `/seasons/${tournamentSlug}/events/${slug}`;
   const cols = visibleColumns(props);
   const tracks = columnTracks(cols);
@@ -181,7 +183,7 @@ export function EventRows(props: EventRowsProps) {
   const dayGroups: { key: string; events: EventRowEvent[] }[] = [];
   const indexByDay = new Map<string, number>();
   for (const event of events) {
-    const key = format(event.date, "yyyy-MM-dd");
+    const key = clock.format(event.date, "yyyy-MM-dd");
     if (!indexByDay.has(key)) {
       indexByDay.set(key, dayGroups.length);
       dayGroups.push({ key, events: [] });
@@ -212,7 +214,7 @@ export function EventRows(props: EventRowsProps) {
         {dayGroups.map((group) => (
           <Fragment key={group.key}>
             <h5 className="col-span-full pb-1.5 pt-4 text-sm text-primary-dark first-of-type:pt-3 sm:border-b sm:border-divider">
-              {format(group.events[0].date, "EEEE d MMMM yyyy")}
+              {clock.format(group.events[0].date, "EEEE d MMMM yyyy")}
             </h5>
 
             {group.events.map((event) => {
@@ -320,7 +322,7 @@ export function EventRows(props: EventRowsProps) {
                     )}
                     <div className="whitespace-nowrap tabular-nums">
                       <span className="elabel">Time</span>
-                      {formatWhen(event.date, "h:mm a") || "TBC"}
+                      {clock.when(event.date, "h:mm a") || "TBC"}
                     </div>
                     {cols.court && (
                       <div>

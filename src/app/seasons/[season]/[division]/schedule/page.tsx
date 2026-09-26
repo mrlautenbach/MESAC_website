@@ -7,6 +7,7 @@ import { TournamentSchedule } from "@/components/TournamentGames";
 import { AcademicTimeline } from "@/components/AcademicTimeline";
 import { BowlSchedule } from "@/components/BowlViews";
 import { tournamentPageTitle } from "@/lib/pageTitles";
+import { clockFor } from "@/lib/timeView";
 
 export async function generateMetadata({ params }: { params: Promise<{ season: string; division: string }> }) {
   const { season, division } = await params;
@@ -29,6 +30,7 @@ export default async function DivisionSchedulePage({
     include: { activity: true, divisions: true, hostSchool: true },
   });
   if (!tournament) notFound();
+  const clock = await clockFor(tournament);
 
   const division = tournament.divisions.find((d) => d.slug === divisionSlug);
   if (!division) notFound();
@@ -49,7 +51,7 @@ export default async function DivisionSchedulePage({
         archived={tournament.archived}
       />
 
-      <TournamentSubNav
+      <TournamentSubNav clock={clock}
         tournamentSlug={tournament.slug}
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
@@ -62,12 +64,12 @@ export default async function DivisionSchedulePage({
         <h4 className="mb-3">Schedule</h4>
         {tournament.activity.usesAcademicFormat ? (
           viewSwitch?.current === "bowl" ? (
-            <BowlSchedule tournamentId={tournament.id} divisionId={division.id} />
+            <BowlSchedule clock={clock} tournamentId={tournament.id} divisionId={division.id} />
           ) : (
-            <AcademicTimeline tournamentId={tournament.id} tournamentSlug={tournament.slug} divisionId={division.id} />
+            <AcademicTimeline clock={clock} tournamentId={tournament.id} tournamentSlug={tournament.slug} divisionId={division.id} />
           )
         ) : (
-          <TournamentSchedule
+          <TournamentSchedule clock={clock}
             tournamentId={tournament.id}
             tournamentSlug={tournament.slug}
             divisionId={division.id}

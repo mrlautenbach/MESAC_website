@@ -5,7 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { DocumentList } from "@/components/DocumentList";
 import { MeetResultsView } from "@/components/MeetResultsView";
-import { formatWhen, showsResult, sideLabel } from "@/lib/eventDisplay";
+import { showsResult, sideLabel } from "@/lib/eventDisplay";
+import { clockFor } from "@/lib/timeView";
 import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { SchoolBadge } from "@/components/SchoolBadge";
@@ -34,6 +35,7 @@ export default async function EventPage({
     include: { activity: true, divisions: true, hostSchool: true },
   });
   if (!tournament) notFound();
+  const clock = await clockFor(tournament);
 
   const event = await prisma.event.findUnique({
     where: { tournamentId_slug: { tournamentId: tournament.id, slug: eventSlug } },
@@ -236,6 +238,7 @@ export default async function EventPage({
         titleAs="div"
       />
       <TournamentSubNav
+        clock={clock}
         tournamentSlug={tournament.slug}
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
@@ -268,7 +271,7 @@ export default async function EventPage({
                   {event.status === "CANCELLED" ? (
                     <span className="tag tag-neutral mt-2">Cancelled</span>
                   ) : (
-                    <div className="mt-1 text-sm font-bold tabular-nums">{formatWhen(event.date, "h:mm a") || "Time TBC"}</div>
+                    <div className="mt-1 text-sm font-bold tabular-nums">{clock.when(event.date, "h:mm a") || "Time TBC"}</div>
                   )}
                 </>
               )}
@@ -291,7 +294,7 @@ export default async function EventPage({
         )}
 
         <p className={`mt-5 text-sm text-muted ${isDual ? "text-center" : ""}`}>
-          {formatWhen(event.date, "EEEE d MMMM yyyy · h:mm a", "EEEE d MMMM yyyy")}
+          {clock.when(event.date, "EEEE d MMMM yyyy · h:mm a", "EEEE d MMMM yyyy")}
           {event.location && !tournament.activity.usesMeetResults ? ` · ${event.location}` : ""}
           {event.externalId ? ` · ${tournament.activity.usesMeetResults ? "Session" : "Game"} ${event.externalId}` : ""}
         </p>

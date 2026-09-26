@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { LiveIcon } from "@/components/icons/LiveIcon";
+import { TimeZoneSwitch } from "@/components/TimeZoneSwitch";
+import type { Clock } from "@/lib/timeZones";
 
 type Tab = "schedule" | "results" | "watch-live" | "team-photos";
 
@@ -15,6 +17,7 @@ export function TournamentSubNav({
   currentDivisionSlug = null,
   active,
   viewSwitch,
+  clock,
 }: {
   tournamentSlug: string;
   divisions: { name: string; slug: string }[];
@@ -28,6 +31,8 @@ export function TournamentSubNav({
   // golf's Individual (Day 1) and Team (match play), Academic Games' Events
   // and Bowl. The first option is the default; the others are ?view=<key>.
   viewSwitch?: { options: { key: string; label: string }[]; current: string };
+  // Given on pages that show times, for the time zone switch.
+  clock?: Clock;
 }) {
   const root = `/seasons/${tournamentSlug}`;
   const hasDivisions = divisions.length > 0;
@@ -55,7 +60,7 @@ export function TournamentSubNav({
   ];
 
   const showDivisions = hasDivisions && divisionChoices.length > 1;
-  const toggles =
+  const switches =
     divisionScoped && (viewSwitch || showDivisions) ? (
       <>
         {viewSwitch && (
@@ -92,6 +97,13 @@ export function TournamentSubNav({
         )}
       </>
     ) : null;
+  const toggles =
+    switches || clock ? (
+      <>
+        {switches}
+        {clock && <TimeZoneSwitch view={clock.view} hostZone={clock.hostZone} />}
+      </>
+    ) : null;
 
   return (
     <>
@@ -118,12 +130,12 @@ export function TournamentSubNav({
             ))}
           </nav>
 
-          {toggles && <div className="hidden flex-wrap gap-2 sm:ml-auto sm:flex">{toggles}</div>}
+          {toggles && <div className="hidden flex-wrap items-center gap-2 sm:ml-auto sm:flex">{toggles}</div>}
         </div>
       </div>
       {/* On a phone the switches sit below the tabs, outside the sticky bar,
         which would otherwise grow to two rows while scrolling. */}
-      {toggles && <div className="page-wrap flex flex-wrap gap-2 pt-4 sm:hidden">{toggles}</div>}
+      {toggles && <div className="page-wrap flex flex-wrap items-center gap-2 pt-4 sm:hidden">{toggles}</div>}
     </>
   );
 }

@@ -5,6 +5,7 @@ import { SeasonHero } from "@/components/SeasonHero";
 import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { EventRows } from "@/components/EventRows";
 import { tournamentPageTitle } from "@/lib/pageTitles";
+import { clockFor } from "@/lib/timeView";
 
 export async function generateMetadata({ params }: { params: Promise<{ season: string }> }) {
   const { season } = await params;
@@ -24,6 +25,7 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
     include: { activity: true, divisions: true, hostSchool: true },
   });
   if (!tournament) notFound();
+  const clock = await clockFor(tournament);
 
   const hasDivisions = tournament.divisions.length > 0;
 
@@ -55,7 +57,7 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
         archived={tournament.archived}
       />
 
-      <TournamentSubNav
+      <TournamentSubNav clock={clock}
         tournamentSlug={tournament.slug}
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
@@ -68,7 +70,7 @@ export default async function WatchLivePage({ params }: { params: Promise<{ seas
         {events.length === 0 ? (
           <p className="text-muted">No live streams have been added yet.</p>
         ) : (
-          <EventRows
+          <EventRows clock={clock}
             events={events.map((event) => ({ ...event, results: [], sets: [], fieldValues: [] }))}
             customFields={[]}
             tournamentSlug={tournament.slug}

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import {
@@ -13,6 +12,7 @@ import {
   teamSeeding,
   teamStandings,
 } from "@/lib/golf";
+import type { Clock } from "@/lib/timeZones";
 
 // Golf's public Schedule and Results, Individual side: the Day 1 tee-time
 // groups, then each flight's leaderboard and the team seeding they produce.
@@ -30,7 +30,7 @@ function SchoolCell({ school }: { school: School }) {
   );
 }
 
-export async function GolfIndividualSchedule({ tournamentId }: { tournamentId: string }) {
+export async function GolfIndividualSchedule({ tournamentId, clock }: { tournamentId: string; clock: Clock }) {
   const groups = await prisma.golfGroup.findMany({
     where: { tournamentId },
     orderBy: [{ teeTime: "asc" }, { number: "asc" }],
@@ -40,7 +40,7 @@ export async function GolfIndividualSchedule({ tournamentId }: { tournamentId: s
     return <p className="text-sm text-muted">The Day 1 tee times haven&apos;t been posted yet.</p>;
   }
 
-  const days = [...new Set(groups.map((g) => format(g.teeTime, "EEEE d MMMM")))];
+  const days = [...new Set(groups.map((g) => clock.format(g.teeTime, "EEEE d MMMM")))];
   const courses = [...new Set(groups.map((g) => g.course).filter(Boolean))];
 
   return (
@@ -59,7 +59,7 @@ export async function GolfIndividualSchedule({ tournamentId }: { tournamentId: s
               {own.map((g) => (
                 <li key={g.id} className="grid gap-x-4 gap-y-1 py-3 sm:grid-cols-[7rem_minmax(0,1fr)]">
                   <div>
-                    <div className="text-lg font-extrabold tabular-nums">{format(g.teeTime, "h:mm")}</div>
+                    <div className="text-lg font-extrabold tabular-nums">{clock.format(g.teeTime, "h:mm")}</div>
                     <div className="text-xs text-muted">Group {g.number}</div>
                   </div>
                   <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
@@ -274,7 +274,7 @@ function MatchCard({ match, event }: { match: TeamMatch; event: TeamEvent }) {
   );
 }
 
-function Rounds({ matches, event }: { matches: TeamMatch[]; event: TeamEvent }) {
+function Rounds({ matches, event, clock }: { matches: TeamMatch[]; event: TeamEvent; clock: Clock }) {
   const rounds = [...new Set(matches.map((m) => m.round))];
   return (
     <div className="space-y-8">
@@ -286,8 +286,8 @@ function Rounds({ matches, event }: { matches: TeamMatch[]; event: TeamEvent }) 
           <section key={round}>
             <h5 className="mb-1">Round {round}</h5>
             <p className="mb-3 text-sm text-muted">
-              {format(own[0].startTime, "EEEE d MMMM")}
-              {times.length === 1 && ` · ${format(own[0].startTime, "h:mm a")}`}
+              {clock.format(own[0].startTime, "EEEE d MMMM")}
+              {times.length === 1 && ` · ${clock.format(own[0].startTime, "h:mm a")}`}
               {courses.length > 0 && ` · ${courses.join(", ")}`}
             </p>
             <div className="grid items-start gap-4 lg:grid-cols-2">
@@ -302,7 +302,7 @@ function Rounds({ matches, event }: { matches: TeamMatch[]; event: TeamEvent }) 
   );
 }
 
-export async function GolfTeamSchedule({ tournamentId }: { tournamentId: string }) {
+export async function GolfTeamSchedule({ tournamentId, clock }: { tournamentId: string; clock: Clock }) {
   const event = await loadTeamEvent(tournamentId);
   if (event.matches.length === 0) {
     return <p className="text-sm text-muted">The team match play draw appears here once it&apos;s set.</p>;
@@ -314,11 +314,11 @@ export async function GolfTeamSchedule({ tournamentId }: { tournamentId: string 
     <div className="space-y-8">
       <p className="text-sm text-muted">
         <span className="font-semibold text-foreground">Team Championship</span> · match play, {rounds} round
-        {rounds === 1 ? "" : "s"} · {format(first, "d MMM")}
-        {format(first, "yyyy-MM-dd") !== format(last, "yyyy-MM-dd") && ` – ${format(last, "d MMM")}`}. Each school match
+        {rounds === 1 ? "" : "s"} · {clock.format(first, "d MMM")}
+        {clock.format(first, "yyyy-MM-dd") !== clock.format(last, "yyyy-MM-dd") && ` – ${clock.format(last, "d MMM")}`}. Each school match
         is three pairs matches, one per flight.
       </p>
-      <Rounds matches={event.matches} event={event} />
+      <Rounds matches={event.matches} event={event} clock={clock} />
     </div>
   );
 }
@@ -326,9 +326,11 @@ export async function GolfTeamSchedule({ tournamentId }: { tournamentId: string 
 export async function GolfTeamResults({
   tournamentId,
   scoring,
+  clock,
 }: {
   tournamentId: string;
   scoring: { winPoints: number; drawPoints: number; lossPoints: number };
+  clock: Clock;
 }) {
   const event = await loadTeamEvent(tournamentId);
   if (event.matches.length === 0) {
@@ -387,7 +389,7 @@ export async function GolfTeamResults({
       {played.length === 0 ? (
         <p className="text-sm text-muted">No team results yet.</p>
       ) : (
-        <Rounds matches={played} event={event} />
+        <Rounds matches={played} event={event} clock={clock} />
       )}
     </div>
   );
@@ -400,10 +402,12 @@ export async function GolfOverview({
   tournamentId,
   tournamentSlug,
   scoring,
+  clock,
 }: {
   tournamentId: string;
   tournamentSlug: string;
   scoring: { winPoints: number; drawPoints: number; lossPoints: number };
+  clock: Clock;
 }) {
   const [event, groups] = await Promise.all([
     loadTeamEvent(tournamentId),
@@ -423,7 +427,7 @@ export async function GolfOverview({
         <h5 className="mb-2">Individual Championship</h5>
         {event.players.every((p) => p.points === null) ? (
           <p className="text-sm text-muted">
-            {groups ? `Tees off ${format(groups.teeTime, "EEEE d MMMM, h:mm a")}.` : "Tee times haven't been posted yet."}{" "}
+            {groups ? `Tees off ${clock.format(groups.teeTime, "EEEE d MMMM, h:mm a")}.` : "Tee times haven't been posted yet."}{" "}
             <Link href={`${root}/schedule`} className="font-semibold text-primary hover:underline">
               Tee times →
             </Link>
@@ -478,7 +482,7 @@ export async function GolfOverview({
         )}
         <p className="text-sm text-muted">
           {nextMatch
-            ? `Round ${nextMatch.round} starts ${format(nextMatch.startTime, "EEEE d MMMM, h:mm a")}. `
+            ? `Round ${nextMatch.round} starts ${clock.format(nextMatch.startTime, "EEEE d MMMM, h:mm a")}. `
             : event.matches.length === 0
               ? "The match play draw appears once the schools are seeded. "
               : "All rounds are scheduled or played. "}

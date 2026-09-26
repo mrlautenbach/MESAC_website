@@ -44,6 +44,7 @@ export async function createSchoolAction(_prevState: ActionResult | null, formDa
     themeColorSecondary: formData.get("themeColorSecondary") || "",
     teamCount: formData.get("teamCount") || 0,
     isLeagueMember: formData.get("isLeagueMember") === "on",
+    timeZone: formData.get("timeZone") || "GULF",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -79,6 +80,7 @@ export async function createSchoolAction(_prevState: ActionResult | null, formDa
       contactPhone: parsed.data.contactPhone || null,
       teamCount: parsed.data.teamCount,
       isLeagueMember: parsed.data.isLeagueMember,
+      timeZone: parsed.data.timeZone,
       ...geoFields(parsed.data),
     },
   });
@@ -119,6 +121,7 @@ export async function updateSchoolAction(_prevState: ActionResult | null, formDa
     themeColorSecondary: formData.get("themeColorSecondary") || "",
     teamCount: formData.get("teamCount") || 0,
     isLeagueMember: formData.get("isLeagueMember") === "on",
+    timeZone: formData.get("timeZone") || "GULF",
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -147,6 +150,7 @@ export async function updateSchoolAction(_prevState: ActionResult | null, formDa
       contactPhone: parsed.data.contactPhone || null,
       teamCount: parsed.data.teamCount,
       isLeagueMember: parsed.data.isLeagueMember,
+      timeZone: parsed.data.timeZone,
       ...geoFields(parsed.data),
     },
   });

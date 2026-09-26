@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useId } from "react";
 import { createSchoolAction, updateSchoolAction } from "@/lib/actions/schools";
+import { LEAGUE_ZONES, ZONE_KEYS, type LeagueZone } from "@/lib/timeZones";
 
 const DEFAULT_THEME_COLOR = "#2a6a8a";
 const DEFAULT_THEME_COLOR_SECONDARY = "#cbbd93";
@@ -20,6 +21,7 @@ type ExistingSchool = {
   themeColorSecondary: string | null;
   teamCount: number;
   isLeagueMember: boolean;
+  timeZone: LeagueZone;
 };
 
 export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
@@ -95,6 +97,22 @@ export function SchoolForm({ existing }: { existing?: ExistingSchool }) {
             defaultValue={existing?.teamCount ?? 0}
             className="field-input"
           />
+        </div>
+        <div>
+          <label htmlFor={`${fid}-timeZone`} className="field-label">Time zone</label>
+          <select
+            key={existing?.timeZone ?? "GULF"}
+            id={`${fid}-timeZone`}
+            name="timeZone"
+            defaultValue={existing?.timeZone ?? "GULF"}
+            className="field-input"
+          >
+            {ZONE_KEYS.map((zone) => (
+              <option key={zone} value={zone}>
+                {LEAGUE_ZONES[zone].label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
       <p className="text-xs text-muted">

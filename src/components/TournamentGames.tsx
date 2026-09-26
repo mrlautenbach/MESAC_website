@@ -6,6 +6,7 @@ import { computeStandings, computeLowScoreTeamStandings, computeIndividualStandi
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { EventRows } from "@/components/EventRows";
 import { MeetScheduleTable, type MeetScheduleRow } from "@/components/MeetScheduleTable";
+import type { Clock } from "@/lib/timeZones";
 
 type Activity = {
   id: string;
@@ -22,16 +23,16 @@ type Activity = {
   usesMeetResults: boolean;
 };
 
-type Scope = { tournamentId: string; tournamentSlug: string; divisionId?: string | null };
+type Scope = { tournamentId: string; tournamentSlug: string; divisionId?: string | null; clock: Clock };
 
 // The full schedule for a tournament (or one of its divisions) - every
 // game regardless of status, in date order. Lives at its own page so it
 // can be linked to directly, separate from the Results page.
-export async function TournamentSchedule({ tournamentId, tournamentSlug, divisionId, activity }: Scope & { activity: Activity }) {
+export async function TournamentSchedule({ tournamentId, tournamentSlug, divisionId, activity, clock }: Scope & { activity: Activity }) {
   if (activity.usesMeetResults) {
     return (
       <section>
-        <MeetSchedule tournamentId={tournamentId} tournamentSlug={tournamentSlug} divisionId={divisionId} />
+        <MeetSchedule tournamentId={tournamentId} tournamentSlug={tournamentSlug} divisionId={divisionId} clock={clock} />
       </section>
     );
   }
@@ -46,6 +47,7 @@ export async function TournamentSchedule({ tournamentId, tournamentSlug, divisio
         usesSetScores={activity.usesSetScores}
         statusFilter={null}
         emptyMessage="No events scheduled yet."
+        clock={clock}
       />
     </section>
   );
@@ -69,15 +71,7 @@ export async function TournamentSchedule({ tournamentId, tournamentSlug, divisio
 // navigation the way moving between the separate Overall/Varsity/Junior
 // Varsity pages does. `divisionId` (this page's own division, if any) only
 // seeds which one the filter starts on.
-async function MeetSchedule({
-  tournamentId,
-  tournamentSlug,
-  divisionId,
-}: {
-  tournamentId: string;
-  tournamentSlug: string;
-  divisionId?: string | null;
-}) {
+async function MeetSchedule({ tournamentId, tournamentSlug, divisionId, clock }: Scope) {
   const [entries, unprogrammed, currentDivision] = await Promise.all([
     prisma.meetProgramEntry.findMany({
       where: { tournamentId },
@@ -125,7 +119,13 @@ async function MeetSchedule({
       status: s.status,
       liveStreamUrl: null,
     })),
-  ].sort((a, b) => a.date.getTime() - b.date.getTime());
+  ]
+    .sort((a, b) => a.date.getTime() - b.date.getTime())
+    .map((row) => ({
+      ...row,
+      timeLabel: clock.when(row.date, "h:mm a"),
+      headingLabel: clock.when(row.date, "EEEE d MMMM yyyy · h:mm a", "EEEE d MMMM yyyy"),
+    }));
 
   return (
     <MeetScheduleTable rows={rows} tournamentSlug={tournamentSlug} initialDivisionSlug={currentDivision?.slug} />
@@ -135,7 +135,7 @@ async function MeetSchedule({
 // The results page: the standings table (if this activity uses one) plus
 // completed games only - upcoming/scheduled games belong on the Schedule
 // page, not here.
-export async function TournamentResults({ tournamentId, tournamentSlug, divisionId, activity }: Scope & { activity: Activity }) {
+export async function TournamentResults({ tournamentId, tournamentSlug, divisionId, activity, clock }: Scope & { activity: Activity }) {
   const schools = await prisma.school.findMany({ select: { id: true, themeColor: true, themeColorSecondary: true, logoUrl: true } });
   const colorBySchoolId = new Map(
     schools.map((s) => [s.id, { color: s.themeColor, secondaryColor: s.themeColorSecondary, logoUrl: s.logoUrl }])
@@ -163,6 +163,7 @@ export async function TournamentResults({ tournamentId, tournamentSlug, division
           scoringType={activity.scoringType}
           usesSetScores={activity.usesSetScores}
           statusFilter="COMPLETED"
+          clock={clock}
           emptyMessage={activity.scoringType === "NONE" ? "No events have been completed yet." : "No games have been completed yet."}
         />
       </section>
@@ -176,11 +177,13 @@ export async function UpcomingGames({
   tournamentId,
   tournamentSlug,
   activity,
+  clock,
   limit = 5,
 }: {
   tournamentId: string;
   tournamentSlug: string;
   activity: Activity;
+  clock: Clock;
   limit?: number;
 }) {
   // "Nothing else" only makes sense once there's been something.
@@ -193,6 +196,7 @@ export async function UpcomingGames({
       scoringType={activity.scoringType}
       usesSetScores={activity.usesSetScores}
       statusFilter="UPCOMING"
+      clock={clock}
       emptyMessage={scheduled === 0 ? "No games scheduled yet." : "Nothing else is scheduled right now."}
       limit={limit}
     />
@@ -209,6 +213,7 @@ async function EventsTable({
   statusFilter,
   emptyMessage,
   limit,
+  clock,
 }: {
   tournamentId: string;
   tournamentSlug: string;
@@ -220,6 +225,7 @@ async function EventsTable({
   statusFilter: "COMPLETED" | "UPCOMING" | null;
   emptyMessage: string;
   limit?: number;
+  clock: Clock;
 }) {
   const where = {
     tournamentId,
@@ -271,6 +277,7 @@ async function EventsTable({
       usesSetScores={usesSetScores}
       showDivisionTag={showDivisionTag}
       showWatch={showWatch}
+      clock={clock}
     />
   );
 }

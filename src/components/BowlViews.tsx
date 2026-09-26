@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { sortDivisions } from "@/lib/academicGames";
@@ -14,6 +13,7 @@ import {
   type BowlStage,
 } from "@/lib/bowl";
 import { DivisionSections } from "@/components/DivisionSections";
+import type { Clock } from "@/lib/timeZones";
 
 // The Academic Bowl's schedule: each division's games day by day, one card
 // per round-robin round and one per finals stage, every game a row with its
@@ -98,7 +98,7 @@ function GameRow({ game }: { game: Game }) {
   );
 }
 
-function DivisionSchedule({ games, idPrefix }: { games: Game[]; idPrefix: string }) {
+function DivisionSchedule({ games, idPrefix, clock }: { games: Game[]; idPrefix: string; clock: Clock }) {
   // One card per round (or finals stage), in play order, grouped by day.
   const cards = new Map<string, { stage: BowlStage; number: number; games: Game[] }>();
   for (const game of games) {
@@ -115,7 +115,7 @@ function DivisionSchedule({ games, idPrefix }: { games: Game[]; idPrefix: string
   }
   const days = new Map<string, typeof ordered>();
   for (const card of ordered) {
-    const day = format(card.games[0].startTime, "yyyy-MM-dd");
+    const day = clock.format(card.games[0].startTime, "yyyy-MM-dd");
     days.set(day, [...(days.get(day) ?? []), card]);
   }
 
@@ -123,10 +123,10 @@ function DivisionSchedule({ games, idPrefix }: { games: Game[]; idPrefix: string
     <div className="space-y-8">
       {[...days.entries()].map(([day, dayCards]) => (
         <section key={day}>
-          <h6 className="mb-3 text-muted">{format(dayCards[0].games[0].startTime, "EEEE d MMMM")}</h6>
+          <h6 className="mb-3 text-muted">{clock.format(dayCards[0].games[0].startTime, "EEEE d MMMM")}</h6>
           <div className="grid items-start gap-4 lg:grid-cols-2">
             {dayCards.map((card) => {
-              const times = [...new Set(card.games.map((g) => format(g.startTime, "h:mmaaa")))];
+              const times = [...new Set(card.games.map((g) => clock.format(g.startTime, "h:mmaaa")))];
               const scored = card.games.filter((g) => g.scoreA !== null).length;
               return (
                 <article key={`${card.stage}-${card.number}`} id={`${idPrefix}${cardAnchor(card.stage, card.number)}`} className="card scroll-mt-28 px-4 py-3">
@@ -152,20 +152,20 @@ function DivisionSchedule({ games, idPrefix }: { games: Game[]; idPrefix: string
   );
 }
 
-export async function BowlSchedule({ tournamentId, divisionId }: { tournamentId: string; divisionId?: string | null }) {
+export async function BowlSchedule({ tournamentId, divisionId, clock }: { tournamentId: string; divisionId?: string | null; clock: Clock }) {
   const [games, divisions] = await Promise.all([
     loadGames(tournamentId, divisionId),
     prisma.division.findMany({ where: { tournamentId } }),
   ]);
   if (games.length === 0) return <p className="text-sm text-muted">The Academic Bowl schedule hasn&apos;t been posted yet.</p>;
-  if (divisionId) return <DivisionSchedule games={games} idPrefix="" />;
+  if (divisionId) return <DivisionSchedule games={games} idPrefix="" clock={clock} />;
 
   // Both divisions: one after the other, with a jump to the second.
   const shown = sortDivisions(divisions).filter((d) => games.some((g) => g.divisionId === d.id));
   return (
     <DivisionSections divisions={shown}>
       {(division) => (
-        <DivisionSchedule games={games.filter((g) => g.divisionId === division.id)} idPrefix={`${division.slug}-`} />
+        <DivisionSchedule games={games.filter((g) => g.divisionId === division.id)} idPrefix={`${division.slug}-`} clock={clock} />
       )}
     </DivisionSections>
   );
@@ -192,7 +192,7 @@ function TeamCell({ team }: { team: Team }) {
   );
 }
 
-function BracketGame({ game }: { game: Game | undefined }) {
+function BracketGame({ game, clock }: { game: Game | undefined; clock: Clock }) {
   if (!game) return null;
   const result = gameResult(game);
   const line = (team: Game["teamA"], source: string | null, score: number | null) => {
@@ -215,7 +215,7 @@ function BracketGame({ game }: { game: Game | undefined }) {
       <div className="flex justify-between gap-2 text-xs text-muted">
         <span className="font-semibold text-foreground">{gameLabel(game.stage, game.number)}</span>
         <span className="truncate">
-          {format(game.startTime, "EEE h:mmaaa")}
+          {clock.format(game.startTime, "EEE h:mmaaa")}
           {game.room && ` · ${game.room}`}
         </span>
       </div>
@@ -227,7 +227,7 @@ function BracketGame({ game }: { game: Game | undefined }) {
   );
 }
 
-function DivisionResults({ teams, games }: { teams: Team[]; games: Game[] }) {
+function DivisionResults({ teams, games, clock }: { teams: Team[]; games: Game[]; clock: Clock }) {
   const table = bowlStandings(
     teams.map((t) => ({ ...t, label: teamLabel(t) })),
     games
@@ -318,22 +318,22 @@ function DivisionResults({ teams, games }: { teams: Team[]; games: Game[] }) {
             <div className="space-y-3">
               <h6 className="text-muted">Quarterfinals</h6>
               {finals("QUARTERFINAL").map((g) => (
-                <BracketGame key={g.id} game={g} />
+                <BracketGame key={g.id} game={g} clock={clock} />
               ))}
             </div>
             <div className="space-y-3">
               <h6 className="text-muted">Semifinals</h6>
               {finals("SEMIFINAL").map((g) => (
-                <BracketGame key={g.id} game={g} />
+                <BracketGame key={g.id} game={g} clock={clock} />
               ))}
             </div>
             <div className="space-y-3">
               <h6 className="text-muted">Final</h6>
-              <BracketGame game={final} />
+              <BracketGame game={final} clock={clock} />
               {consolation && (
                 <>
                   <h6 className="pt-2 text-muted">Consolation</h6>
-                  <BracketGame game={consolation} />
+                  <BracketGame game={consolation} clock={clock} />
                 </>
               )}
             </div>
@@ -344,14 +344,14 @@ function DivisionResults({ teams, games }: { teams: Team[]; games: Game[] }) {
   );
 }
 
-export async function BowlResults({ tournamentId, divisionId }: { tournamentId: string; divisionId?: string | null }) {
+export async function BowlResults({ tournamentId, divisionId, clock }: { tournamentId: string; divisionId?: string | null; clock: Clock }) {
   const [games, teams, divisions] = await Promise.all([
     loadGames(tournamentId, divisionId),
     loadTeams(tournamentId, divisionId),
     prisma.division.findMany({ where: { tournamentId } }),
   ]);
   if (games.length === 0) return <p className="text-muted">The Academic Bowl hasn&apos;t started yet.</p>;
-  if (divisionId) return <DivisionResults teams={teams} games={games} />;
+  if (divisionId) return <DivisionResults teams={teams} games={games} clock={clock} />;
 
   const shown = sortDivisions(divisions).filter((d) => games.some((g) => g.divisionId === d.id));
   return (
@@ -360,6 +360,7 @@ export async function BowlResults({ tournamentId, divisionId }: { tournamentId: 
         <DivisionResults
           teams={teams.filter((t) => t.divisionId === division.id)}
           games={games.filter((g) => g.divisionId === division.id)}
+          clock={clock}
         />
       )}
     </DivisionSections>

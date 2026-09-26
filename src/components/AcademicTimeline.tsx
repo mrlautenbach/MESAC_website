@@ -9,6 +9,7 @@ import {
   timelineDays,
   type TimelineItem,
 } from "@/lib/academicGames";
+import type { Clock } from "@/lib/timeZones";
 
 // Academic Games' schedule, day by day. With both tracks showing, items for
 // every team are full-width rows and the Varsity and JV items between them
@@ -35,10 +36,10 @@ async function loadItems(tournamentId: string) {
   return { items, divisions: sortDivisions(divisions) };
 }
 
-function Item({ item, tag, href }: { item: TimelineItem; tag?: string; href?: string | null }) {
+function Item({ item, tag, href, clock }: { item: TimelineItem; tag?: string; href?: string | null; clock: Clock }) {
   return (
     <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 py-2.5">
-      <div className="whitespace-nowrap text-sm font-extrabold tabular-nums">{formatTimeRange(item.start, item.end)}</div>
+      <div className="whitespace-nowrap text-sm font-extrabold tabular-nums">{formatTimeRange(item.start, item.end, clock.format)}</div>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           {href ? (
@@ -63,10 +64,12 @@ export async function AcademicTimeline({
   tournamentId,
   tournamentSlug,
   divisionId,
+  clock,
 }: {
   tournamentId: string;
   tournamentSlug: string;
   divisionId?: string | null;
+  clock: Clock;
 }) {
   const [{ items, divisions }, bowlGames] = await Promise.all([
     loadItems(tournamentId),
@@ -94,13 +97,13 @@ export async function AcademicTimeline({
             {day.blocks.map((block) =>
               block.kind === "shared" ? (
                 <li key={block.item.id}>
-                  <Item item={block.item} tag={divisions.length > 1 ? "All teams" : undefined} />
+                  <Item clock={clock} item={block.item} tag={divisions.length > 1 ? "All teams" : undefined} />
                 </li>
               ) : divisionId ? (
                 // One track: its items are just rows in the list.
                 block.columns[0].items.map((item) => (
                   <li key={item.id}>
-                    <Item item={item} href={bowlHref(item)} />
+                    <Item clock={clock} item={item} href={bowlHref(item)} />
                   </li>
                 ))
               ) : (
@@ -115,7 +118,7 @@ export async function AcademicTimeline({
                         <ul className="divide-y divide-divider/60">
                           {column.items.map((item) => (
                             <li key={item.id}>
-                              <Item item={item} href={bowlHref(item)} />
+                              <Item clock={clock} item={item} href={bowlHref(item)} />
                             </li>
                           ))}
                         </ul>
@@ -136,7 +139,7 @@ export async function AcademicTimeline({
 
 // The tournament page's "Coming up": the next few competitions across both
 // tracks, each marked with its team.
-export async function AcademicUpNext({ tournamentId, limit = 5 }: { tournamentId: string; limit?: number }) {
+export async function AcademicUpNext({ tournamentId, clock, limit = 5 }: { tournamentId: string; clock: Clock; limit?: number }) {
   const { items, divisions } = await loadItems(tournamentId);
   const now = new Date();
   const rank = (i: TimelineItem) => (i.divisionId ? divisions.findIndex((d) => d.id === i.divisionId) + 1 : 0);
@@ -153,8 +156,8 @@ export async function AcademicUpNext({ tournamentId, limit = 5 }: { tournamentId
     <ol className="divide-y divide-divider border-y border-divider">
       {next.map((item) => (
         <li key={item.id} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3">
-          <div className="py-2.5 text-sm text-muted">{format(item.start, "EEE d MMM")}</div>
-          <Item item={item} tag={item.divisionId ? nameOf.get(item.divisionId) : divisions.length > 1 ? "All teams" : undefined} />
+          <div className="py-2.5 text-sm text-muted">{clock.format(item.start, "EEE d MMM")}</div>
+          <Item clock={clock} item={item} tag={item.divisionId ? nameOf.get(item.divisionId) : divisions.length > 1 ? "All teams" : undefined} />
         </li>
       ))}
     </ol>

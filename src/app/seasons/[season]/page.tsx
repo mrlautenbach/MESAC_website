@@ -9,11 +9,13 @@ import { TournamentSubNav } from "@/components/TournamentSubNav";
 import { GolfOverview } from "@/components/GolfViews";
 import { AcademicUpNext } from "@/components/AcademicTimeline";
 import { LiveIcon } from "@/components/icons/LiveIcon";
-import { formatWhen, sideLabel } from "@/lib/eventDisplay";
+import { sideLabel } from "@/lib/eventDisplay";
+import type { Clock } from "@/lib/timeZones";
 import { loadRoster } from "@/lib/tournamentRoster";
 import { SchoolBadge } from "@/components/SchoolBadge";
 import { UpcomingGames } from "@/components/TournamentGames";
 import { tournamentPageTitle } from "@/lib/pageTitles";
+import { clockFor } from "@/lib/timeView";
 
 export async function generateMetadata({ params }: { params: Promise<{ season: string }> }) {
   const { season } = await params;
@@ -51,6 +53,7 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
     include: { activity: true, divisions: true, hostSchool: true },
   });
   if (!tournament) notFound();
+  const clock = await clockFor(tournament);
 
   const now = new Date();
   const [roster, nextEvent, lastEvent] = await Promise.all([
@@ -81,7 +84,7 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
         archived={tournament.archived}
       />
 
-      <TournamentSubNav
+      <TournamentSubNav clock={clock}
         tournamentSlug={tournament.slug}
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
@@ -93,7 +96,7 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
         <div className="page-wrap grid sm:grid-cols-2">
           <div className="border-b border-divider py-7 sm:border-b-0 sm:border-r-2 sm:border-divider sm:pr-7">
             {nextEvent ? (
-              <NextCell event={nextEvent} tournamentSlug={tournament.slug} />
+              <NextCell clock={clock} event={nextEvent} tournamentSlug={tournament.slug} />
             ) : (
               <>
                 <Eyebrow>Next up</Eyebrow>
@@ -120,17 +123,17 @@ export default async function SeasonPage({ params }: { params: Promise<{ season:
       {tournament.activity.usesAcademicFormat ? (
         <div className="page-wrap py-8">
           <h4 className="mb-3">Coming up</h4>
-          <AcademicUpNext tournamentId={tournament.id} />
+          <AcademicUpNext clock={clock} tournamentId={tournament.id} />
         </div>
       ) : tournament.activity.usesGolfFormat ? (
         <div className="page-wrap py-8">
-          <GolfOverview tournamentId={tournament.id} tournamentSlug={tournament.slug} scoring={tournament.activity} />
+          <GolfOverview clock={clock} tournamentId={tournament.id} tournamentSlug={tournament.slug} scoring={tournament.activity} />
         </div>
       ) : (
         !tournament.activity.usesMeetResults && (
           <div className="page-wrap py-8">
             <h4 className="mb-3">Coming up</h4>
-            <UpcomingGames tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
+            <UpcomingGames clock={clock} tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
           </div>
         )
       )}
@@ -249,7 +252,7 @@ function matchupOf(event: HeadlineEvent) {
   )} v ${sideLabel(away, event.awaySourceOutcome, event.awaySourceEvent?.externalId, event.awaySourceStanding, event.awaySourceLabel)}`;
 }
 
-function NextCell({ event, tournamentSlug }: { event: HeadlineEvent; tournamentSlug: string }) {
+function NextCell({ event, tournamentSlug, clock }: { event: HeadlineEvent; tournamentSlug: string; clock: Clock }) {
   return (
     <div>
       <Eyebrow>Next up{event.division ? ` · ${event.division.name}` : ""}</Eyebrow>
@@ -263,7 +266,7 @@ function NextCell({ event, tournamentSlug }: { event: HeadlineEvent; tournamentS
         {matchupOf(event)}
       </Link>
       <p className="mt-3.5 text-xs text-muted">
-        {formatWhen(event.date, "EEEE · h:mm a", "EEEE")}
+        {clock.when(event.date, "EEEE · h:mm a", "EEEE")}
         {event.location ? ` · ${event.location}` : ""}
       </p>
     </div>

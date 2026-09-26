@@ -11,6 +11,7 @@ import { DocumentList } from "@/components/DocumentList";
 import { MeetResultsImportForm } from "@/components/MeetResultsImportForm";
 import { EventHistory } from "@/components/EventHistory";
 import { ordinal } from "@/lib/eventDisplay";
+import { tournamentZone, zoneName } from "@/lib/timeZones";
 
 export default async function EditEventPage({ params }: { params: Promise<{ event: string }> }) {
   const user = await getCurrentUser();
@@ -21,7 +22,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
     prisma.event.findUnique({
       where: { id: eventId },
       include: {
-        tournament: { include: { activity: true } },
+        tournament: { include: { activity: true, hostSchool: { select: { timeZone: true } } } },
         division: true,
         participants: { include: { school: true } },
         results: true,
@@ -135,6 +136,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
           isAdmin={isAdmin}
           viewerSchoolId={user.schoolId}
           dateValue={format(event.date, "yyyy-MM-dd'T'HH:mm")}
+          zoneName={zoneName(tournamentZone(event.tournament))}
           location={event.location ?? ""}
           status={event.status}
           recap={event.recap ?? ""}

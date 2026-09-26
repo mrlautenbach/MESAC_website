@@ -7,10 +7,16 @@ import { SportIcon } from "@/components/icons/SportIcon";
 import { formatGolfPoints, matchScore } from "@/lib/golf";
 import { sortDivisions } from "@/lib/academicGames";
 import { dayBounds, formatDay, formatDayWithYear, formatShortDay, isDayKey, leagueToday } from "@/lib/dates";
+import { LEAGUE_ZONES, makeClock, tournamentZone, zoneName, type Clock } from "@/lib/timeZones";
+import { getTimeView } from "@/lib/timeView";
+import { TimeZoneSwitch } from "@/components/TimeZoneSwitch";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Today" };
+
+// Just what's needed to know each tournament's time zone.
+const HOST_ZONE = { select: { timeZone: true } } as const;
 
 // Every sport's games on one day, on one page - today by default, any
 // other day with ?date=yyyy-MM-dd - grouped by tournament. Team games and
@@ -28,7 +34,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
       where: { date: on },
       orderBy: SCHEDULE_ORDER,
       include: {
-        tournament: { include: { activity: { include: { fields: { orderBy: { order: "asc" } } } } } },
+        tournament: { include: { activity: { include: { fields: { orderBy: { order: "asc" } } } }, hostSchool: HOST_ZONE } },
         participants: { include: { school: true } },
         results: true,
         sets: { orderBy: { setNumber: "asc" } },
@@ -38,26 +44,30 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
         awaySourceEvent: { select: { externalId: true } },
       },
     }),
-    prisma.golfGroup.findMany({ where: { teeTime: on }, orderBy: { teeTime: "asc" }, include: { tournament: { include: { activity: true } } } }),
+    prisma.golfGroup.findMany({ where: { teeTime: on }, orderBy: { teeTime: "asc" }, include: { tournament: { include: { activity: true, hostSchool: HOST_ZONE } } } }),
     prisma.golfTeamMatch.findMany({
       where: { startTime: on },
       orderBy: [{ startTime: "asc" }, { round: "asc" }],
-      include: { homeSchool: true, awaySchool: true, pairs: true, tournament: { include: { activity: true } } },
+      include: { homeSchool: true, awaySchool: true, pairs: true, tournament: { include: { activity: true, hostSchool: HOST_ZONE } } },
     }),
     prisma.bowlGame.findMany({
       where: { startTime: on },
       orderBy: { startTime: "asc" },
-      include: { division: true, tournament: { include: { activity: true } } },
+      include: { division: true, tournament: { include: { activity: true, hostSchool: HOST_ZONE } } },
     }),
     nearestDay(bounds.gte, "before"),
     nearestDay(bounds.lt, "after"),
   ]);
+  // Each tournament's times in the zone this visitor chose, or its own.
+  const view = await getTimeView();
+  const clockOf = (tournament: Parameters<typeof tournamentZone>[0]) => makeClock(tournamentZone(tournament), view);
 
   // One section per tournament, in the order their day starts.
   type Section = {
     key: string;
     start: Date;
     tournament: { slug: string; name: string; activity: { name: string; sport: string } };
+    clock: Clock;
     body: React.ReactNode;
   };
   const sections: Section[] = [];
@@ -65,10 +75,12 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
   for (const e of events) byTournament.set(e.tournamentId, [...(byTournament.get(e.tournamentId) ?? []), e]);
   for (const own of byTournament.values()) {
     const { tournament } = own[0];
+    const clock = clockOf(tournament);
     sections.push({
       key: `events-${tournament.id}`,
       start: own[0].date,
       tournament,
+      clock,
       body: (
         <EventRows
           events={own}
@@ -78,6 +90,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
           usesSetScores={tournament.activity.usesSetScores}
           showDivisionTag={own.some((e) => e.divisionId)}
           showWatch
+          clock={clock}
         />
       ),
     });
@@ -87,17 +100,19 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
     const groups = golfGroups.filter((g) => g.tournamentId === tournamentId);
     const matches = golfMatches.filter((m) => m.tournamentId === tournamentId);
     const tournament = (groups[0] ?? matches[0]).tournament;
+    const clock = clockOf(tournament);
     sections.push({
       key: `golf-${tournamentId}`,
       start: groups[0]?.teeTime ?? matches[0].startTime,
       tournament,
+      clock,
       body: (
         <ul className="divide-y divide-divider border-y border-divider text-sm">
           {groups.length > 0 && (
             <li className="flex flex-wrap items-baseline justify-between gap-2 py-2.5">
               <span>
                 <span className="font-bold">Individual Championship</span> · {groups.length} groups, first tee{" "}
-                {format(groups[0].teeTime, "h:mm a")}
+                {clock.format(groups[0].teeTime, "h:mm a")}
               </span>
               <Link href={`/seasons/${tournament.slug}/schedule`} className="font-semibold text-primary hover:underline">
                 Tee times →
@@ -119,7 +134,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
                   )}
                   <span className="text-muted">
                     {" "}
-                    · Team match play, round {m.round} · {format(m.startTime, "h:mm a")}
+                    · Team match play, round {m.round} · {clock.format(m.startTime, "h:mm a")}
                   </span>
                 </span>
                 <Link href={`/seasons/${tournament.slug}/schedule?view=team`} className="font-semibold text-primary hover:underline">
@@ -136,11 +151,13 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
   for (const tournamentId of new Set(bowlGames.map((g) => g.tournamentId))) {
     const own = bowlGames.filter((g) => g.tournamentId === tournamentId);
     const tournament = own[0].tournament;
+    const clock = clockOf(tournament);
     const divisions = sortDivisions([...new Map(own.map((g) => [g.divisionId, g.division])).values()]);
     sections.push({
       key: `bowl-${tournamentId}`,
       start: own[0].startTime,
       tournament,
+      clock,
       body: (
         <ul className="divide-y divide-divider border-y border-divider text-sm">
           {divisions.map((division) => {
@@ -156,7 +173,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
             return (
               <li key={division.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2.5">
                 <span>
-                  <span className="font-bold">Academic Bowl · {division.name}</span> · {what} · from {format(games[0].startTime, "h:mm a")}
+                  <span className="font-bold">Academic Bowl · {division.name}</span> · {what} · from {clock.format(games[0].startTime, "h:mm a")}
                 </span>
                 <Link
                   href={`/seasons/${tournament.slug}/${division.slug}/schedule?view=bowl`}
@@ -171,7 +188,10 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
       ),
     });
   }
-  sections.sort((a, b) => a.start.getTime() - b.start.getTime());
+  // In the order their day actually starts, across time zones: each start is
+  // its own tournament's local time.
+  const startsAt = (section: Section) => section.start.getTime() - LEAGUE_ZONES[section.clock.hostZone].offsetMinutes * 60_000;
+  sections.sort((a, b) => startsAt(a) - startsAt(b));
 
   const isToday = day === today;
   const dayDate = bounds.gte;
@@ -197,6 +217,9 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
           </Link>
         )}
       </nav>
+      <div className="mt-4">
+        <TimeZoneSwitch view={view} />
+      </div>
 
       {sections.length === 0 ? (
         <div className="mt-8 border-y border-divider py-8">
@@ -219,9 +242,12 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
                   <SportIcon sport={s.tournament.activity.sport} size={20} />
                   {s.tournament.activity.name}
                 </h2>
-                <Link href={`/seasons/${s.tournament.slug}`} className="text-sm font-semibold text-primary hover:underline">
-                  {s.tournament.name} →
-                </Link>
+                <span className="text-sm">
+                  <span className="text-muted">{zoneName(s.clock.zone)} · </span>
+                  <Link href={`/seasons/${s.tournament.slug}`} className="font-semibold text-primary hover:underline">
+                    {s.tournament.name} →
+                  </Link>
+                </span>
               </div>
               {s.body}
             </section>
