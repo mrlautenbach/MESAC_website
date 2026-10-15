@@ -42,8 +42,10 @@ export function SeasonEditionForm({
 
       {!existing && !isFirstEdition && (
         <p className="bg-primary-tint px-3 py-2 text-sm text-primary">
-          Starting a new tournament archives the current one. Its schedule, results, and photos stay exactly as
-          they are, just no longer shown as the active tournament.
+          Starting a new tournament makes it the current one here in the dashboard. The old one keeps its schedule,
+          results and photos, and isn&apos;t marked Archived - tick Archived on it yourself to hide it. The public
+          home, Schedule and Tournaments pages show each activity&apos;s latest tournament that isn&apos;t
+          archived.
         </p>
       )}
 
@@ -131,8 +133,9 @@ export function SeasonEditionForm({
           Archived
         </label>
         <p className="mt-1 text-xs text-muted">
-          Shows an &quot;Archived&quot; tag on this tournament&apos;s public pages. Off by default: a tournament
-          isn&apos;t archived just because a newer one exists.
+          Hides this tournament from the home page, the Schedule and Tournaments pages and school pages, and shows
+          an &quot;Archived&quot; tag on its own pages (which still work). Off by default: a tournament isn&apos;t
+          archived just because a newer one exists.
         </p>
       </div>
 
@@ -141,9 +144,9 @@ export function SeasonEditionForm({
           <p className="field-label">Live results (optional)</p>
           <p className="mt-1 text-xs text-muted">
             Shown on the tournament page. A meet doesn&apos;t always have a hosted results site - it might just be a
-            photo of a printed sheet, or a few lines of text. Fill in whichever applies; when more than one is set,
-            a photo is shown first, then text, then the link. Upload a photo from the tournament&apos;s own page in
-            the admin list.
+            photo of a printed sheet, or a few lines of text. Fill in whichever applies; only one is shown - the photo
+            if there is one, otherwise the text, otherwise the link. Upload a photo from the tournament&apos;s own
+            page in the admin list.
           </p>
           <div className="mt-2">
             <label htmlFor={`${fid}-liveResultsUrl`} className="field-label">

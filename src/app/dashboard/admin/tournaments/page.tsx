@@ -10,7 +10,7 @@ import { SCORING_LABELS } from "@/lib/scoringLabels";
 export default async function TournamentsAdminPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const isAdmin = user.role === "ADMIN";
+  if (user.role !== "ADMIN") redirect("/dashboard");
 
   const [seasons, schools] = await Promise.all([
     prisma.season.findMany({
@@ -27,7 +27,7 @@ export default async function TournamentsAdminPage() {
         },
       },
     }),
-    isAdmin ? prisma.school.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
+    prisma.school.findMany({ orderBy: { name: "asc" } }),
   ]);
   const activityCount = seasons.reduce((n, s) => n + s.activities.length, 0);
 
@@ -51,7 +51,7 @@ export default async function TournamentsAdminPage() {
             {missing.length > 0 && (
               <p className="mb-3 text-sm text-muted">
                 Not set up yet: {missing.map((e) => e.name).join(", ")}.
-                {isAdmin && " Use “Create an activity” below."}
+                {" Use “Create an activity” below."}
               </p>
             )}
             {season.activities.length === 0 ? (
@@ -81,7 +81,7 @@ export default async function TournamentsAdminPage() {
                             <>
                               <span className="block font-medium">
                                 {current.name}
-                                {current.archived && <span className="ml-1.5 tag tag-neutral">Archived tag on</span>}
+                                {current.archived && <span className="ml-1.5 tag tag-neutral">Archived</span>}
                               </span>
                               <span className="block text-xs text-muted">
                                 {format(current.startDate, "MMM d")} – {format(current.endDate, "MMM d, yyyy")}
@@ -104,15 +104,13 @@ export default async function TournamentsAdminPage() {
         );
       })}
 
-      {isAdmin && (
-        <div className="border-t-2 border-divider pt-8">
-          <h2 className="mb-1 text-xl">Create an activity</h2>
-          <p className="mb-6 text-sm text-muted">
-            For a new sport or division not already listed above. Most years won&apos;t need this.
-          </p>
-          <ActivityForm seasons={seasons.map((s) => ({ id: s.id, name: s.name }))} schools={schools} />
-        </div>
-      )}
+      <div className="border-t-2 border-divider pt-8">
+        <h2 className="mb-1 text-xl">Create an activity</h2>
+        <p className="mb-6 text-sm text-muted">
+          For a new sport or division not already listed above. Most years won&apos;t need this.
+        </p>
+        <ActivityForm seasons={seasons.map((s) => ({ id: s.id, name: s.name }))} schools={schools} />
+      </div>
     </div>
   );
 }

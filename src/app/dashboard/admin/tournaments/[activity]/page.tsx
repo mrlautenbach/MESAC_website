@@ -18,7 +18,7 @@ import { SCORING_LABELS } from "@/lib/scoringLabels";
 export default async function ActivityAdminPage({ params }: { params: Promise<{ activity: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const isAdmin = user.role === "ADMIN";
+  if (user.role !== "ADMIN") redirect("/dashboard");
 
   const { activity: activityId } = await params;
   const [activity, seasons, schools] = await Promise.all([
@@ -108,12 +108,12 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
               <Link href={`/seasons/${current.slug}`} className="btn btn-secondary">
                 View public page
               </Link>
-              {isAdmin && activity.usesGolfFormat && (
+              {activity.usesGolfFormat && (
                 <Link href={`/dashboard/admin/golf?tournament=${current.id}`} className="btn btn-primary">
                   Golf roster, draw &amp; scores
                 </Link>
               )}
-              {isAdmin && activity.usesAcademicFormat && (
+              {activity.usesAcademicFormat && (
                 <Link href={`/dashboard/admin/academic-games?tournament=${current.id}`} className="btn btn-primary">
                   Academic Games schedule
                 </Link>
@@ -131,16 +131,14 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
                   </Link>
                 </>
               )}
-              {isAdmin && activity.usesMeetResults && (
+              {activity.usesMeetResults && (
                 <Link href={`/dashboard/admin/meet-schedule?tournament=${current.id}`} className="btn btn-primary">
                   Edit meet schedule &amp; program
                 </Link>
               )}
-              {isAdmin && (
-                <Link href={`/dashboard/admin/tournament-photos/${current.id}`} className="btn btn-secondary">
-                  Team photos
-                </Link>
-              )}
+              <Link href={`/dashboard/admin/tournament-photos/${current.id}`} className="btn btn-secondary">
+                Team photos
+              </Link>
             </div>
 
             <Panel title="Dates, host & status">
@@ -184,14 +182,12 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
               />
             </Panel>
 
-            {isAdmin && (
-              <details>
-                <summary className="cursor-pointer text-sm font-semibold text-danger">Delete this tournament</summary>
-                <div className="mt-3">
-                  <DeleteTournamentForm tournamentId={current.id} tournamentName={current.name} />
-                </div>
-              </details>
-            )}
+            <details>
+              <summary className="cursor-pointer text-sm font-semibold text-danger">Delete this tournament</summary>
+              <div className="mt-3">
+                <DeleteTournamentForm tournamentId={current.id} tournamentName={current.name} />
+              </div>
+            </details>
           </section>
         ) : (
           <p className="text-muted">No tournament created yet.</p>
@@ -210,14 +206,12 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
                     </span>
                   </Link>
                   <SetTournamentCurrentButton tournamentId={t.id} />
-                  {isAdmin && (
-                    <details>
-                      <summary className="cursor-pointer text-xs font-semibold text-danger">Delete</summary>
-                      <div className="mt-2">
-                        <DeleteTournamentForm tournamentId={t.id} tournamentName={t.name} />
-                      </div>
-                    </details>
-                  )}
+                  <details>
+                    <summary className="cursor-pointer text-xs font-semibold text-danger">Delete</summary>
+                    <div className="mt-2">
+                      <DeleteTournamentForm tournamentId={t.id} tournamentName={t.name} />
+                    </div>
+                  </details>
                 </li>
               ))}
             </ul>
@@ -230,34 +224,32 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
             <p className="mt-1 text-sm text-muted">Applies to every tournament of this activity, now and in future years.</p>
           </div>
 
-          {isAdmin && (
-            <Panel title="Name, sport & scoring">
-              <ActivityForm
-                seasons={seasons}
-                schools={schools}
-                existing={{
-                  id: activity.id,
-                  name: activity.name,
-                  sport: activity.sport,
-                  scoringType: activity.scoringType,
-                  winPoints: activity.winPoints,
-                  drawPoints: activity.drawPoints,
-                  lossPoints: activity.lossPoints,
-                  seasonId: activity.seasonId,
-                  showWins: activity.showWins,
-                  showLosses: activity.showLosses,
-                  showPointsFor: activity.showPointsFor,
-                  showPointsAgainst: activity.showPointsAgainst,
-                  showPlayed: activity.showPlayed,
-                  usesSetScores: activity.usesSetScores,
-                  usesMeetResults: activity.usesMeetResults,
-                  usesLiveResults: activity.usesLiveResults,
-                  usesGolfFormat: activity.usesGolfFormat,
-                  usesAcademicFormat: activity.usesAcademicFormat,
-                }}
-              />
-            </Panel>
-          )}
+          <Panel title="Name, sport & scoring">
+            <ActivityForm
+              seasons={seasons}
+              schools={schools}
+              existing={{
+                id: activity.id,
+                name: activity.name,
+                sport: activity.sport,
+                scoringType: activity.scoringType,
+                winPoints: activity.winPoints,
+                drawPoints: activity.drawPoints,
+                lossPoints: activity.lossPoints,
+                seasonId: activity.seasonId,
+                showWins: activity.showWins,
+                showLosses: activity.showLosses,
+                showPointsFor: activity.showPointsFor,
+                showPointsAgainst: activity.showPointsAgainst,
+                showPlayed: activity.showPlayed,
+                usesSetScores: activity.usesSetScores,
+                usesMeetResults: activity.usesMeetResults,
+                usesLiveResults: activity.usesLiveResults,
+                usesGolfFormat: activity.usesGolfFormat,
+                usesAcademicFormat: activity.usesAcademicFormat,
+              }}
+            />
+          </Panel>
 
           <Panel title={`Default divisions for new tournaments (${activity.divisions.length})`}>
             <DivisionsManager
@@ -267,20 +259,16 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
             />
           </Panel>
 
-          {isAdmin && (
-            <Panel title={`Custom schedule fields (${activity.fields.length})`}>
-              <ActivityFieldsManager activityId={activity.id} fields={activity.fields} />
-            </Panel>
-          )}
+          <Panel title={`Custom schedule fields (${activity.fields.length})`}>
+            <ActivityFieldsManager activityId={activity.id} fields={activity.fields} />
+          </Panel>
 
-          {isAdmin && (
-            <details>
-              <summary className="cursor-pointer text-sm font-semibold text-danger">Delete this activity</summary>
-              <div className="mt-3">
-                <DeleteActivityForm activityId={activity.id} activityName={activity.name} />
-              </div>
-            </details>
-          )}
+          <details>
+            <summary className="cursor-pointer text-sm font-semibold text-danger">Delete this activity</summary>
+            <div className="mt-3">
+              <DeleteActivityForm activityId={activity.id} activityName={activity.name} />
+            </div>
+          </details>
         </section>
       </div>
       </div>

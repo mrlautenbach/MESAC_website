@@ -38,7 +38,7 @@ async function makeUniqueEventSlug(tournamentId: string, date: Date, schoolSlugs
 }
 
 export async function createEventAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const admin = await requireUser();
+  const admin = await requireAdmin();
 
   const parsed = eventInputSchema.safeParse({
     tournamentId: formData.get("tournamentId"),
@@ -225,15 +225,14 @@ function parseScore(raw: string): number | null | { error: true } {
 // from this same import if G3 already has a result, or from a later one
 // when its score comes in.
 export async function importEventsAction(_prevState: ImportEventsResult | null, formData: FormData): Promise<ImportEventsResult> {
-  const admin = await requireUser();
+  const admin = await requireAdmin();
 
   const tournamentId = formData.get("tournamentId");
   if (typeof tournamentId !== "string" || !tournamentId) {
     return { ok: false, error: "Choose a tournament first." };
   }
   const replaceExisting = formData.get("replaceExisting") === "on";
-  // Only admins can add schools, same as the Schools page.
-  const addNewSchools = formData.get("addNewSchools") === "on" && admin.role === "ADMIN";
+  const addNewSchools = formData.get("addNewSchools") === "on";
 
   const text = await readCsvUpload(formData);
   if (!text.trim()) {
@@ -286,7 +285,7 @@ export async function saveGameScheduleAction(input: {
   rows: { rowNum: number; eventId: string | null; values: Record<string, string>; changed: string[] }[];
   deleteEventIds: string[];
 }): Promise<ImportEventsResult> {
-  const user = await requireUser();
+  const admin = await requireAdmin();
   const parsed = gameScheduleEditSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Those changes couldn't be read - reload the page and try again." };
 
@@ -303,7 +302,7 @@ export async function saveGameScheduleAction(input: {
     changed: new Set(row.changed),
     get: (name) => (row.values[name] ?? "").trim(),
   }));
-  return applyGameSchedule(user, tournament, inputs, {
+  return applyGameSchedule(admin, tournament, inputs, {
     editor: true,
     deleteEventIds: Array.from(new Set(parsed.data.deleteEventIds)),
   });
@@ -418,6 +417,9 @@ async function applyGameSchedule(
       if (owner && owner.id !== eventId && (!newGameIdOf.has(owner.id) || newGameIdOf.get(owner.id) === gameId)) {
         fail(`game_id "${gameId}" is already used by another game.`);
       }
+    }
+    if (replaceExisting && !gameId) {
+      fail(`Give this row a game_id - "Replace existing schedule" needs one on every row, or this game would be added again on each upload.`);
     }
 
     const dateRaw = get("date");
