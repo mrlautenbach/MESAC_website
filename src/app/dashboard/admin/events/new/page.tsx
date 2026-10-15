@@ -11,6 +11,7 @@ export default async function NewEventPage({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/dashboard");
   const { tournament: defaultTournamentId } = await searchParams;
 
   const [tournaments, schools] = await Promise.all([
@@ -32,7 +33,7 @@ export default async function NewEventPage({
 
   const tournamentOptions = tournaments.map((t) => ({
     id: t.id,
-    label: `${t.activity.name} · ${t.name}${t.isCurrent ? "" : " (archived)"}`,
+    label: `${t.activity.name} · ${t.name}${t.isCurrent ? "" : " (not current)"}`,
     divisions: t.divisions.map((d) => ({ id: d.id, name: d.name })),
   }));
 

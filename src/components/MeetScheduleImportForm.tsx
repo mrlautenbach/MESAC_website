@@ -66,8 +66,10 @@ export function MeetScheduleImportForm({ tournamentId, divisions }: Props) {
           that session&apos;s own page.
         </p>
         <p className="text-muted">
-          Re-uploading replaces any event_number this file mentions (wherever it was before) - event_numbers left
-          out of the file keep whatever they already have.
+          Re-uploading replaces the whole program of every session this file mentions: any round already in one of
+          those sessions is removed, even if its event_number isn&apos;t in the file, so list each session&apos;s full
+          program. An event_number the file mentions is also moved out of whatever session it was in before.
+          Sessions the file doesn&apos;t mention keep what they have.
         </p>
         <p className="text-muted">
           The{" "}

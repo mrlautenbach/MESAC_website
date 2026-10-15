@@ -13,6 +13,7 @@ export const maxDuration = 60;
 export default async function EditSchedulePage({ searchParams }: { searchParams: Promise<{ tournament?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/dashboard");
   const { tournament: tournamentId } = await searchParams;
   if (!tournamentId) notFound();
 

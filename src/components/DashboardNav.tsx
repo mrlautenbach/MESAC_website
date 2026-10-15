@@ -12,6 +12,7 @@ const TABS = [
     href: "/dashboard/admin/tournaments",
     label: "Tournaments",
     match: ["/dashboard/admin/events", "/dashboard/admin/meet-schedule", "/dashboard/admin/tournament-photos", "/dashboard/admin/golf", "/dashboard/admin/academic-games"],
+    adminOnly: true,
   },
   { href: "/dashboard/admin/schools", label: "Schools", match: [], adminOnly: true },
   { href: "/dashboard/admin/records", label: "History", match: [], adminOnly: true },

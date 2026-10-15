@@ -77,9 +77,11 @@ export default async function DashboardPage() {
             {user.role === "ADMIN" ? "League admin" : "School editor"}
           </p>
         </div>
-        <Link href="/dashboard/admin/events/new" className="btn btn-primary">
-          + New event
-        </Link>
+        {user.role === "ADMIN" && (
+          <Link href="/dashboard/admin/events/new" className="btn btn-primary">
+            + New event
+          </Link>
+        )}
       </div>
 
       <section>
