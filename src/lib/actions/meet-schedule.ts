@@ -8,6 +8,9 @@ import { recordAudit } from "@/lib/audit";
 import { parseCsv, csvRowsToObjects, readCsvUpload } from "@/lib/csv";
 import { normalizeDivisionName } from "@/lib/divisionAlias";
 import { slugify } from "@/lib/slug";
+import type { CurrentUser } from "@/lib/session";
+import type { Prisma } from "@/generated/prisma";
+import { z } from "zod";
 
 export type ImportMeetScheduleResult =
   | { ok: true; rounds: number; sessions: number; newSessions: number }
@@ -72,6 +75,57 @@ export async function importMeetScheduleAction(
     };
   }
 
+  return applyMeetSchedule(
+    admin,
+    tournament,
+    records.map((record, i) => ({ rowNum: i + 2, record })), // header is row 1
+    { wholeProgram: false }
+  );
+}
+
+// The meet program editor: every round in the meet, as rows read by the
+// CSV's column names, replacing the whole program in one go - so a round
+// deleted there is gone, unlike one left out of an uploaded file.
+export async function saveMeetProgramAction(input: {
+  tournamentId: string;
+  rows: { rowNum: number; values: Record<string, string> }[];
+}): Promise<ImportMeetScheduleResult> {
+  const admin = await requireAdmin();
+  const parsed = meetProgramEditSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Those changes couldn't be read - reload the page and try again." };
+
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: parsed.data.tournamentId },
+    include: { activity: true, divisions: true },
+  });
+  if (!tournament) return { ok: false, error: "Tournament not found." };
+  if (!tournament.activity.usesMeetResults) {
+    return { ok: false, error: "This activity doesn't use meet results." };
+  }
+
+  return applyMeetSchedule(
+    admin,
+    tournament,
+    parsed.data.rows.map((row) => ({ rowNum: row.rowNum, record: row.values })),
+    { wholeProgram: true }
+  );
+}
+
+const meetProgramEditSchema = z.object({
+  tournamentId: z.string().min(1),
+  rows: z
+    .array(z.object({ rowNum: z.number().int().positive(), values: z.record(z.string(), z.string().max(2000)) }))
+    .max(2000),
+});
+
+type MeetTournament = Prisma.TournamentGetPayload<{ include: { activity: true; divisions: true } }>;
+
+async function applyMeetSchedule(
+  admin: CurrentUser,
+  tournament: MeetTournament,
+  records: { rowNum: number; record: Record<string, string> }[],
+  { wholeProgram }: { wholeProgram: boolean }
+): Promise<ImportMeetScheduleResult> {
   const existingSessions = await prisma.event.findMany({
     where: { tournamentId: tournament.id },
     select: { id: true, title: true },
@@ -87,8 +141,8 @@ export async function importMeetScheduleAction(
 
   const parsedRows: ParsedRow[] = [];
 
-  records.forEach((record, i) => {
-    const rowNum = i + 2; // header is row 1
+  records.forEach(({ rowNum, record: raw }) => {
+    const record = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, value.trim()]));
     if (Object.values(record).every((v) => v === "")) return;
 
     const sessionName = (record.session ?? "").trim();
@@ -167,9 +221,9 @@ export async function importMeetScheduleAction(
   });
 
   if (rowErrors.length > 0) {
-    return { ok: false, error: `${rowErrors.length} row(s) need fixing before anything is imported.`, rowErrors };
+    return { ok: false, error: `${rowErrors.length} row(s) need fixing before anything is saved.`, rowErrors };
   }
-  if (parsedRows.length === 0) return { ok: false, error: "No event rows found in the file." };
+  if (parsedRows.length === 0 && !wholeProgram) return { ok: false, error: "No event rows found in the file." };
 
   // Round is decided by how many rows share this event_number, not by an
   // upfront declaration - one row is a lone "final"; two rows must name one
@@ -207,7 +261,7 @@ export async function importMeetScheduleAction(
   }
 
   if (rowErrors.length > 0) {
-    return { ok: false, error: `${rowErrors.length} row(s) need fixing before anything is imported.`, rowErrors };
+    return { ok: false, error: `${rowErrors.length} row(s) need fixing before anything is saved.`, rowErrors };
   }
 
   // Catch a same-file inconsistency: two rows claiming the same (new)
@@ -227,7 +281,7 @@ export async function importMeetScheduleAction(
     }
   }
   if (rowErrors.length > 0) {
-    return { ok: false, error: `${rowErrors.length} row(s) need fixing before anything is imported.`, rowErrors };
+    return { ok: false, error: `${rowErrors.length} row(s) need fixing before anything is saved.`, rowErrors };
   }
 
   const touchedEventNumbers = Array.from(byEventNumber.keys());
@@ -287,7 +341,9 @@ export async function importMeetScheduleAction(
 
     const touchedSessionIds = Array.from(new Set(entries.map((e) => e.eventId)));
 
-    // Two things need clearing before the new rows go in, not just one:
+    // The editor sends the whole program, so it replaces all of it.
+    //
+    // A file needs two things clearing before the new rows go in, not just one:
     // every existing entry under one of this file's event_numbers (so an
     // event that moved sessions between uploads doesn't leave a stale copy
     // behind under its old session), AND every existing entry already
@@ -296,10 +352,12 @@ export async function importMeetScheduleAction(
     // that was removed or renumbered - rather than only overwriting the
     // event_numbers that still happen to appear in the new file).
     await tx.meetProgramEntry.deleteMany({
-      where: {
-        tournamentId: tournament.id,
-        OR: [{ eventNumber: { in: touchedEventNumbers } }, { eventId: { in: touchedSessionIds } }],
-      },
+      where: wholeProgram
+        ? { tournamentId: tournament.id }
+        : {
+            tournamentId: tournament.id,
+            OR: [{ eventNumber: { in: touchedEventNumbers } }, { eventId: { in: touchedSessionIds } }],
+          },
     });
     await tx.meetProgramEntry.createMany({ data: entries });
 
@@ -313,14 +371,20 @@ export async function importMeetScheduleAction(
   await recordAudit({
     actorId: admin.id,
     actorLabel: admin.name,
-    action: "MEET_SCHEDULE_IMPORT",
+    action: wholeProgram ? "MEET_PROGRAM_EDIT" : "MEET_SCHEDULE_IMPORT",
     entityType: "MeetProgramEntry",
     entityId: tournament.id,
-    summary: `${admin.name} imported a ${entryCount}-round meet schedule (${createdSessions} new session${createdSessions === 1 ? "" : "s"}) for ${tournament.name} from a CSV file`,
+    summary: wholeProgram
+      ? `${admin.name} edited the meet program for ${tournament.name} (${entryCount} round${entryCount === 1 ? "" : "s"}, ${createdSessions} new session${createdSessions === 1 ? "" : "s"})`
+      : `${admin.name} imported a ${entryCount}-round meet schedule (${createdSessions} new session${createdSessions === 1 ? "" : "s"}) for ${tournament.name} from a CSV file`,
     after: { count: entryCount, sessions: touchedSessionIds.length, createdSessions },
   });
 
-  const touchedEvents = await prisma.event.findMany({ where: { id: { in: touchedSessionIds } }, select: { slug: true } });
+  // A whole-program save can empty any session, not just the ones it names.
+  const touchedEvents = await prisma.event.findMany({
+    where: wholeProgram ? { tournamentId: tournament.id } : { id: { in: touchedSessionIds } },
+    select: { slug: true },
+  });
   revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
   for (const e of touchedEvents) revalidatePath(`/seasons/${tournament.slug}/events/${e.slug}`);
   revalidatePath("/dashboard/admin/meet-schedule");
