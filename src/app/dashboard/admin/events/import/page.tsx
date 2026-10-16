@@ -58,7 +58,15 @@ export default async function ImportEventsPage({
       </div>
       <p className="mb-6 text-muted">
         For a weekend tournament with a full round-robin bracket, upload a spreadsheet of every game instead of
-        entering them one at a time.
+        entering them one at a time. To change a few games once they&apos;re in, use{" "}
+        {defaultTournamentId ? (
+          <Link href={`/dashboard/admin/events/edit?tournament=${defaultTournamentId}`} className="font-semibold text-primary hover:underline">
+            Edit schedule
+          </Link>
+        ) : (
+          "Edit schedule on the activity's page"
+        )}{" "}
+        instead - no new file needed.
       </p>
       <EventImportForm
         seasons={tournamentOptions}

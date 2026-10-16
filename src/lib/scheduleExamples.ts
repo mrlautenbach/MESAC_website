@@ -15,6 +15,40 @@ import { roundRobin } from "@/lib/roundRobin";
 
 const label = (s: { code: string | null; name: string }) => s.code || s.name;
 
+type SideSource = {
+  participants: { isHome: boolean; schoolId: string; school: { code: string | null; name: string } }[];
+  results: { schoolId: string; score: number | null }[];
+  homeSourceOutcome: "WINNER" | "LOSER" | null;
+  awaySourceOutcome: "WINNER" | "LOSER" | null;
+  homeSourceEvent: { externalId: string | null } | null;
+  awaySourceEvent: { externalId: string | null } | null;
+  homeSourceStanding: number | null;
+  awaySourceStanding: number | null;
+  homeSourceLabel: string | null;
+  awaySourceLabel: string | null;
+};
+
+// One side of a game as a schedule cell - its school, or a side not yet
+// decided the way it came in: WINNER(G3), a standing ("2nd"), or TBD with
+// its label - and that school's score.
+export function scheduleSide(e: SideSource, isHome: boolean): { name: string; score: number | null } {
+  const p = e.participants.find((x) => x.isHome === isHome);
+  if (p) return { name: label(p.school), score: e.results.find((r) => r.schoolId === p.schoolId)?.score ?? null };
+  const outcome = isHome ? e.homeSourceOutcome : e.awaySourceOutcome;
+  const source = isHome ? e.homeSourceEvent : e.awaySourceEvent;
+  const standing = isHome ? e.homeSourceStanding : e.awaySourceStanding;
+  const text = isHome ? e.homeSourceLabel : e.awaySourceLabel;
+  const name =
+    outcome && source?.externalId
+      ? `${outcome}(${source.externalId})`
+      : standing
+        ? ordinal(standing)
+        : text
+          ? `TBD(${text})`
+          : "TBD";
+  return { name, score: null };
+}
+
 // ── Games (team sports) ────────────────────────────────────────────────
 
 export async function buildGameScheduleExample(tournamentId: string): Promise<{ filename: string; csv: string } | null> {
@@ -65,29 +99,13 @@ export async function buildGameScheduleExample(tournamentId: string): Promise<{ 
   // left out, and stay as they are.
   const withIds = tournament.events.filter((e) => e.externalId);
   if (withIds.length > 0) {
-    // A side not yet decided goes back out the way it came in: WINNER(G3),
-    // a standing ("2nd"), or TBD with its label.
-    type E = (typeof withIds)[number];
-    const side = (e: E, isHome: boolean) => {
-      const p = e.participants.find((x) => x.isHome === isHome);
-      if (p) return { name: label(p.school), score: e.results.find((r) => r.schoolId === p.schoolId)?.score ?? null };
-      const outcome = isHome ? e.homeSourceOutcome : e.awaySourceOutcome;
-      const source = isHome ? e.homeSourceEvent : e.awaySourceEvent;
-      const standing = isHome ? e.homeSourceStanding : e.awaySourceStanding;
-      const text = isHome ? e.homeSourceLabel : e.awaySourceLabel;
-      const name =
-        outcome && source?.externalId
-          ? `${outcome}(${source.externalId})`
-          : standing
-            ? ordinal(standing)
-            : text
-              ? `TBD(${text})`
-              : "TBD";
-      return { name, score: null };
-    };
+    // Kept on a re-upload only if the file carries them - a blank column
+    // clears them.
+    const withOrder = withIds.some((e) => e.order !== null);
+    const withTitle = withIds.some((e) => e.title);
     const rows = withIds.map((e) => {
-      const home = side(e, true);
-      const away = side(e, false);
+      const home = scheduleSide(e, true);
+      const away = scheduleSide(e, false);
       return [
         e.externalId,
         ...(hasDivisions ? [e.division?.name ?? ""] : []),
@@ -101,9 +119,11 @@ export async function buildGameScheduleExample(tournamentId: string): Promise<{ 
         e.streamUrl,
         e.status,
         ...fields.map((f) => e.fieldValues.find((v) => v.fieldId === f.id)?.value ?? ""),
+        ...(withOrder ? [e.order] : []),
+        ...(withTitle ? [e.title] : []),
       ];
     });
-    return { filename, csv: toCsv(header, rows) };
+    return { filename, csv: toCsv([...header, ...(withOrder ? ["order"] : []), ...(withTitle ? ["title"] : [])], rows) };
   }
 
   // A round robin between the tournament's schools (or the league's, before

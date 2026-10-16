@@ -19,6 +19,8 @@ import { createGuestSchools } from "@/lib/newSchools";
 import { gameNumberOf } from "@/lib/eventOrder";
 import { computeOutcomes, resolvePlayoffSlots, resolveStandingSlots, tryFillFromExistingSource } from "@/lib/playoffs";
 import type { ActionResult } from "@/lib/actions/auth";
+import type { CurrentUser } from "@/lib/session";
+import type { Prisma } from "@/generated/prisma";
 import { z } from "zod";
 import { deleteStoredFiles, storedFilesFor } from "@/lib/storedFiles";
 import { slugify } from "@/lib/slug";
@@ -132,6 +134,7 @@ type SideSpec =
 
 type PlannedRow = {
   rowNum: number;
+  eventId: string | null;
   gameId: string | null;
   date: Date;
   divisionId: string | null;
@@ -144,6 +147,13 @@ type PlannedRow = {
   away: SideSpec | null;
   homeScore: number | null;
   awayScore: number | null;
+  // A score emptied in the editor - a blank CSV cell keeps the stored one.
+  clearHomeScore: boolean;
+  clearAwayScore: boolean;
+  // A school swapped for a placeholder in the editor, so it leaves the game.
+  // A CSV placeholder keeps whichever school has already filled it.
+  vacateHome: boolean;
+  vacateAway: boolean;
   // null means this row's cell for that field is blank - clears any
   // existing value, same as leaving location/streamUrl/order blank does.
   fieldValues: { fieldId: string; value: string | null }[];
@@ -230,12 +240,8 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     return { ok: false, error: "Upload a .csv file or paste CSV text." };
   }
 
-  const tournament = await prisma.tournament.findUnique({
-    where: { id: tournamentId },
-    include: { activity: { include: { fields: { orderBy: { order: "asc" } } } }, divisions: true },
-  });
+  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId }, include: SCHEDULE_TOURNAMENT });
   if (!tournament) return { ok: false, error: "Tournament not found." };
-  const scoringType = tournament.activity.scoringType;
 
   const rows = parseCsv(text);
   if (rows.length < 2) {
@@ -251,24 +257,138 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
   }
   const col = (name: string) => header.indexOf(name);
 
-  const { schools, byKey: schoolByKey } = await loadSchoolKeys();
-  const requiresDivision = tournament.divisions.length > 0;
-  const divisionNames = tournament.divisions.map((d) => d.name).join(", ");
   // Said once for the whole file rather than on every row.
-  if (!requiresDivision && col("gender") >= 0 && rows.slice(1).some((r) => (r[col("gender")] ?? "").trim())) {
+  if (tournament.divisions.length === 0 && col("gender") >= 0 && rows.slice(1).some((r) => (r[col("gender")] ?? "").trim())) {
     return {
       ok: false,
       error: `${tournament.activity.name} · ${tournament.name} has no divisions set up, so the gender column can't be matched. Add them (e.g. Girls and Boys) under Divisions on the activity's Tournaments page, then upload again - or leave the gender column blank.`,
     };
   }
+
+  const inputs: ScheduleRowInput[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const cells = rows[i];
+    if (cells.every((c) => c.trim() === "")) continue;
+    inputs.push({ rowNum: i + 1, get: (name) => (col(name) >= 0 ? (cells[col(name)] ?? "").trim() : "") });
+  }
+  if (inputs.length === 0) {
+    return { ok: false, error: "No game rows found in the file." };
+  }
+
+  return applyGameSchedule(admin, tournament, inputs, { replaceExisting, addNewSchools });
+}
+
+// The schedule editor's save: only the rows that changed (or are new), and
+// the games deleted there. Rows are numbered as they stand on the page, so
+// errors point back at them.
+export async function saveGameScheduleAction(input: {
+  tournamentId: string;
+  rows: { rowNum: number; eventId: string | null; values: Record<string, string>; changed: string[] }[];
+  deleteEventIds: string[];
+}): Promise<ImportEventsResult> {
+  const user = await requireUser();
+  const parsed = gameScheduleEditSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Those changes couldn't be read - reload the page and try again." };
+
+  const tournament = await prisma.tournament.findUnique({ where: { id: parsed.data.tournamentId }, include: SCHEDULE_TOURNAMENT });
+  if (!tournament) return { ok: false, error: "Tournament not found." };
+  const { activity } = tournament;
+  if (activity.usesMeetResults || activity.usesGolfFormat || activity.usesAcademicFormat) {
+    return { ok: false, error: "This activity's schedule isn't a list of games." };
+  }
+
+  const inputs: ScheduleRowInput[] = parsed.data.rows.map((row) => ({
+    rowNum: row.rowNum,
+    eventId: row.eventId,
+    changed: new Set(row.changed),
+    get: (name) => (row.values[name] ?? "").trim(),
+  }));
+  return applyGameSchedule(user, tournament, inputs, {
+    editor: true,
+    deleteEventIds: Array.from(new Set(parsed.data.deleteEventIds)),
+  });
+}
+
+const gameScheduleEditSchema = z.object({
+  tournamentId: z.string().min(1),
+  rows: z
+    .array(
+      z.object({
+        rowNum: z.number().int().positive(),
+        eventId: z.string().min(1).nullable(),
+        values: z.record(z.string(), z.string().max(2000)),
+        changed: z.array(z.string()),
+      })
+    )
+    .max(2000),
+  deleteEventIds: z.array(z.string().min(1)).max(2000),
+});
+
+const SCHEDULE_TOURNAMENT = {
+  activity: { include: { fields: { orderBy: { order: "asc" } } } },
+  divisions: true,
+} as const satisfies Prisma.TournamentInclude;
+
+type ScheduleTournament = Prisma.TournamentGetPayload<{ include: typeof SCHEDULE_TOURNAMENT }>;
+
+// One game row, from a CSV line or the schedule editor, read by its CSV
+// column names.
+type ScheduleRowInput = {
+  rowNum: number;
+  get: (name: string) => string;
+  // Only from the schedule editor: the game this row edits, or null for a
+  // row added there. Its rows are matched to games by this rather than by
+  // game_id, which the editor can change.
+  eventId?: string | null;
+  // The editor's cells the admin actually changed - a blank score clears
+  // the score only when it was emptied on purpose, and a school replaced by
+  // a placeholder leaves the game instead of staying on it.
+  changed?: Set<string>;
+};
+
+type ScheduleOptions = {
+  // Rows come from the schedule editor rather than a CSV file.
+  editor?: boolean;
+  // CSV: remove every imported game (one with a game_id) the file leaves out.
+  replaceExisting?: boolean;
+  // Editor: the games whose rows were deleted.
+  deleteEventIds?: string[];
+  addNewSchools?: boolean;
+};
+
+// Writes a games schedule, whole or in part, for the CSV import and the
+// schedule editor alike, so a row means the same thing in both. Every row
+// is validated before anything is written.
+async function applyGameSchedule(
+  user: CurrentUser,
+  tournament: ScheduleTournament,
+  inputs: ScheduleRowInput[],
+  { editor: fromEditor = false, replaceExisting = false, deleteEventIds = [], addNewSchools = false }: ScheduleOptions
+): Promise<ImportEventsResult> {
+  const scoringType = tournament.activity.scoringType;
+  const { schools, byKey: schoolByKey } = await loadSchoolKeys();
+  const requiresDivision = tournament.divisions.length > 0;
+  const divisionNames = tournament.divisions.map((d) => d.name).join(", ");
   const activityFields = tournament.activity.fields;
 
-  const existingEvents = await prisma.event.findMany({
-    where: { tournamentId: tournament.id, externalId: { not: null } },
-    include: { participants: true, results: true },
-  });
-  const existingByGameId = new Map(existingEvents.map((e) => [e.externalId!, e]));
+  const deleting = new Set(deleteEventIds);
+  // The editor can point a row at any game; a CSV only ever matches by game_id.
+  const existingEvents = (
+    await prisma.event.findMany({
+      where: { tournamentId: tournament.id, ...(fromEditor ? {} : { externalId: { not: null } }) },
+      include: { participants: true, results: true },
+    })
+  ).filter((e) => !deleting.has(e.id));
+  if (deleteEventIds.length > 0) {
+    const found = await prisma.event.count({ where: { id: { in: deleteEventIds }, tournamentId: tournament.id } });
+    if (found !== deleteEventIds.length) return { ok: false, error: "A game you deleted is already gone - reload the page and try again." };
+  }
+  const existingById = new Map(existingEvents.map((e) => [e.id, e]));
+  const existingByGameId = new Map(existingEvents.filter((e) => e.externalId).map((e) => [e.externalId!, e]));
   const knownGameIds = new Set(existingByGameId.keys());
+  // The game_id each edited game is being given, so one that's moving off a
+  // game_id frees it for another row.
+  const newGameIdOf = new Map(inputs.filter((input) => input.eventId).map((input) => [input.eventId!, input.get("game_id") || null]));
   const fileGameIdRows = new Map<string, number>();
   // game_ids of rows that failed: a later "Winner of G21" pointing at one of
   // them isn't reported again as an unknown game - fixing G21's row fixes it.
@@ -277,20 +397,27 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
   const rowErrors: { row: number; message: string }[] = [];
   const planned: PlannedRow[] = [];
 
-  for (let i = 1; i < rows.length; i++) {
-    const cells = rows[i];
-    if (cells.every((c) => c.trim() === "")) continue;
-    const rowNum = i + 1;
-    const get = (name: string) => (col(name) >= 0 ? (cells[col(name)] ?? "").trim() : "");
+  for (const input of inputs) {
+    const { rowNum, get } = input;
     let rowFailed = false;
     const fail = (message: string) => {
       rowErrors.push({ row: rowNum, message });
       rowFailed = true;
     };
 
+    const eventId = input.eventId ?? null;
+    if (eventId && !existingById.has(eventId)) {
+      fail("This game has been deleted since the page was loaded - reload the page.");
+    }
+
     const gameId = get("game_id") || null;
     if (gameId && fileGameIdRows.has(gameId)) {
-      fail(`game_id "${gameId}" is used more than once in this file (already used in row ${fileGameIdRows.get(gameId)}).`);
+      fail(`game_id "${gameId}" is used more than once (already used in row ${fileGameIdRows.get(gameId)}).`);
+    } else if (fromEditor && gameId) {
+      const owner = existingByGameId.get(gameId);
+      if (owner && owner.id !== eventId && (!newGameIdOf.has(owner.id) || newGameIdOf.get(owner.id) === gameId)) {
+        fail(`game_id "${gameId}" is already used by another game.`);
+      }
     }
 
     const dateRaw = get("date");
@@ -395,8 +522,10 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       fileGameIdRows.set(gameId, rowNum);
       knownGameIds.add(gameId);
     }
+    const changed = input.changed;
     planned.push({
       rowNum,
+      eventId,
       gameId,
       date,
       divisionId,
@@ -409,15 +538,19 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       away,
       homeScore,
       awayScore,
+      clearHomeScore: !!changed?.has("home_score") && homeScoreRaw === "",
+      clearAwayScore: !!changed?.has("away_score") && awayScoreRaw === "",
+      vacateHome: !!changed?.has("home") && home?.kind !== "school",
+      vacateAway: !!changed?.has("away") && away?.kind !== "school",
       fieldValues,
     });
   }
 
   if (rowErrors.length > 0) {
-    return { ok: false, error: `${rowErrors.length} row(s) need fixing before anything is imported.`, rowErrors };
+    return { ok: false, error: `${rowErrors.length} row(s) need fixing before anything is saved.`, rowErrors };
   }
-  if (planned.length === 0) {
-    return { ok: false, error: "No game rows found in the file." };
+  if (planned.length === 0 && deleteEventIds.length === 0) {
+    return { ok: false, error: "There's nothing to save." };
   }
 
   const schoolSlugById = new Map(schools.map((s) => [s.id, s.slug]));
@@ -447,18 +580,37 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
     | { participantAction: "pending-standing"; position: number }
     | { participantAction: "pending-label"; text: string | null };
 
-  const { createdIds, updatedIds, removedIds, removedFiles, newSchoolNames } = await prisma.$transaction(
+  const written = await prisma.$transaction(
     async (tx) => {
       const gameIdToEventId = new Map(Array.from(existingByGameId.entries()).map(([gid, e]) => [gid, e.id]));
       const createdIds: string[] = [];
       const updatedIds: string[] = [];
+
+      // Deleted in the editor: gone first, so their game_ids are free for
+      // the rows below.
+      let removedFiles: string[] = [];
+      const removedIds: string[] = [];
+      if (deleteEventIds.length > 0) {
+        removedFiles = await storedFilesFor(tx, { eventIds: deleteEventIds });
+        await tx.event.deleteMany({ where: { id: { in: deleteEventIds }, tournamentId: tournament.id } });
+        removedIds.push(...deleteEventIds);
+      }
+      // Games changing game_id let go of their old one before any takes a
+      // new one, so two games can swap ids without colliding.
+      const renamed = planned.filter((row) => row.eventId && existingById.get(row.eventId)?.externalId !== row.gameId);
+      if (renamed.length > 0) {
+        await tx.event.updateMany({
+          where: { id: { in: renamed.map((row) => row.eventId!) }, externalId: { not: null } },
+          data: { externalId: null },
+        });
+      }
 
       // Add any schools the file names that aren't in the database yet, then
       // point those rows at the new school like any other.
       const newSchoolNames = planned.flatMap((row) =>
         [row.home, row.away].flatMap((side) => (side?.kind === "newSchool" ? [side.name] : []))
       );
-      const newSchools = await createGuestSchools(tx, newSchoolNames, admin);
+      const newSchools = await createGuestSchools(tx, newSchoolNames, user);
       for (const school of newSchools.values()) schoolSlugById.set(school.id, school.slug);
       const toSchool = (side: SideSpec | null): SideSpec | null =>
         side?.kind === "newSchool" ? { kind: "school", schoolId: newSchools.get(side.name.toLowerCase())!.id } : side;
@@ -517,7 +669,13 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       }
 
       for (const row of planned) {
-        const loaded = row.gameId ? existingByGameId.get(row.gameId) : undefined;
+        const loaded = fromEditor
+          ? row.eventId
+            ? existingById.get(row.eventId)
+            : undefined
+          : row.gameId
+            ? existingByGameId.get(row.gameId)
+            : undefined;
         // A bracket game's sides may have just been filled or emptied by an
         // earlier row's result (see resolvePlayoffSlots), so it's read again.
         const existing =
@@ -530,13 +688,19 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
         const existingHome = existing?.participants.find((p) => p.isHome) ?? null;
         const existingAway = existing?.participants.find((p) => !p.isHome) ?? null;
 
-        let homeResolved = resolveSide(row.home, existingHome);
-        let awayResolved = resolveSide(row.away, existingAway);
+        let homeResolved = resolveSide(row.home, row.vacateHome ? null : existingHome);
+        let awayResolved = resolveSide(row.away, row.vacateAway ? null : existingAway);
         // A side that's still a placeholder keeps whichever school already
         // filled it - unless the file now names that same school for the
         // other side, in which case the placeholder goes back to pending.
-        let vacateHome = homeResolved.participantAction === "clear" || homeResolved.participantAction === "replace";
-        let vacateAway = awayResolved.participantAction === "clear" || awayResolved.participantAction === "replace";
+        let vacateHome =
+          (row.vacateHome && !!existingHome) ||
+          homeResolved.participantAction === "clear" ||
+          homeResolved.participantAction === "replace";
+        let vacateAway =
+          (row.vacateAway && !!existingAway) ||
+          awayResolved.participantAction === "clear" ||
+          awayResolved.participantAction === "replace";
         if (existingAway && awayResolved.participantAction === "none" && incomingSchoolId(homeResolved) === existingAway.schoolId) {
           awayResolved = resolveSide(row.away, null);
           vacateAway = true;
@@ -561,6 +725,8 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
               status: row.status,
               streamUrl: row.streamUrl,
               order: row.order,
+              externalId: row.gameId,
+              gameNumber: gameNumberOf(row.gameId),
               ...(homeSource
                 ? {
                     homeSourceEventId: homeSource.eventId,
@@ -649,21 +815,26 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
 
         // Scores and outcomes are worked out here rather than read back: a
         // blank score cell keeps the school's stored score, unless it was just
-        // removed from the game above.
+        // removed from the game above or emptied in the editor.
         const vacatedIds = new Set(vacated.map((p) => p.schoolId));
         const storedScore = (schoolId: string) =>
           vacatedIds.has(schoolId) ? null : (existing?.results.find((r) => r.schoolId === schoolId)?.score ?? null);
         const homeSchoolId = currentSchoolId(homeResolved, existingHome);
         const awaySchoolId = currentSchoolId(awayResolved, existingAway);
-        const homeScore = homeSchoolId ? (row.homeScore ?? storedScore(homeSchoolId)) : null;
-        const awayScore = awaySchoolId ? (row.awayScore ?? storedScore(awaySchoolId)) : null;
+        const homeScore = homeSchoolId ? (row.homeScore ?? (row.clearHomeScore ? null : storedScore(homeSchoolId))) : null;
+        const awayScore = awaySchoolId ? (row.awayScore ?? (row.clearAwayScore ? null : storedScore(awaySchoolId))) : null;
         const outcomes = homeSchoolId && awaySchoolId ? computeOutcomes(scoringType, homeScore, awayScore) : { home: null, away: null };
+        // An emptied score undoes the result, so both outcomes go too.
+        const anyCleared = row.clearHomeScore || row.clearAwayScore;
         const resultWrites = [
-          { schoolId: homeSchoolId, score: row.homeScore, outcome: outcomes.home },
-          { schoolId: awaySchoolId, score: row.awayScore, outcome: outcomes.away },
-        ].flatMap(({ schoolId, score, outcome }) => {
+          { schoolId: homeSchoolId, score: row.homeScore, clear: row.clearHomeScore, outcome: outcomes.home },
+          { schoolId: awaySchoolId, score: row.awayScore, clear: row.clearAwayScore, outcome: outcomes.away },
+        ].flatMap(({ schoolId, score, clear, outcome }) => {
           if (!schoolId) return [];
-          const changes = { ...(score !== null ? { score } : {}), ...(outcome ? { outcome } : {}) };
+          const changes = {
+            ...(score !== null || clear ? { score } : {}),
+            ...(outcome ? { outcome } : anyCleared ? { outcome: null } : {}),
+          };
           const isIncoming = incoming.some((side) => side.schoolId === schoolId);
           return isIncoming || Object.keys(changes).length > 0 ? [{ schoolId, changes }] : [];
         });
@@ -704,8 +875,6 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
         if (row.gameId) gameIdToEventId.set(row.gameId, eventId);
       }
 
-      const removedIds: string[] = [];
-      let removedFiles: string[] = [];
       if (replaceExisting) {
         const fileGameIds = new Set(planned.map((r) => r.gameId).filter((id): id is string => id !== null));
         const toRemove = existingEvents.filter((e) => e.externalId && !fileGameIds.has(e.externalId));
@@ -728,7 +897,13 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
       return { createdIds, updatedIds, removedIds, removedFiles, newSchoolNames: [...newSchools.values()].map((school) => school.name) };
     },
     { timeout: 60_000 }
-  );
+  ).catch((error: unknown) => {
+    // Another tab saved a game under one of these game_ids in the meantime.
+    if ((error as { code?: string }).code === "P2002") return null;
+    throw error;
+  });
+  if (!written) return { ok: false, error: "Another change to this schedule got in first - reload the page and try again." };
+  const { createdIds, updatedIds, removedIds, removedFiles, newSchoolNames } = written;
   await deleteStoredFiles(removedFiles);
 
   // Runs after the transaction commits, not inside it - it needs to see
@@ -737,17 +912,18 @@ export async function importEventsAction(_prevState: ImportEventsResult | null, 
 
   const allIds = [...createdIds, ...updatedIds];
   await recordAudit({
-    actorId: admin.id,
-    actorLabel: admin.name,
-    action: "EVENT_IMPORT",
+    actorId: user.id,
+    actorLabel: user.name,
+    action: fromEditor ? "EVENT_SCHEDULE_EDIT" : "EVENT_IMPORT",
     entityType: "Event",
-    entityId: allIds[0],
-    summary: `${admin.name} imported a schedule into ${tournament.activity.name} · ${tournament.name} from a CSV file (${createdIds.length} new, ${updatedIds.length} updated${removedIds.length > 0 ? `, ${removedIds.length} removed` : ""})`,
+    entityId: allIds[0] ?? tournament.id,
+    summary: `${user.name} ${fromEditor ? "edited the schedule of" : "imported a schedule into"} ${tournament.activity.name} · ${tournament.name}${fromEditor ? "" : " from a CSV file"} (${createdIds.length} new, ${updatedIds.length} updated${removedIds.length > 0 ? `, ${removedIds.length} removed` : ""})`,
     after: { tournamentId: tournament.id, created: createdIds.length, updated: updatedIds.length, removed: removedIds.length },
   });
 
   revalidateTournament({ slug: tournament.slug, activitySlug: tournament.activity.slug });
   revalidatePath("/dashboard");
+  if (fromEditor) revalidatePath("/dashboard/admin/events/edit");
   if (newSchoolNames.length > 0) revalidatePath("/dashboard/admin/schools");
   return { ok: true, created: createdIds.length, updated: updatedIds.length, removed: removedIds.length, newSchools: newSchoolNames };
 }

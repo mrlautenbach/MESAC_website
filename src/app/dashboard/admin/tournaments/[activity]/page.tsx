@@ -120,6 +120,9 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
               )}
               {!activity.usesMeetResults && !activity.usesGolfFormat && !activity.usesAcademicFormat && (
                 <>
+                  <Link href={`/dashboard/admin/events/edit?tournament=${current.id}`} className="btn btn-primary">
+                    Edit schedule
+                  </Link>
                   <Link href={`/dashboard/admin/events/import?tournament=${current.id}`} className="btn btn-secondary">
                     Upload schedule (CSV)
                   </Link>
@@ -129,8 +132,8 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
                 </>
               )}
               {isAdmin && activity.usesMeetResults && (
-                <Link href={`/dashboard/admin/meet-schedule?tournament=${current.id}`} className="btn btn-secondary">
-                  Upload meet schedule &amp; program
+                <Link href={`/dashboard/admin/meet-schedule?tournament=${current.id}`} className="btn btn-primary">
+                  Edit meet schedule &amp; program
                 </Link>
               )}
               {isAdmin && (
