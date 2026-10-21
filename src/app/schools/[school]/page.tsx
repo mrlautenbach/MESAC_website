@@ -88,7 +88,7 @@ export default async function SchoolPage({ params }: { params: Promise<{ school:
       const [mine, theirs] = [ownResult.score, otherResult.score];
       outcome = mine === theirs ? "DRAW" : mine > theirs !== lowWins ? "WIN" : "LOSS";
     }
-    return { opponent, isHome: !!own?.isHome, outcome, score: ownResult?.score ?? null, otherScore: otherResult?.score ?? null };
+    return { opponent, outcome, score: ownResult?.score ?? null, otherScore: otherResult?.score ?? null };
   };
   const record = recent.map(sides).reduce(
     (tally, g) => ({ ...tally, [g.outcome ?? "none"]: (tally[g.outcome ?? "none"] ?? 0) + 1 }),
@@ -110,7 +110,9 @@ export default async function SchoolPage({ params }: { params: Promise<{ school:
           </span>
         </span>
         <Link href={`/seasons/${game.tournament.slug}/events/${game.slug}`} className="flex min-w-0 items-center gap-1.5 font-semibold hover:text-primary">
-          <span className="text-muted">{g.isHome ? "v" : "at"}</span>
+          {/* Always "vs": each season's games are a tournament at one host
+              school, so "at" for away games would be misleading. */}
+          <span className="text-muted">vs</span>
           <SchoolBadge size={22} logoUrl={g.opponent.logoUrl} name={g.opponent.name} color={g.opponent.themeColor} secondaryColor={g.opponent.themeColorSecondary} />
           <span className="truncate">{g.opponent.name}</span>
         </Link>
