@@ -35,10 +35,12 @@ export default async function TournamentSchedulePage({
   // Non-meet activities with divisions have no combined page - each division
   // gets its own schedule. Meet-style activities (Swimming, Track & Field)
   // use this page as the "Overall" view across every division instead, and
-  // Academic Games as Varsity and JV side by side.
+  // Academic Games as Varsity and JV side by side. Golf is one event for
+  // every division, so it uses this page too.
   const hasDivisions = tournament.divisions.length > 0;
   const academic = tournament.activity.usesAcademicFormat;
-  if (hasDivisions && !tournament.activity.usesMeetResults && !academic) notFound();
+  const golf = tournament.activity.usesGolfFormat;
+  if (hasDivisions && !tournament.activity.usesMeetResults && !academic && !golf) notFound();
   const viewSwitch = pickView(tournament.activity, view);
   const golfView = tournament.activity.usesGolfFormat ? viewSwitch?.current : undefined;
 
@@ -49,7 +51,7 @@ export default async function TournamentSchedulePage({
         activitySport={tournament.activity.sport}
         activitySlug={tournament.activity.slug}
         tournamentName={tournament.name}
-        divisionName={hasDivisions && !academic ? "Overall" : undefined}
+        divisionName={hasDivisions && !academic && !golf ? "Overall" : undefined}
         startDate={tournament.startDate}
         endDate={tournament.endDate}
         hostSchoolName={tournament.hostSchool?.name}
@@ -62,6 +64,7 @@ export default async function TournamentSchedulePage({
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
         usesAcademicFormat={tournament.activity.usesAcademicFormat}
+        usesGolfFormat={tournament.activity.usesGolfFormat}
         active="schedule"
         viewSwitch={golfView ? undefined : viewSwitch}
       />

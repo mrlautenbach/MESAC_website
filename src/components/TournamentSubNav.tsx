@@ -14,6 +14,7 @@ export function TournamentSubNav({
   divisions,
   usesMeetResults,
   usesAcademicFormat = false,
+  usesGolfFormat = false,
   currentDivisionSlug = null,
   active,
   viewSwitch,
@@ -25,6 +26,8 @@ export function TournamentSubNav({
   // Academic Games shows both tracks side by side on the tournament-wide
   // pages, with a "Both" choice beside Varsity and JV.
   usesAcademicFormat?: boolean;
+  // Golf is one event for every division, so its pages are tournament-wide.
+  usesGolfFormat?: boolean;
   currentDivisionSlug?: string | null;
   active?: Tab;
   // Two sides to Schedule and Results, switched beside the division switch:
@@ -38,7 +41,7 @@ export function TournamentSubNav({
   const hasDivisions = divisions.length > 0;
   // Team sports with divisions have no combined page, so the tabs need a
   // division to land on when none is chosen yet.
-  const hasCombined = usesMeetResults || usesAcademicFormat;
+  const hasCombined = usesMeetResults || usesAcademicFormat || usesGolfFormat;
   const divisionSlug = currentDivisionSlug ?? (hasDivisions && !hasCombined ? divisions[0].slug : null);
   const splitBase = divisionSlug ? `${root}/${divisionSlug}` : root;
   // Moving between Schedule and Results, or divisions, keeps the side selected.
@@ -59,7 +62,7 @@ export function TournamentSubNav({
     ...divisions.map((d) => ({ name: d.name, slug: d.slug as string | null })),
   ];
 
-  const showDivisions = hasDivisions && divisionChoices.length > 1;
+  const showDivisions = hasDivisions && !usesGolfFormat && divisionChoices.length > 1;
   const switches =
     divisionScoped && (viewSwitch || showDivisions) ? (
       <>

@@ -38,7 +38,8 @@ export default async function TournamentResultsPage({
   // Academic Games as both tracks together.
   const hasDivisions = tournament.divisions.length > 0;
   const academic = tournament.activity.usesAcademicFormat;
-  if (hasDivisions && !tournament.activity.usesMeetResults && !academic) notFound();
+  const golf = tournament.activity.usesGolfFormat;
+  if (hasDivisions && !tournament.activity.usesMeetResults && !academic && !golf) notFound();
   const viewSwitch = pickView(tournament.activity, view);
   const golfView = tournament.activity.usesGolfFormat ? viewSwitch?.current : undefined;
 
@@ -49,7 +50,7 @@ export default async function TournamentResultsPage({
         activitySport={tournament.activity.sport}
         activitySlug={tournament.activity.slug}
         tournamentName={tournament.name}
-        divisionName={hasDivisions && !academic ? "Overall" : undefined}
+        divisionName={hasDivisions && !academic && !golf ? "Overall" : undefined}
         startDate={tournament.startDate}
         endDate={tournament.endDate}
         hostSchoolName={tournament.hostSchool?.name}
@@ -62,6 +63,7 @@ export default async function TournamentResultsPage({
         divisions={tournament.divisions}
         usesMeetResults={tournament.activity.usesMeetResults}
         usesAcademicFormat={tournament.activity.usesAcademicFormat}
+        usesGolfFormat={tournament.activity.usesGolfFormat}
         active="results"
         viewSwitch={viewSwitch}
       />
