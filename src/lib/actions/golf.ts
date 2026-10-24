@@ -147,6 +147,11 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
   const findSchool = (await loadSchoolKeys()).find;
   const roster = await prisma.golfPlayer.findMany({ where: { tournamentId: tournament.id }, select: { id: true, schoolId: true, seed: true } });
   const rosterByKey = new Map(roster.map((p) => [`${p.schoolId}:${p.seed}`, p]));
+  const rosterSchoolIds = new Set(roster.map((p) => p.schoolId));
+  // Schools with no players on the roster aren't in the tournament (a school
+  // replaced in the draw, say), so their rows are left out rather than failing.
+  const skippedSchools = new Set<string>();
+  let skippedRows = 0;
 
   type Group = { number: number; flight: number; teeTime: Date; course: string | null; marshal: string | null; row: number; playerIds: string[] };
   const groups = new Map<number, Group>();
@@ -172,6 +177,11 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
     if (seed === null) fail(`Seed "${record.seed}" must be a whole number from 1 to ${GOLF_SEEDS_PER_SCHOOL}.`);
     if (!ok || !school || seed === null) continue;
 
+    if (!rosterSchoolIds.has(school.id)) {
+      skippedSchools.add(school.code || school.name);
+      skippedRows++;
+      continue;
+    }
     const player = rosterByKey.get(`${school.id}:${seed}`);
     if (!player) {
       fail(`No player on the roster for ${record.school} seed ${seed} - upload the roster first.`);
@@ -233,9 +243,10 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
   });
   refresh(tournament);
   const unplaced = roster.length - placed.size;
+  const skipped = skippedRows > 0 ? ` Left out ${skippedRows} row${skippedRows === 1 ? "" : "s"} for ${[...skippedSchools].join(", ")} (not in the tournament).` : "";
   return {
     ok: true,
-    summary: `Saved ${groups.size} group${groups.size === 1 ? "" : "s"} with ${placed.size} players.${unplaced > 0 ? ` ${unplaced} roster player${unplaced === 1 ? " isn't" : "s aren't"} in a group.` : ""}`,
+    summary: `Saved ${groups.size} group${groups.size === 1 ? "" : "s"} with ${placed.size} players.${skipped}${unplaced > 0 ? ` ${unplaced} roster player${unplaced === 1 ? " isn't" : "s aren't"} in a group.` : ""}`,
   };
 }
 
@@ -259,6 +270,10 @@ export async function importGolfScoresAction(_prev: GolfImportResult | null, for
   const roster = await prisma.golfPlayer.findMany({ where: { tournamentId: tournament.id }, select: { id: true, schoolId: true, seed: true } });
   const rosterByKey = new Map(roster.map((p) => [`${p.schoolId}:${p.seed}`, p]));
 
+  const rosterSchoolIds = new Set(roster.map((p) => p.schoolId));
+  const skippedSchools = new Set<string>();
+  let skippedRows = 0;
+
   const rowErrors: RowError[] = [];
   const updates = new Map<string, number | null>();
   for (const { record, row } of csv.records) {
@@ -269,6 +284,12 @@ export async function importGolfScoresAction(_prev: GolfImportResult | null, for
     if (seed === null) rowErrors.push({ row, message: `Seed "${record.seed}" must be a whole number from 1 to ${GOLF_SEEDS_PER_SCHOOL}.` });
     if (points === undefined) rowErrors.push({ row, message: `Points "${record.points}" must be a whole number from 0 to 999.` });
     if (!school || seed === null || points === undefined) continue;
+    // Not in the tournament (no roster players): left out, not an error.
+    if (!rosterSchoolIds.has(school.id)) {
+      skippedSchools.add(school.code || school.name);
+      skippedRows++;
+      continue;
+    }
     const player = rosterByKey.get(`${school.id}:${seed}`);
     if (!player) {
       rowErrors.push({ row, message: `No player on the roster for ${record.school} seed ${seed}.` });
@@ -293,7 +314,8 @@ export async function importGolfScoresAction(_prev: GolfImportResult | null, for
     summary: `${admin.name} imported ${updates.size} golf Day 1 score(s) for ${tournament.name}`,
   });
   refresh(tournament);
-  return { ok: true, summary: `Saved ${updates.size} score${updates.size === 1 ? "" : "s"}.` };
+  const skipped = skippedRows > 0 ? ` Left out ${skippedRows} row${skippedRows === 1 ? "" : "s"} for ${[...skippedSchools].join(", ")} (not in the tournament).` : "";
+  return { ok: true, summary: `Saved ${updates.size} score${updates.size === 1 ? "" : "s"}.${skipped}` };
 }
 
 // The dashboard's per-group form: one points box per player in the group.
