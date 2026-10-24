@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { revalidateTournament } from "@/lib/revalidate";
 import { prisma } from "@/lib/prisma";
-import { requireUser, requireAdmin } from "@/lib/session";
+import { requireAdmin } from "@/lib/session";
 import { recordAudit } from "@/lib/audit";
 import { tournamentInputSchema } from "@/lib/validation";
 import type { ActionResult } from "@/lib/actions/auth";
@@ -15,7 +15,7 @@ import { deleteStoredFiles, storedFilesFor } from "@/lib/storedFiles";
 // photos, documents) stays exactly as it was and remains browsable at its
 // own permanent URL, linked from the activity page's archive list.
 export async function createTournamentAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const admin = await requireUser();
+  const admin = await requireAdmin();
 
   const parsed = tournamentInputSchema.safeParse({
     activityId: formData.get("activityId"),
@@ -84,7 +84,7 @@ export async function createTournamentAction(_prevState: ActionResult | null, fo
     action: "TOURNAMENT_CREATE",
     entityType: "Tournament",
     entityId: tournament.id,
-    summary: `${admin.name} started a new tournament ("${tournament.name}") for "${activity.name}", archiving the previous one`,
+    summary: `${admin.name} started a new tournament ("${tournament.name}") for "${activity.name}", replacing the previous one as current`,
     after: parsed.data,
   });
 
@@ -94,7 +94,7 @@ export async function createTournamentAction(_prevState: ActionResult | null, fo
 }
 
 export async function updateTournamentAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const admin = await requireUser();
+  const admin = await requireAdmin();
   const tournamentId = String(formData.get("tournamentId") ?? "");
   const existing = await prisma.tournament.findUnique({ where: { id: tournamentId }, include: { activity: true } });
   if (!existing) return { ok: false, error: "Tournament not found." };
@@ -147,7 +147,7 @@ export async function updateTournamentAction(_prevState: ActionResult | null, fo
 // tournament control only ever appears for whichever one is already
 // current.
 export async function setTournamentCurrentAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const admin = await requireUser();
+  const admin = await requireAdmin();
   const tournamentId = String(formData.get("tournamentId") ?? "");
 
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId }, include: { activity: true } });
@@ -236,7 +236,7 @@ export async function syncTournamentSchoolsAction(
   _prevState: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult> {
-  const admin = await requireUser();
+  const admin = await requireAdmin();
   const tournamentId = String(formData.get("tournamentId") ?? "");
   const offered = formData.getAll("schoolIds").map((v) => String(v));
   const checked = new Set(formData.getAll("participatingSchoolIds").map((v) => String(v)));

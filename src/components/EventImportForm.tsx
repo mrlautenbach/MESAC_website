@@ -17,13 +17,11 @@ type Props = {
   seasons: SeasonOption[];
   schoolCodes: { code: string; name: string }[];
   defaultTournamentId?: string;
-  // Only admins can add schools, so only they get the "add unknown schools" option.
-  canAddSchools?: boolean;
 };
 
 // Meet-style activities (Swimming, Track & Field) set up their schedule via
 // the combined schedule+program CSV instead - see MeetScheduleImportForm.
-export function EventImportForm({ seasons, schoolCodes, defaultTournamentId, canAddSchools = false }: Props) {
+export function EventImportForm({ seasons, schoolCodes, defaultTournamentId }: Props) {
   const [state, formAction, pending] = useActionState<ImportEventsResult | null, FormData>(importEventsAction, null);
   const csvText = useCsvText(state);
   const [tournamentId, setTournamentId] = useState(
@@ -114,8 +112,9 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId, can
             in the file, or one already on the schedule.
           </li>
           <li>
-            <code>1st</code>, <code>2nd</code>, <code>3rd</code>, ... - a placement bracket seeded by this row&apos;s
-            own division&apos;s final standings, filled in automatically once every group-stage game in that
+            <code>1st</code>, <code>2nd</code>, <code>3rd</code>, <code>4th</code>, <code>5th</code> and so on
+            (<code>4th Place</code> works too) - a placement bracket seeded by this row&apos;s own division&apos;s
+            final standings, filled in automatically once every group-stage game in that
             division is decided.
           </li>
           <li>
@@ -161,13 +160,14 @@ export function EventImportForm({ seasons, schoolCodes, defaultTournamentId, can
         <span>
           Replace existing schedule. After importing this file, remove any previously-imported game (matched by{" "}
           <code>game_id</code>) that isn&apos;t in it. Use this when you&apos;ve edited a full schedule file and
-          want the site to match it exactly, including removals. Requires every row to have a{" "}
-          <code>game_id</code>; games without one are never removed. This permanently deletes the removed games
-          and anything attached to them (results, photos, documents).
+          want the site to match it exactly, including removals. Every row in the file must have a{" "}
+          <code>game_id</code> - the upload stops with an error if one doesn&apos;t. Games already on the site
+          without one (added one at a time) are never removed. This permanently deletes the removed games and
+          anything attached to them (results, photos, documents).
         </span>
       </label>
 
-      {canAddSchools && <AddNewSchoolsCheckbox />}
+      <AddNewSchoolsCheckbox />
 
       {state && !state.ok && <CsvImportErrors error={state.error} rowErrors={state.rowErrors} />}
 

@@ -15,6 +15,7 @@ export default async function ImportEventsPage({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/dashboard");
   const { tournament: defaultTournamentId } = await searchParams;
 
   const [allTournaments, schools] = await Promise.all([
@@ -40,7 +41,7 @@ export default async function ImportEventsPage({
 
   const tournamentOptions = tournaments.map((t) => ({
     id: t.id,
-    label: `${t.activity.name} · ${t.name}${t.isCurrent ? "" : " (archived)"}`,
+    label: `${t.activity.name} · ${t.name}${t.isCurrent ? "" : " (not current)"}`,
     divisions: t.divisions.map((d) => ({ id: d.id, name: d.name })),
     fields: t.activity.fields.map((f) => ({ id: f.id, key: f.key, label: f.label })),
   }));
@@ -72,7 +73,6 @@ export default async function ImportEventsPage({
         seasons={tournamentOptions}
         schoolCodes={schools.map((s) => ({ code: s.code ?? "", name: s.name }))}
         defaultTournamentId={defaultTournamentId}
-        canAddSchools={user.role === "ADMIN"}
       />
     </div>
   );
