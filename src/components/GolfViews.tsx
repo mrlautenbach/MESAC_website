@@ -305,7 +305,16 @@ function Rounds({ matches, event, clock }: { matches: TeamMatch[]; event: TeamEv
 export async function GolfTeamSchedule({ tournamentId, clock }: { tournamentId: string; clock: Clock }) {
   const event = await loadTeamEvent(tournamentId);
   if (event.matches.length === 0) {
-    return <p className="text-sm text-muted">The team match play draw appears here once it&apos;s set.</p>;
+    return (
+      <div>
+        <p className="text-sm text-muted">
+          <span className="font-semibold text-foreground">Team Championship</span> · match play
+        </p>
+        <p className="mt-2 text-sm text-muted">
+          The team draw is built once the individual event has finished, and the pairings and tee times will appear here.
+        </p>
+      </div>
+    );
   }
   const first = event.matches[0].startTime;
   const last = event.matches[event.matches.length - 1].startTime;

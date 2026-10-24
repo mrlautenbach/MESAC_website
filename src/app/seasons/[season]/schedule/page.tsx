@@ -63,7 +63,7 @@ export default async function TournamentSchedulePage({
         usesMeetResults={tournament.activity.usesMeetResults}
         usesAcademicFormat={tournament.activity.usesAcademicFormat}
         active="schedule"
-        viewSwitch={viewSwitch}
+        viewSwitch={golfView ? undefined : viewSwitch}
       />
       <div className="page-wrap py-8">
         <h4 className="mb-3">Schedule</h4>
@@ -73,10 +73,13 @@ export default async function TournamentSchedulePage({
           ) : (
             <AcademicTimeline clock={clock} tournamentId={tournament.id} tournamentSlug={tournament.slug} />
           )
-        ) : golfView === "individual" ? (
-          <GolfIndividualSchedule clock={clock} tournamentId={tournament.id} />
-        ) : golfView === "team" ? (
-          <GolfTeamSchedule clock={clock} tournamentId={tournament.id} />
+        ) : golfView ? (
+          // Both events on one page: the team draw is built once the
+          // individual event has finished, so it fills in later.
+          <div className="space-y-12">
+            <GolfIndividualSchedule clock={clock} tournamentId={tournament.id} />
+            <GolfTeamSchedule clock={clock} tournamentId={tournament.id} />
+          </div>
         ) : (
           <TournamentSchedule clock={clock} tournamentId={tournament.id} tournamentSlug={tournament.slug} activity={tournament.activity} />
         )}
