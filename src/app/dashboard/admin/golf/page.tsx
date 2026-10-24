@@ -147,7 +147,10 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
           <p className="mt-1 text-sm text-muted">
             One row per player: <code>date</code> (YYYY-MM-DD), <code>flight</code>, <code>group</code> (its number
             for the day), <code>tee_time</code> (HH:MM), <code>school</code>, <code>seed</code>, and optional{" "}
-            <code>marshal</code> and <code>course</code> (once per group is enough). Uploading replaces the whole
+            <code>marshal</code> and <code>course</code> (once per group is enough). Any school can be in the draw:
+            one with no roster takes the seeds of a roster school the file doesn&apos;t name (unmatched ones are paired
+            in order and the result lists them), or add a <code>plays_as</code> column naming the roster school
+            whose players fill its slots. Uploading replaces the whole
             draw; scores already entered are kept. Marshals only show here, not on the public site.
           </p>
           <p className="mt-1 text-sm text-muted">

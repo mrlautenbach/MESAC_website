@@ -134,7 +134,8 @@ export async function importGolfRosterAction(_prev: GolfImportResult | null, for
 }
 
 // The Day 1 draw: one row per player - date, flight, group, tee_time, school,
-// seed, plus optional marshal and course (given once per group is enough).
+// seed, plus optional marshal and course (given once per group is enough)
+// and plays_as (the roster school whose players fill that school's slots).
 // Replaces the whole draw, so a corrected file is simply uploaded again;
 // players' scores are kept.
 export async function importGolfDrawAction(_prev: GolfImportResult | null, formData: FormData): Promise<GolfImportResult> {
@@ -153,18 +154,29 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
   const skippedSchools = new Set<string>();
   let skippedRows = 0;
 
-  // When the file names exactly one school with no roster and the roster has
-  // exactly one school the file never names, that school is standing in for
-  // it (MESAC filling AES's slots): the same seeds play in its place.
-  const namedIds = new Set<string>();
+  // Any school can be named in the draw. A school with no roster players
+  // plays in the place of a roster school the file never names, taking its
+  // players by seed: unrostered schools in the order the file first names
+  // them, roster schools in name order. An optional plays_as column names
+  // the roster school outright and takes priority. The summary lists each
+  // pairing.
+  const namedIds: string[] = [];
+  const substitutes = new Map<string, string>();
   for (const { record } of csv.records) {
     const named = findSchool(record.school ?? "");
-    if (named) namedIds.add(named.id);
+    if (named && !namedIds.includes(named.id)) namedIds.push(named.id);
+    const playsAs = findSchool(record.plays_as ?? "");
+    if (named && playsAs && !substitutes.has(named.id)) substitutes.set(named.id, playsAs.id);
   }
-  const unrostered = [...namedIds].filter((id) => !rosterSchoolIds.has(id));
-  const unnamed = [...rosterSchoolIds].filter((id) => !namedIds.has(id));
-  const substitutes = new Map<string, string>();
-  if (unrostered.length === 1 && unnamed.length === 1) substitutes.set(unrostered[0], unnamed[0]);
+  const explicitTargets = new Set(substitutes.values());
+  const unrostered = namedIds.filter((id) => !rosterSchoolIds.has(id) && !substitutes.has(id));
+  const unnamed = [...new Map(roster.map((p) => [p.schoolId, p.school])).entries()]
+    .filter(([id]) => !namedIds.includes(id) && !explicitTargets.has(id))
+    .sort((x, y) => x[1].name.localeCompare(y[1].name))
+    .map(([id]) => id);
+  unrostered.forEach((id, i) => {
+    if (unnamed[i]) substitutes.set(id, unnamed[i]);
+  });
   const substituted = new Set<string>();
 
   type Group = { number: number; flight: number; teeTime: Date; course: string | null; marshal: string | null; row: number; playerIds: string[] };
@@ -189,6 +201,11 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
     if (Number.isNaN(teeTime.getTime())) fail(`Could not read date/time "${record.date} ${record.tee_time}" (use YYYY-MM-DD and HH:MM).`);
     if (!school) fail(`Unknown school "${record.school}".`);
     if (seed === null) fail(`Seed "${record.seed}" must be a whole number from 1 to ${GOLF_SEEDS_PER_SCHOOL}.`);
+    const playsAsRaw = (record.plays_as ?? "").trim();
+    const playsAs = playsAsRaw ? findSchool(playsAsRaw) : null;
+    if (playsAsRaw && !playsAs) fail(`Unknown school "${playsAsRaw}" in plays_as.`);
+    else if (playsAs && !rosterSchoolIds.has(playsAs.id)) fail(`${playsAsRaw} has no players on the roster to play as.`);
+    else if (playsAs && school && substitutes.get(school.id) !== playsAs.id) fail(`${record.school} plays as a different roster school in an earlier row.`);
     if (!ok || !school || seed === null) continue;
 
     const standIn = substitutes.get(school.id);
