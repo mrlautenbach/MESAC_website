@@ -23,7 +23,7 @@ const schoolLabel = (school: School) => school.code || school.name;
 
 function SchoolCell({ school }: { school: School }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex flex-row-reverse items-center gap-1.5">
       <SchoolBadge size={24} logoUrl={school.logoUrl} name={school.name} color={school.themeColor} secondaryColor={school.themeColorSecondary} />
       <span title={school.name}>{schoolLabel(school)}</span>
     </span>
