@@ -145,13 +145,27 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
   const csv = await readCsv(formData, ["date", "flight", "group", "tee_time", "school", "seed"]);
   if (!csv.ok) return { ok: false, error: csv.error };
   const findSchool = (await loadSchoolKeys()).find;
-  const roster = await prisma.golfPlayer.findMany({ where: { tournamentId: tournament.id }, select: { id: true, schoolId: true, seed: true } });
+  const roster = await prisma.golfPlayer.findMany({ where: { tournamentId: tournament.id }, select: { id: true, schoolId: true, seed: true, school: { select: { code: true, name: true } } } });
   const rosterByKey = new Map(roster.map((p) => [`${p.schoolId}:${p.seed}`, p]));
   const rosterSchoolIds = new Set(roster.map((p) => p.schoolId));
   // Schools with no players on the roster aren't in the tournament (a school
   // replaced in the draw, say), so their rows are left out rather than failing.
   const skippedSchools = new Set<string>();
   let skippedRows = 0;
+
+  // When the file names exactly one school with no roster and the roster has
+  // exactly one school the file never names, that school is standing in for
+  // it (MESAC filling AES's slots): the same seeds play in its place.
+  const namedIds = new Set<string>();
+  for (const { record } of csv.records) {
+    const named = findSchool(record.school ?? "");
+    if (named) namedIds.add(named.id);
+  }
+  const unrostered = [...namedIds].filter((id) => !rosterSchoolIds.has(id));
+  const unnamed = [...rosterSchoolIds].filter((id) => !namedIds.has(id));
+  const substitutes = new Map<string, string>();
+  if (unrostered.length === 1 && unnamed.length === 1) substitutes.set(unrostered[0], unnamed[0]);
+  const substituted = new Set<string>();
 
   type Group = { number: number; flight: number; teeTime: Date; course: string | null; marshal: string | null; row: number; playerIds: string[] };
   const groups = new Map<number, Group>();
@@ -177,12 +191,18 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
     if (seed === null) fail(`Seed "${record.seed}" must be a whole number from 1 to ${GOLF_SEEDS_PER_SCHOOL}.`);
     if (!ok || !school || seed === null) continue;
 
-    if (!rosterSchoolIds.has(school.id)) {
+    const standIn = substitutes.get(school.id);
+    if (!rosterSchoolIds.has(school.id) && !standIn) {
       skippedSchools.add(school.code || school.name);
       skippedRows++;
       continue;
     }
-    const player = rosterByKey.get(`${school.id}:${seed}`);
+    const rosterSchoolId = standIn ?? school.id;
+    if (standIn) {
+      const own = roster.find((p) => p.schoolId === standIn)!.school;
+      substituted.add(`${own.code || own.name} for ${school.code || school.name}`);
+    }
+    const player = rosterByKey.get(`${rosterSchoolId}:${seed}`);
     if (!player) {
       fail(`No player on the roster for ${record.school} seed ${seed} - upload the roster first.`);
       continue;
@@ -246,7 +266,7 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
   const skipped = skippedRows > 0 ? ` Left out ${skippedRows} row${skippedRows === 1 ? "" : "s"} for ${[...skippedSchools].join(", ")} (not in the tournament).` : "";
   return {
     ok: true,
-    summary: `Saved ${groups.size} group${groups.size === 1 ? "" : "s"} with ${placed.size} players.${skipped}${unplaced > 0 ? ` ${unplaced} roster player${unplaced === 1 ? " isn't" : "s aren't"} in a group.` : ""}`,
+    summary: `Saved ${groups.size} group${groups.size === 1 ? "" : "s"} with ${placed.size} players.${substituted.size > 0 ? ` Placed ${[...substituted].join(", ")}.` : ""}${skipped}${unplaced > 0 ? ` ${unplaced} roster player${unplaced === 1 ? " isn't" : "s aren't"} in a group.` : ""}`,
   };
 }
 
