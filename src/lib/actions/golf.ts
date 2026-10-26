@@ -144,14 +144,18 @@ export async function importGolfRosterAction(_prev: GolfImportResult | null, for
 // The Day 1 draw: one row per player - date, flight, group, tee_time, school,
 // seed, plus optional marshal and course (given once per group is enough)
 // and plays_as (the roster school whose players fill that school's slots).
-// Replaces the whole draw, so a corrected file is simply uploaded again;
-// players' scores are kept.
+// Slots are matched by school and seed alone, wherever the file puts them, so
+// a draw that moves teams around from year to year still uploads. The flight
+// column is optional and only names the group's flight (otherwise it comes
+// from the seeds); a group's marshal and course are the first given. Seeds
+// with no roster player are left out and reported. Replaces the whole draw,
+// so a corrected file is simply uploaded again; players' scores are kept.
 export async function importGolfDrawAction(_prev: GolfImportResult | null, formData: FormData): Promise<GolfImportResult> {
   const admin = await requireAdmin();
   const loaded = await loadGolfTournament(String(formData.get("tournamentId") ?? ""));
   if (!loaded.ok) return { ok: false, error: loaded.error };
   const { tournament } = loaded;
-  const csv = await readCsv(formData, ["date", "flight", "group", "tee_time", "school", "seed"]);
+  const csv = await readCsv(formData, ["date", "group", "tee_time", "school", "seed"]);
   if (!csv.ok) return { ok: false, error: csv.error };
   const findSchool = (await loadSchoolKeys()).find;
   const roster = await prisma.golfPlayer.findMany({ where: { tournamentId: tournament.id }, select: { id: true, schoolId: true, seed: true, school: { select: { code: true, name: true } } } });
@@ -161,6 +165,7 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
   // replaced in the draw, say), so their rows are left out rather than failing.
   const skippedSchools = new Set<string>();
   let skippedRows = 0;
+  const unmatched: string[] = [];
 
   // Any school can be named in the draw. A school with no roster players
   // plays in the place of a roster school the file never names, taking its
@@ -194,7 +199,7 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
 
   for (const { record, row } of csv.records) {
     const number = Number(record.group);
-    const flight = Number(record.flight);
+    const flightRaw = (record.flight ?? "").trim();
     const time = (record.tee_time ?? "").trim();
     const teeTime = new Date(`${record.date}T${time.length === 4 ? `0${time}` : time}:00`);
     const school = findSchool(record.school ?? "");
@@ -205,7 +210,6 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
       ok = false;
     };
     if (!Number.isInteger(number) || number < 1) fail(`Group "${record.group}" must be a whole number.`);
-    if (![1, 2, 3].includes(flight)) fail(`Flight "${record.flight}" must be 1, 2 or 3.`);
     if (Number.isNaN(teeTime.getTime())) fail(`Could not read date/time "${record.date} ${record.tee_time}" (use YYYY-MM-DD and HH:MM).`);
     if (!school) fail(`Unknown school "${record.school}".`);
     if (seed === null) fail(`Seed "${record.seed}" must be a whole number from 1 to ${GOLF_SEEDS_PER_SCHOOL}.`);
@@ -229,13 +233,10 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
     }
     const player = rosterByKey.get(`${rosterSchoolId}:${seed}`);
     if (!player) {
-      fail(`No player on the roster for ${record.school} seed ${seed} - upload the roster first.`);
+      unmatched.push(`${record.school} seed ${seed}`);
       continue;
     }
-    if (flightOf(seed) !== flight) {
-      fail(`${record.school} seed ${seed} plays in Flight ${flightOf(seed)}, not Flight ${flight}.`);
-      continue;
-    }
+    const flight = [1, 2, 3].includes(Number(flightRaw)) ? Number(flightRaw) : flightOf(seed);
     if (placed.has(player.id)) {
       fail(`${record.school} seed ${seed} is already in row ${placed.get(player.id)}.`);
       continue;
@@ -247,10 +248,7 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
     if (!group) {
       groups.set(number, { number, flight, teeTime, course, marshal, row, playerIds: [player.id] });
     } else {
-      if (group.flight !== flight) fail(`Group ${number} is Flight ${group.flight} in row ${group.row}.`);
       if (group.teeTime.getTime() !== teeTime.getTime()) fail(`Group ${number} has a different date or tee time in row ${group.row}.`);
-      if (course && group.course && course !== group.course) fail(`Group ${number} has a different course in row ${group.row}.`);
-      if (marshal && group.marshal && marshal !== group.marshal) fail(`Group ${number} has a different marshal in row ${group.row}.`);
       if (!ok) continue;
       group.course ??= course;
       group.marshal ??= marshal;
@@ -291,7 +289,7 @@ export async function importGolfDrawAction(_prev: GolfImportResult | null, formD
   const skipped = skippedRows > 0 ? ` Left out ${skippedRows} row${skippedRows === 1 ? "" : "s"} for ${[...skippedSchools].join(", ")} (not in the tournament).` : "";
   return {
     ok: true,
-    summary: `Saved ${groups.size} group${groups.size === 1 ? "" : "s"} with ${placed.size} players.${substituted.size > 0 ? ` Placed ${[...substituted].join(", ")}.` : ""}${skipped}${unplaced > 0 ? ` ${unplaced} roster player${unplaced === 1 ? " isn't" : "s aren't"} in a group.` : ""}`,
+    summary: `Saved ${groups.size} group${groups.size === 1 ? "" : "s"} with ${placed.size} players.${unmatched.length > 0 ? ` No roster player for ${unmatched.join(", ")}, so those slots were left out.` : ""}${substituted.size > 0 ? ` Placed ${[...substituted].join(", ")}.` : ""}${skipped}${unplaced > 0 ? ` ${unplaced} roster player${unplaced === 1 ? " isn't" : "s aren't"} in a group.` : ""}`,
   };
 }
 
