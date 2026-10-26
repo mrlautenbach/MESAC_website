@@ -1,3 +1,4 @@
+import { isHostEditor } from "@/lib/hosting";
 import Link from "next/link";
 import { format } from "date-fns";
 import { redirect, notFound } from "next/navigation";
@@ -12,13 +13,8 @@ import { GOLF_FLIGHTS, formatGolfPoints, matchScore, pairName } from "@/lib/golf
 export default async function GolfAdminPage({ searchParams }: { searchParams: Promise<{ tournament?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") {
-    return (
-      <div className="page-wrap py-10 [&>*]:max-w-2xl">
-        <p className="text-danger">You don&apos;t have access to this page.</p>
-      </div>
-    );
-  }
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && user.role !== "EDITOR") redirect("/dashboard");
 
   const { tournament: tournamentId } = await searchParams;
   if (!tournamentId) notFound();
@@ -38,6 +34,13 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
     },
   });
   if (!tournament) notFound();
+  if (!isAdmin && !isHostEditor(user, tournament.hostSchoolId)) {
+    return (
+      <div className="page-wrap py-10 [&>*]:max-w-2xl">
+        <p className="text-danger">You don&apos;t have access to this page.</p>
+      </div>
+    );
+  }
   if (!tournament.activity.usesGolfFormat) {
     return (
       <div className="page-wrap py-8 [&>*]:max-w-2xl">
@@ -92,6 +95,8 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
         </nav>
       </div>
 
+      {isAdmin && (
+      <>
       <section id="roster" className="scroll-mt-20 space-y-4">
         <div>
           <h2 className="text-xl">1. Roster ({players.length} players)</h2>
@@ -177,6 +182,8 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
           </div>
         </details>
       </section>
+      </>
+      )}
 
       <section id="scores" className="scroll-mt-20 space-y-4">
         <div>
@@ -233,6 +240,8 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
         </details>
       </section>
 
+      {isAdmin && (
+      <>
       <section id="team-draw" className="scroll-mt-20 space-y-4">
         <div>
           <h2 className="text-xl">
@@ -262,6 +271,8 @@ export default async function GolfAdminPage({ searchParams }: { searchParams: Pr
           </div>
         </details>
       </section>
+      </>
+      )}
 
       <section id="team-results" className="scroll-mt-20 space-y-4">
         <div>

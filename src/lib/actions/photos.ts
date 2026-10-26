@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, requireUser } from "@/lib/session";
+import { isScopedEventEditor } from "@/lib/hosting";
 import { recordAudit } from "@/lib/audit";
 import { photoCaptionSchema } from "@/lib/validation";
 import { processAndStorePhoto, deleteStoredPhoto, PhotoValidationError } from "@/lib/photo-upload";
@@ -16,9 +17,8 @@ async function assertEventAccess(eventId: string) {
   });
   if (!event) throw new Error("NOT_FOUND");
 
-  const participantSchoolIds = event.participants.map((p) => p.schoolId);
   const isAdmin = user.role === "ADMIN";
-  const isScopedEditor = user.role === "EDITOR" && !!user.schoolId && participantSchoolIds.includes(user.schoolId);
+  const isScopedEditor = isScopedEventEditor(user, event);
   if (!isAdmin && !isScopedEditor) throw new Error("FORBIDDEN");
 
   return { user, event, isAdmin };

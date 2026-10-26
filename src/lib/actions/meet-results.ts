@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/session";
+import { requireUser } from "@/lib/session";
+import { isHostEditor } from "@/lib/hosting";
 import { recordAudit } from "@/lib/audit";
 import { meetResultRowSchema } from "@/lib/validation";
 import { parseCsv, csvRowsToObjects, readCsvUpload } from "@/lib/csv";
@@ -24,7 +25,7 @@ export async function importMeetResultsAction(
   _prevState: ImportMeetResultsResult | null,
   formData: FormData
 ): Promise<ImportMeetResultsResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
 
   const eventId = String(formData.get("eventId") ?? "");
   const addNewSchools = formData.get("addNewSchools") === "on";
@@ -33,6 +34,9 @@ export async function importMeetResultsAction(
     include: { tournament: { include: { activity: true } }, division: true, programEntries: true },
   });
   if (!event) return { ok: false, error: "Event not found." };
+  if (admin.role !== "ADMIN" && !isHostEditor(admin, event.tournament.hostSchoolId)) {
+    return { ok: false, error: "You don't have access to add results to this event." };
+  }
   if (!event.tournament.activity.usesMeetResults) {
     return { ok: false, error: "This activity doesn't use meet results." };
   }
@@ -201,9 +205,12 @@ export async function importMeetResultsAction(
 }
 
 export async function clearMeetResultsAction(eventId: string): Promise<ActionResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
   const event = await prisma.event.findUnique({ where: { id: eventId }, include: { tournament: true } });
   if (!event) return { ok: false, error: "Event not found." };
+  if (admin.role !== "ADMIN" && !isHostEditor(admin, event.tournament.hostSchoolId)) {
+    return { ok: false, error: "You don't have access to clear results for this event." };
+  }
 
   const { count } = await prisma.meetResult.deleteMany({ where: { eventId } });
   if (count === 0) return { ok: true };

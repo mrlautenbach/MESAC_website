@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { isScopedEventEditor } from "@/lib/hosting";
 import { getCurrentUser } from "@/lib/session";
 import { DocumentList } from "@/components/DocumentList";
 import { MeetResultsView } from "@/components/MeetResultsView";
@@ -165,8 +166,7 @@ export default async function EventPage({
   })();
 
   const user = await getCurrentUser();
-  const participantSchoolIds = event.participants.map((p) => p.schoolId);
-  const canEdit = user?.role === "ADMIN" || (user?.role === "EDITOR" && !!user.schoolId && participantSchoolIds.includes(user.schoolId));
+  const canEdit = user?.role === "ADMIN" || (!!user && isScopedEventEditor(user, { participants: event.participants, tournament }));
 
   const homeParticipant = event.participants.find((p) => p.isHome);
   const awayParticipant = event.participants.find((p) => !p.isHome);

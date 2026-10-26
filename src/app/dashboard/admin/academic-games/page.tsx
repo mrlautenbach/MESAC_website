@@ -1,3 +1,4 @@
+import { isHostEditor } from "@/lib/hosting";
 import Link from "next/link";
 import { format } from "date-fns";
 import { redirect, notFound } from "next/navigation";
@@ -15,13 +16,8 @@ const STAGE_ORDER: BowlStage[] = ["ROUND_ROBIN", ...FINALS_STAGES.map((f) => f.s
 export default async function AcademicGamesAdminPage({ searchParams }: { searchParams: Promise<{ tournament?: string }> }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") {
-    return (
-      <div className="page-wrap py-10 [&>*]:max-w-2xl">
-        <p className="text-danger">You don&apos;t have access to this page.</p>
-      </div>
-    );
-  }
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && user.role !== "EDITOR") redirect("/dashboard");
 
   const { tournament: tournamentId } = await searchParams;
   if (!tournamentId) notFound();
@@ -43,6 +39,13 @@ export default async function AcademicGamesAdminPage({ searchParams }: { searchP
     },
   });
   if (!tournament) notFound();
+  if (!isAdmin && !isHostEditor(user, tournament.hostSchoolId)) {
+    return (
+      <div className="page-wrap py-10 [&>*]:max-w-2xl">
+        <p className="text-danger">You don&apos;t have access to this page.</p>
+      </div>
+    );
+  }
   if (!tournament.activity.usesAcademicFormat) {
     return (
       <div className="page-wrap py-8 [&>*]:max-w-2xl">
@@ -114,6 +117,8 @@ export default async function AcademicGamesAdminPage({ searchParams }: { searchP
         </nav>
       </div>
 
+      {isAdmin && (
+      <>
       <section id="schedule" className="scroll-mt-20 space-y-4">
         <div>
           <h2 className="text-xl">1. Schedule ({events.length} competitions)</h2>
@@ -227,6 +232,8 @@ export default async function AcademicGamesAdminPage({ searchParams }: { searchP
           placeholder={`division,round,date,time,team_a,team_b,room,score_a,score_b\njv,1,2026-10-30,08:30,ASDubai Blue,ABA Blue,2205,21,8\njv,QF1,2026-11-01,10:30,seed 1,seed 8,Theater,,`}
         />
       </section>
+      </>
+      )}
 
       <section id="challenges" className="scroll-mt-20 space-y-4">
         <div>

@@ -5,6 +5,7 @@ import type { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { EARLIEST_FIRST } from "@/lib/eventOrder";
 import { getCurrentUser } from "@/lib/session";
+import { manageableEventsWhere } from "@/lib/hosting";
 import { sideLabel } from "@/lib/eventDisplay";
 import { formatGolfPoints, matchScore } from "@/lib/golf";
 import { sortDivisions } from "@/lib/academicGames";
@@ -48,7 +49,11 @@ export default async function ResultsDashboardPage() {
   // sessions have no participants, so this filter naturally leaves them out
   // for a school editor too - only admins can enter meet results anyway (see
   // importMeetResultsAction).
-  const scope = user.role === "ADMIN" ? {} : { participants: { some: { schoolId: user.schoolId ?? "" } } };
+  const scope = manageableEventsWhere(user);
+
+  // Golf and the Academic Bowl have no per-school games, so a school editor
+  // sees only the tournaments their school hosts.
+  const hostScope = user.role === "ADMIN" ? {} : { hostSchoolId: user.schoolId ?? "" };
 
   const [events, golfTournaments, academicTournaments] = await Promise.all([
     prisma.event.findMany({
@@ -60,9 +65,9 @@ export default async function ResultsDashboardPage() {
     }),
     // Golf's results live in their own tables (Day 1 scores, team matches),
     // not in events, and only admins enter them.
-    user.role === "ADMIN"
+    user.role === "ADMIN" || user.schoolId
       ? prisma.tournament.findMany({
-          where: { isCurrent: true, activity: { usesGolfFormat: true } },
+          where: { ...hostScope, isCurrent: true, activity: { usesGolfFormat: true } },
           include: {
             activity: true,
             golfGroups: { orderBy: { number: "asc" }, include: { players: { select: { points: true } } } },
@@ -74,9 +79,9 @@ export default async function ResultsDashboardPage() {
         })
       : Promise.resolve([]),
     // The Academic Bowl's games are their own tables too, scored by admins.
-    user.role === "ADMIN"
+    user.role === "ADMIN" || user.schoolId
       ? prisma.tournament.findMany({
-          where: { isCurrent: true, activity: { usesAcademicFormat: true } },
+          where: { ...hostScope, isCurrent: true, activity: { usesAcademicFormat: true } },
           include: { activity: true, divisions: true, bowlGames: { orderBy: [{ startTime: "asc" }, { number: "asc" }] } },
         })
       : Promise.resolve([]),

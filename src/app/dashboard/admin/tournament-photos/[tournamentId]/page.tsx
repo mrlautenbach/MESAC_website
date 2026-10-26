@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { TeamPhotoSlot } from "@/components/TeamPhotoSlot";
 import { TeamPhotoGenderToggle } from "@/components/TeamPhotoGenderToggle";
+import { isHostEditor } from "@/lib/hosting";
 import { loadRoster } from "@/lib/tournamentRoster";
 
 export default async function TournamentPhotosAdminPage({
@@ -13,7 +14,6 @@ export default async function TournamentPhotosAdminPage({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/dashboard");
 
   const { tournamentId } = await params;
   const tournament = await prisma.tournament.findUnique({
@@ -21,6 +21,8 @@ export default async function TournamentPhotosAdminPage({
     include: { activity: true, divisions: true },
   });
   if (!tournament) notFound();
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && !isHostEditor(user, tournament.hostSchoolId)) redirect("/dashboard");
 
   // The tournament's roster, not every school in the system - a school that
   // isn't taking part has no photo slot to manage. Change who's taking part
@@ -45,7 +47,7 @@ export default async function TournamentPhotosAdminPage({
         </p>
       </div>
 
-      {tournament.divisions.length > 0 && (
+      {isAdmin && tournament.divisions.length > 0 && (
         <TeamPhotoGenderToggle
           tournamentId={tournamentId}
           showGirlsTeamPhotos={tournament.showGirlsTeamPhotos}

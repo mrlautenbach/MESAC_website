@@ -5,6 +5,7 @@ import { revalidateTournament } from "@/lib/revalidate";
 import { prisma } from "@/lib/prisma";
 import { ensureInRoster } from "@/lib/tournamentRoster";
 import { requireAdmin, requireUser } from "@/lib/session";
+import { isScopedEventEditor } from "@/lib/hosting";
 import { recordAudit } from "@/lib/audit";
 import {
   eventInputSchema,
@@ -958,9 +959,8 @@ export async function updateEventAction(_prevState: ActionResult | null, formDat
   });
   if (!event) return { ok: false, error: "Event not found." };
 
-  const participantSchoolIds = event.participants.map((p) => p.schoolId);
   const isAdmin = user.role === "ADMIN";
-  const isScopedEditor = user.role === "EDITOR" && !!user.schoolId && participantSchoolIds.includes(user.schoolId);
+  const isScopedEditor = isScopedEventEditor(user, event);
   if (!isAdmin && !isScopedEditor) {
     return { ok: false, error: "You don't have access to edit this event." };
   }

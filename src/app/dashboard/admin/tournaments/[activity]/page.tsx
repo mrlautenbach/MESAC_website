@@ -12,6 +12,7 @@ import { LiveResultsPhotoManager } from "@/components/LiveResultsPhotoManager";
 import { DeleteActivityForm } from "@/components/DeleteActivityForm";
 import { DeleteTournamentForm } from "@/components/DeleteTournamentForm";
 import { SetTournamentCurrentButton } from "@/components/SetTournamentCurrentButton";
+import { isHostEditor } from "@/lib/hosting";
 import { isParticipating } from "@/lib/tournamentRoster";
 import { SCORING_LABELS } from "@/lib/scoringLabels";
 
@@ -108,12 +109,12 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
               <Link href={`/seasons/${current.slug}`} className="btn btn-secondary">
                 View public page
               </Link>
-              {isAdmin && activity.usesGolfFormat && (
+              {(isAdmin || isHostEditor(user, current.hostSchoolId)) && activity.usesGolfFormat && (
                 <Link href={`/dashboard/admin/golf?tournament=${current.id}`} className="btn btn-primary">
                   Golf roster, draw &amp; scores
                 </Link>
               )}
-              {isAdmin && activity.usesAcademicFormat && (
+              {(isAdmin || isHostEditor(user, current.hostSchoolId)) && activity.usesAcademicFormat && (
                 <Link href={`/dashboard/admin/academic-games?tournament=${current.id}`} className="btn btn-primary">
                   Academic Games schedule
                 </Link>
@@ -136,7 +137,7 @@ export default async function ActivityAdminPage({ params }: { params: Promise<{ 
                   Edit meet schedule &amp; program
                 </Link>
               )}
-              {isAdmin && (
+              {(isAdmin || isHostEditor(user, current.hostSchoolId)) && (
                 <Link href={`/dashboard/admin/tournament-photos/${current.id}`} className="btn btn-secondary">
                   Team photos
                 </Link>

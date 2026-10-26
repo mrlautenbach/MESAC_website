@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/session";
+import { requireAdmin, requireUser } from "@/lib/session";
+import { isHostEditor } from "@/lib/hosting";
 import { recordAudit } from "@/lib/audit";
 import { revalidateTournament } from "@/lib/revalidate";
 import { parseCsv, csvRowsToObjects, readCsvUpload } from "@/lib/csv";
@@ -31,6 +32,13 @@ export type AcademicImportResult =
   | { ok: false; error: string; rowErrors?: { row: number; message: string }[] };
 
 type RowError = { row: number; message: string };
+
+const NO_SCORE_ACCESS = "You don't have access to enter results for this tournament.";
+
+// Admins enter any tournament's results; a school editor only the tournament their school hosts.
+function canScore(user: Awaited<ReturnType<typeof requireUser>>, tournament: { hostSchoolId: string | null }) {
+  return user.role === "ADMIN" || isHostEditor(user, tournament.hostSchoolId);
+}
 
 async function loadAcademicTournament(tournamentId: string) {
   const tournament = await prisma.tournament.findUnique({
@@ -578,7 +586,7 @@ export async function importBowlScheduleAction(_prev: AcademicImportResult | nul
 // One round's scores from the admin page: `a-<gameId>` and `b-<gameId>`
 // for each game. Both blank clears a game's score.
 export async function saveBowlScoresAction(_prev: AcademicImportResult | null, formData: FormData): Promise<AcademicImportResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
   const ids = formData.getAll("gameId").map(String);
   const games = await prisma.bowlGame.findMany({
     where: { id: { in: ids } },
@@ -586,6 +594,7 @@ export async function saveBowlScoresAction(_prev: AcademicImportResult | null, f
   });
   if (games.length === 0 || games.length !== ids.length) return { ok: false, error: "Game not found." };
   const tournament = games[0].tournament;
+  if (!canScore(admin, tournament)) return { ok: false, error: NO_SCORE_ACCESS };
   if (games.some((g) => g.tournamentId !== tournament.id)) return { ok: false, error: "Those games are from different tournaments." };
 
   const updates: { id: string; scoreA: number | null; scoreB: number | null }[] = [];
@@ -629,10 +638,11 @@ const titleKey = (title: string) => title.replace(/\s*\(.*?\)\s*/g, " ").replace
 // division in the file has its results replaced; ones not in the file are
 // left alone, so results can go up one challenge at a time.
 export async function importChallengeResultsAction(_prev: AcademicImportResult | null, formData: FormData): Promise<AcademicImportResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
   const loaded = await loadAcademicTournament(String(formData.get("tournamentId") ?? ""));
   if (!loaded.ok) return loaded;
   const { tournament } = loaded;
+  if (!canScore(admin, tournament)) return { ok: false, error: NO_SCORE_ACCESS };
 
   const text = await readCsvUpload(formData);
   if (!text.trim()) return { ok: false, error: "Upload a .csv file or paste CSV text." };

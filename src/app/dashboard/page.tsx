@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { EARLIEST_FIRST, LATEST_FIRST } from "@/lib/eventOrder";
 import { getCurrentUser } from "@/lib/session";
+import { manageableEventsWhere } from "@/lib/hosting";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { sideLabel } from "@/lib/eventDisplay";
 import { StatusTag } from "@/components/StatusTag";
@@ -50,7 +51,7 @@ export default async function DashboardPage() {
   }
 
   const now = new Date();
-  const scope = user.role === "ADMIN" ? {} : { participants: { some: { schoolId: user.schoolId ?? "" } } };
+  const scope = manageableEventsWhere(user);
   // Split by date in the query rather than loading every event ever played
   // and filtering in memory - for an admin the unscoped version grows with
   // the whole league's history to render, at most, twenty past rows.

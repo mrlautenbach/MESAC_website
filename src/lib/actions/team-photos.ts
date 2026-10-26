@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/session";
+import { requireAdmin, requireUser } from "@/lib/session";
+import { isHostEditor } from "@/lib/hosting";
 import { recordAudit } from "@/lib/audit";
 import { processAndStorePhoto, deleteStoredPhoto, PhotoValidationError } from "@/lib/photo-upload";
 import type { ActionResult } from "@/lib/actions/auth";
@@ -16,11 +17,19 @@ async function findSlot(tournamentId: string, schoolId: string, divisionId: stri
 }
 
 async function loadTournamentForRevalidate(tournamentId: string) {
-  return prisma.tournament.findUnique({ where: { id: tournamentId }, select: { slug: true } });
+  return prisma.tournament.findUnique({ where: { id: tournamentId }, select: { slug: true, hostSchoolId: true } });
+}
+
+const NO_ACCESS = "You don't have access to this tournament's team photos.";
+
+// Admins manage any tournament's team photos; a school editor only the
+// tournament their school hosts.
+function canManage(user: Awaited<ReturnType<typeof requireUser>>, tournament: { hostSchoolId: string | null }) {
+  return user.role === "ADMIN" || isHostEditor(user, tournament.hostSchoolId);
 }
 
 export async function setTeamPhotoEnabledAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
   const tournamentId = String(formData.get("tournamentId") ?? "");
   const schoolId = String(formData.get("schoolId") ?? "");
   const divisionId = (formData.get("divisionId") as string) || null;
@@ -28,6 +37,7 @@ export async function setTeamPhotoEnabledAction(_prevState: ActionResult | null,
 
   const tournament = await loadTournamentForRevalidate(tournamentId);
   if (!tournament) return { ok: false, error: "Tournament not found." };
+  if (!canManage(admin, tournament)) return { ok: false, error: NO_ACCESS };
 
   const existing = await findSlot(tournamentId, schoolId, divisionId);
   if (existing) {
@@ -52,13 +62,14 @@ export async function setTeamPhotoEnabledAction(_prevState: ActionResult | null,
 }
 
 export async function uploadTeamPhotoAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
   const tournamentId = String(formData.get("tournamentId") ?? "");
   const schoolId = String(formData.get("schoolId") ?? "");
   const divisionId = (formData.get("divisionId") as string) || null;
 
   const tournament = await loadTournamentForRevalidate(tournamentId);
   if (!tournament) return { ok: false, error: "Tournament not found." };
+  if (!canManage(admin, tournament)) return { ok: false, error: NO_ACCESS };
 
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose a photo to upload." };
@@ -105,13 +116,14 @@ export async function uploadTeamPhotoAction(_prevState: ActionResult | null, for
 }
 
 export async function deleteTeamPhotoAction(_prevState: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
   const tournamentId = String(formData.get("tournamentId") ?? "");
   const schoolId = String(formData.get("schoolId") ?? "");
   const divisionId = (formData.get("divisionId") as string) || null;
 
   const tournament = await loadTournamentForRevalidate(tournamentId);
   if (!tournament) return { ok: false, error: "Tournament not found." };
+  if (!canManage(admin, tournament)) return { ok: false, error: NO_ACCESS };
 
   const existing = await findSlot(tournamentId, schoolId, divisionId);
   if (!existing?.photoUrl) return { ok: true };

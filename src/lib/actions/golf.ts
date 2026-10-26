@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { revalidateTournament } from "@/lib/revalidate";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/session";
+import { requireAdmin, requireUser } from "@/lib/session";
+import { isHostEditor } from "@/lib/hosting";
 import { recordAudit } from "@/lib/audit";
 import { parseCsv, csvRowsToObjects, readCsvUpload } from "@/lib/csv";
 import { flightOf, GOLF_SEEDS_PER_SCHOOL, normalizeMargin } from "@/lib/golf";
@@ -16,6 +17,13 @@ export type GolfImportResult =
   | { ok: false; error: string; rowErrors?: { row: number; message: string }[] };
 
 type RowError = { row: number; message: string };
+
+const NO_SCORE_ACCESS = "You don't have access to enter results for this tournament.";
+
+// Admins enter any tournament's results; a school editor only the tournament their school hosts.
+function canScore(user: Awaited<ReturnType<typeof requireUser>>, tournament: { hostSchoolId: string | null }) {
+  return user.role === "ADMIN" || isHostEditor(user, tournament.hostSchoolId);
+}
 
 async function loadGolfTournament(tournamentId: string) {
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId }, include: { activity: true } });
@@ -297,10 +305,11 @@ function parsePoints(raw: string): number | null | undefined {
 // Day 1 scores: school, seed, points. A blank points cell clears that
 // player's score; players not in the file are left as they are.
 export async function importGolfScoresAction(_prev: GolfImportResult | null, formData: FormData): Promise<GolfImportResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
   const loaded = await loadGolfTournament(String(formData.get("tournamentId") ?? ""));
   if (!loaded.ok) return { ok: false, error: loaded.error };
   const { tournament } = loaded;
+  if (!canScore(admin, tournament)) return { ok: false, error: NO_SCORE_ACCESS };
   const csv = await readCsv(formData, ["school", "seed", "points"]);
   if (!csv.ok) return { ok: false, error: csv.error };
   const findSchool = (await loadSchoolKeys()).find;
@@ -357,12 +366,13 @@ export async function importGolfScoresAction(_prev: GolfImportResult | null, for
 
 // The dashboard's per-group form: one points box per player in the group.
 export async function saveGolfGroupScoresAction(_prev: GolfImportResult | null, formData: FormData): Promise<GolfImportResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
   const group = await prisma.golfGroup.findUnique({
     where: { id: String(formData.get("groupId") ?? "") },
     include: { players: { select: { id: true, name: true } }, tournament: { include: { activity: true } } },
   });
   if (!group) return { ok: false, error: "Group not found." };
+  if (!canScore(admin, group.tournament)) return { ok: false, error: NO_SCORE_ACCESS };
 
   const updates: { id: string; points: number | null }[] = [];
   for (const player of group.players) {
@@ -534,10 +544,11 @@ function parseWinner(
 // A blank winner clears that result. Pairs matches not in the file are
 // left as they are.
 export async function importGolfTeamResultsAction(_prev: GolfImportResult | null, formData: FormData): Promise<GolfImportResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
   const loaded = await loadGolfTournament(String(formData.get("tournamentId") ?? ""));
   if (!loaded.ok) return { ok: false, error: loaded.error };
   const { tournament } = loaded;
+  if (!canScore(admin, tournament)) return { ok: false, error: NO_SCORE_ACCESS };
   const csv = await readCsv(formData, ["round", "home", "away", "flight", "winner"]);
   if (!csv.ok) return { ok: false, error: csv.error };
   const findSchool = (await loadSchoolKeys()).find;
@@ -604,12 +615,13 @@ export async function importGolfTeamResultsAction(_prev: GolfImportResult | null
 
 // The dashboard's per-match form: winner and margin for each of its pairs.
 export async function saveGolfMatchResultsAction(_prev: GolfImportResult | null, formData: FormData): Promise<GolfImportResult> {
-  const admin = await requireAdmin();
+  const admin = await requireUser();
   const match = await prisma.golfTeamMatch.findUnique({
     where: { id: String(formData.get("matchId") ?? "") },
     include: { pairs: true, homeSchool: true, awaySchool: true, tournament: { include: { activity: true } } },
   });
   if (!match) return { ok: false, error: "Match not found." };
+  if (!canScore(admin, match.tournament)) return { ok: false, error: NO_SCORE_ACCESS };
 
   const updates = match.pairs.map((pair) => {
     const raw = String(formData.get(`winner-${pair.id}`) ?? "");

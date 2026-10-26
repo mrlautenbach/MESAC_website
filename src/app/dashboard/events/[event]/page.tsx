@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { isHostEditor, isScopedEventEditor } from "@/lib/hosting";
 import { EventEditForm } from "@/components/EventEditForm";
 import { PhotoUploader } from "@/components/PhotoUploader";
 import { PhotoCaptionEditor } from "@/components/PhotoCaptionEditor";
@@ -39,9 +40,8 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
   ]);
   if (!event) notFound();
 
-  const participantSchoolIds = event.participants.map((p) => p.schoolId);
   const isAdmin = user.role === "ADMIN";
-  const isScopedEditor = user.role === "EDITOR" && !!user.schoolId && participantSchoolIds.includes(user.schoolId);
+  const isScopedEditor = isScopedEventEditor(user, event);
   if (!isAdmin && !isScopedEditor) {
     return (
       <div className="page-wrap py-10 [&>*]:max-w-2xl">
@@ -172,7 +172,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ even
         )}
       </section>
 
-      {isAdmin && event.tournament.activity.usesMeetResults && (
+      {(isAdmin || isHostEditor(user, event.tournament.hostSchoolId)) && event.tournament.activity.usesMeetResults && (
         <section>
           <h2 className="mb-3 text-lg">Meet results</h2>
           <p className="mb-3 text-sm text-muted">
