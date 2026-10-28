@@ -9,10 +9,27 @@ import { NextUpGallery } from "@/components/NextUpGallery";
 import { SEASON_DATE_RANGES } from "@/lib/seasonCalendar";
 import { dailyShuffle } from "@/lib/dailyShuffle";
 import { formatDateRange } from "@/lib/dates";
+import { WebsiteDown } from "@/components/WebsiteDown";
 
 export const dynamic = "force-dynamic";
 
+// Flip to true to replace the home page with the static "website down" notice
+// (no links, same look). Set back to false to restore the live home page.
+const SITE_DOWN = true;
+
 export default async function HomePage() {
+  if (SITE_DOWN) {
+    // The school tiles are decoration; the notice must render even if the
+    // database is the thing that's down.
+    const schools = await prisma.school
+      .findMany({
+        where: { isLeagueMember: true },
+        select: { id: true, name: true, code: true, logoUrl: true, themeColor: true },
+      })
+      .catch(() => []);
+    return <WebsiteDown schools={dailyShuffle(schools)} />;
+  }
+
   const now = new Date();
 
   // One wave, not two - nothing in the second half depended on the first, so
